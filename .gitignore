@@ -1,0 +1,6 @@
+*.sh
+.zig-cache/
+zig-cache/
+zig-out/
+*.cap
+.vscode/

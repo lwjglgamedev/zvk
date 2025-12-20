@@ -1,0 +1,5 @@
+gpu="NVIDIA GeForce RTX 4060 Laptop GPU"
+swapChainImages=3
+ups=40
+validation=true
+vsync=true

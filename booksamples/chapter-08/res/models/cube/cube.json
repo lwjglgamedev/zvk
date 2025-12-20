@@ -1,0 +1,18 @@
+{
+  "id": "cube",
+  "meshes": {
+    "items": [
+      {
+        "id": "mesh-0-0",
+        "materialId": "cube-mat-0",
+        "idxOffset": 0,
+        "idxSize": 144,
+        "vtxOffset": 0,
+        "vtxSize": 720
+      }
+    ],
+    "capacity": 2
+  },
+  "idxFilename": "res/models/cube/cube.idx",
+  "vtxFilename": "res/models/cube/cube.vtx"
+}
