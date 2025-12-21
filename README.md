@@ -1,5 +1,9 @@
 # Vulkan graphics programming in Zig
 
+> [!NOTE]
+> WORK IN PROGRESS. Only source code is available by now.
+
+
 This [online book](bookcontents/) will introduce the main concepts required to write graphics games or any other applications using [Vulkan](https://www.khronos.org/vulkan/) in [Zig](https://ziglang.org).
 
 This book is the result of my self learning language, that I think it may help the community.
