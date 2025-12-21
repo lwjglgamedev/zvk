@@ -15,6 +15,7 @@ pub const VkSwapChain = struct {
     imageViews: []vk.imv.VkImageView,
     surfaceFormat: vulkan.SurfaceFormatKHR,
     swapChainKhr: vulkan.SwapchainKHR,
+    vsync: bool,
 
     pub fn cleanup(self: *const VkSwapChain, allocator: std.mem.Allocator, vkDevice: vk.dev.VkDevice) void {
         for (self.imageViews) |imageView| {
@@ -75,6 +76,7 @@ pub const VkSwapChain = struct {
             .imageViews = imageViews,
             .surfaceFormat = surfaceFormat,
             .swapChainKhr = swapChainKhr,
+            .vsync = vsync,
         };
     }
 

@@ -53,6 +53,7 @@ pub const Render = struct {
     fences: []vk.sync.VkFence,
     materialsCache: eng.mcach.MaterialsCache,
     modelsCache: eng.mcach.ModelsCache,
+    mustResize: bool,
     queueGraphics: vk.queue.VkQueue,
     queuePresent: vk.queue.VkQueue,
     renderScn: eng.rscn.RenderScn,
@@ -143,6 +144,7 @@ pub const Render = struct {
             .fences = fences,
             .materialsCache = materialsCache,
             .modelsCache = modelsCache,
+            .mustResize = false,
             .queueGraphics = queueGraphics,
             .queuePresent = queuePresent,
             .renderScn = renderScn,
@@ -185,8 +187,9 @@ pub const Render = struct {
 
         var res = vk.swap.ImageAcquisitionResult{ .err = true };
         res = try self.vkCtx.vkSwapChain.acquire(self.vkCtx.vkDevice, self.semsPresComplete[self.currentFrame]);
-        if (res == .err) {
+        if (self.mustResize or res == .err) {
             try vkCmdBuff.end(&self.vkCtx);
+            try self.resize(engCtx);
             return;
         }
 
@@ -210,7 +213,7 @@ pub const Render = struct {
 
         try self.submit(&vkCmdBuff, imageIndex);
 
-        _ = self.vkCtx.vkSwapChain.present(self.vkCtx.vkDevice, self.queuePresent, self.semsRenderComplete[imageIndex], imageIndex);
+        self.mustResize = !self.vkCtx.vkSwapChain.present(self.vkCtx.vkDevice, self.queuePresent, self.semsRenderComplete[imageIndex], imageIndex);
 
         self.currentFrame = (self.currentFrame + 1) % com.common.FRAMES_IN_FLIGHT;
     }
@@ -265,6 +268,42 @@ pub const Render = struct {
             .p_image_memory_barriers = &initBarriers,
         };
         self.vkCtx.vkDevice.deviceProxy.cmdPipelineBarrier2(vkCmd.cmdBuffProxy.handle, &initDepInfo);
+    }
+
+    fn resize(self: *Render, engCtx: *eng.engine.EngCtx) !void {
+        const allocator = engCtx.allocator;
+        const size = try engCtx.wnd.getSize();
+        if (size.width == 0 and size.height == 0) {
+            return;
+        }
+        self.mustResize = false;
+        try self.vkCtx.vkDevice.wait();
+        try self.vkCtx.resize(allocator, engCtx.wnd.window);
+
+        for (self.semsRenderComplete) |sem| {
+            sem.cleanup(&self.vkCtx);
+        }
+        defer allocator.free(self.semsRenderComplete);
+
+        for (self.semsPresComplete) |sem| {
+            sem.cleanup(&self.vkCtx);
+        }
+        defer allocator.free(self.semsPresComplete);
+
+        const semsRenderComplete = try allocator.alloc(vk.sync.VkSemaphore, self.vkCtx.vkSwapChain.imageViews.len);
+        for (semsRenderComplete) |*sem| {
+            sem.* = try vk.sync.VkSemaphore.create(&self.vkCtx);
+        }
+
+        const semsPresComplete = try allocator.alloc(vk.sync.VkSemaphore, com.common.FRAMES_IN_FLIGHT);
+        for (semsPresComplete) |*sem| {
+            sem.* = try vk.sync.VkSemaphore.create(&self.vkCtx);
+        }
+
+        self.semsPresComplete = semsPresComplete;
+        self.semsRenderComplete = semsRenderComplete;
+
+        try self.renderScn.resize(&self.vkCtx, engCtx);
     }
 
     fn submit(self: *Render, vkCmdBuff: *const vk.cmd.VkCmdBuff, imageIndex: u32) !void {

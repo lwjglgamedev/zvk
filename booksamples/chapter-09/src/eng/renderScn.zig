@@ -434,6 +434,28 @@ pub const RenderScn = struct {
         }
     }
 
+    pub fn resize(self: *RenderScn, vkCtx: *const vk.ctx.VkCtx, engCtx: *const eng.engine.EngCtx) !void {
+        const allocator = engCtx.allocator;
+
+        allocator.free(self.renderInfos);
+        allocator.free(self.renderAttachmentInfos);
+        allocator.free(self.depthAttachmentInfos);
+        for (self.depthAttachments) |depthAttachment| {
+            depthAttachment.cleanup(vkCtx);
+        }
+        allocator.free(self.depthAttachments);
+
+        const depthAttachments = try createDepthAttachments(allocator, vkCtx);
+        const renderAttachmentInfos = try createRenderingAttachmentInfo(allocator, vkCtx);
+        const depthAttachmentInfos = try createDepthAttachmentInfo(allocator, vkCtx, depthAttachments);
+        const renderInfos = try createRenderInfos(allocator, vkCtx, renderAttachmentInfos, depthAttachmentInfos);
+
+        self.depthAttachments = depthAttachments;
+        self.renderAttachmentInfos = renderAttachmentInfos;
+        self.depthAttachmentInfos = depthAttachmentInfos;
+        self.renderInfos = renderInfos;
+    }
+
     fn setPushConstants(self: *RenderScn, vkCtx: *const vk.ctx.VkCtx, cmdHandle: vulkan.CommandBuffer, entity: *eng.ent.Entity, materialIdx: u32) void {
         const pushConstantsVtx = PushConstantsVtx{
             .modelMatrix = entity.modelMatrix,

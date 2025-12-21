@@ -87,7 +87,7 @@ pub const Wnd = struct {
 
     pub fn getSize(self: *Wnd) !Size {
         const res = try sdl3.video.Window.getSize(self.window);
-        return Size{ .width = res.width, .height = res.height };
+        return Size{ .width = res[0], .height = res[1] };
     }
 
     pub fn isKeyPressed(self: *Wnd, keyCode: sdl3.Scancode) bool {

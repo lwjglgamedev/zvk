@@ -13,7 +13,12 @@ pub const VkCtx = struct {
     pub fn create(allocator: std.mem.Allocator, constants: com.common.Constants, window: sdl3.video.Window) !VkCtx {
         const vkInstance = try vk.inst.VkInstance.create(allocator, constants.validation);
         const vkSurface = try vk.surf.VkSurface.create(window, vkInstance);
-        const vkPhysDevice = try vk.phys.VkPhysDevice.create(allocator, constants, vkInstance.instanceProxy, vkSurface);
+        const vkPhysDevice = try vk.phys.VkPhysDevice.create(
+            allocator,
+            constants,
+            vkInstance.instanceProxy,
+            vkSurface,
+        );
         const vkDevice = try vk.dev.VkDevice.create(allocator, vkInstance, vkPhysDevice);
 
         return .{

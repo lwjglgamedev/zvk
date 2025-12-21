@@ -15,9 +15,23 @@ pub const VkCtx = struct {
     pub fn create(allocator: std.mem.Allocator, constants: com.common.Constants, window: sdl3.video.Window) !VkCtx {
         const vkInstance = try vk.inst.VkInstance.create(allocator, constants.validation);
         const vkSurface = try vk.surf.VkSurface.create(window, vkInstance);
-        const vkPhysDevice = try vk.phys.VkPhysDevice.create(allocator, constants, vkInstance.instanceProxy, vkSurface);
+        const vkPhysDevice = try vk.phys.VkPhysDevice.create(
+            allocator,
+            constants,
+            vkInstance.instanceProxy,
+            vkSurface,
+        );
         const vkDevice = try vk.dev.VkDevice.create(allocator, vkInstance, vkPhysDevice);
-        const vkSwapChain = try vk.swap.VkSwapChain.create(allocator, window, vkInstance, vkPhysDevice, vkDevice, vkSurface, constants.swapChainImages, constants.vsync);
+        const vkSwapChain = try vk.swap.VkSwapChain.create(
+            allocator,
+            window,
+            vkInstance,
+            vkPhysDevice,
+            vkDevice,
+            vkSurface,
+            constants.swapChainImages,
+            constants.vsync,
+        );
 
         return .{
             .constants = constants,
@@ -45,5 +59,25 @@ pub const VkCtx = struct {
         }
 
         return error.NoSuitableMemoryType;
+    }
+
+    pub fn resize(self: *VkCtx, allocator: std.mem.Allocator, window: sdl3.video.Window) !void {
+        const numImages = @as(u8, @intCast(self.vkSwapChain.imageViews.len));
+        const vsync = self.vkSwapChain.vsync;
+        self.vkSwapChain.cleanup(allocator, self.vkDevice);
+        self.vkSurface.cleanup(self.vkInstance);
+        const vkSurface = try vk.surf.VkSurface.create(window, self.vkInstance);
+        const vkSwapChain = try vk.swap.VkSwapChain.create(
+            allocator,
+            window,
+            self.vkInstance,
+            self.vkPhysDevice,
+            self.vkDevice,
+            vkSurface,
+            numImages,
+            vsync,
+        );
+        self.vkSurface = vkSurface;
+        self.vkSwapChain = vkSwapChain;
     }
 };
