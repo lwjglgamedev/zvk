@@ -21,7 +21,7 @@ pub const Constants = struct {
         defer result.deinit();
 
         const tmp = result.value;
-        
+
         const constants = Constants{
             .fov = tmp.fov * std.math.pi / 180.0,
             .gpu = try allocator.dupe(u8, tmp.gpu),

@@ -18,7 +18,7 @@ pub const Constants = struct {
         defer result.deinit();
 
         const tmp = result.value;
-        
+
         const constants = Constants{
             .gpu = try allocator.dupe(u8, tmp.gpu),
             .swapChainImages = tmp.swapChainImages,

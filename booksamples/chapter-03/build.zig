@@ -27,8 +27,22 @@ pub fn build(b: *std.Build) void {
     const vk_sdk = std.process.getEnvVarOwned(b.allocator, "VULKAN_SDK") catch {
         std.debug.panic("Environment variable VULKAN_SDK is not set", .{});
     };
-    const vk_xml_abs = std.fs.path.join(b.allocator, &.{ vk_sdk, "share", "vulkan", "registry", "vk.xml" }) catch {
-        std.debug.panic("Failed to construct vk.xml path", .{});
+    const primary = std.fs.path.join(b.allocator, &.{ vk_sdk, "share", "vulkan", "registry", "vk.xml" }) catch {
+        std.debug.panic("Error constructing vk.xml path", .{});
+    };
+    const fallback = std.fs.path.join(b.allocator, &.{ vk_sdk, "x86_64", "share", "vulkan", "registry", "vk.xml" }) catch {
+        std.debug.panic("Error constructing vk.xml path", .{});
+    };
+    const vk_xml_abs = blk: {
+        if (std.fs.cwd().access(primary, .{})) |_| {
+            break :blk primary;
+        } else |_| {}
+
+        if (std.fs.cwd().access(fallback, .{})) |_| {
+            break :blk fallback;
+        } else |_| {}
+
+        std.debug.panic("vk.xml not found in Vulkan SDK", .{});
     };
     const vk_xml: std.Build.LazyPath = .{ .cwd_relative = vk_xml_abs };
     const vulkan_dep = b.dependency("vulkan", .{
