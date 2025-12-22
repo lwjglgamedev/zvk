@@ -354,3 +354,144 @@ pub const Render = struct {
 };
 ```
 
+## Window
+
+Now it's the turn for our `Wnd` structure which mainly deals with window creation and input management.
+Alongside that, this class is the first one which shows the first tiny bits of Vulkan.
+Let's start by examining its main attributes and `create` function used to instantiate it.
+
+
+```zig
+const std = @import("std");
+const sdl3 = @import("sdl3");
+
+const log = std.log.scoped(.wnd);
+
+pub const MouseState = struct {
+    flags: sdl3.mouse.ButtonFlags,
+    x: f32 = 0.0,
+    y: f32 = 0.0,
+    deltaX: f32 = 0.0,
+    deltaY: f32 = 0.0,
+};
+
+const Size = struct {
+    width: usize,
+    height: usize,
+};
+
+pub const Wnd = struct {
+    window: sdl3.video.Window,
+    closed: bool,
+    mouseState: MouseState,
+    resized: bool,
+
+    pub fn create(wndTitle: [:0]const u8) !Wnd {
+        log.debug("Creating window", .{});
+
+        const initFlags = sdl3.InitFlags{ .video = true };
+        try sdl3.init(initFlags);
+        if (!sdl3.c.SDL_SetHint("SDL_VIDEO_PREFER_WAYLAND", "1")) {
+            // Handle error
+        }
+
+        sdl3.vulkan.loadLibrary(null) catch |err| {
+            std.log.err("Failed to load Vulkan library: {s}", .{@errorName(err)});
+            return error.VulkanNotSupported;
+        };
+
+        const bounds = try sdl3.video.Display.getUsableBounds(try sdl3.video.Display.getPrimaryDisplay());
+
+        const window = try sdl3.video.Window.init(
+            wndTitle,
+            @as(u32, @intCast(bounds.w)),
+            @as(u32, @intCast(bounds.h)),
+            .{
+                .resizable = true,
+                .vulkan = true,
+            },
+        );
+
+        log.debug("Created window", .{});
+
+        return .{
+            .window = window,
+            .closed = false,
+            .mouseState = .{ .flags = .{
+                .left = false,
+                .right = false,
+                .middle = false,
+                .side1 = false,
+                .side2 = false,
+            } },
+            .resized = false,
+        };
+    }
+    ...
+};
+```
+
+The code it's self-explanatory, we basically initialize SDL, and when in Linux set `SDL_VIDEO_PREFER_WAYLAND` to prioritize Wayland backend. After
+that we get the usable bounds for the new window on the primary monitor. We set the window to be resizable and a flag stating that it will be used for Vulkan.
+The `MouseState` struct will be used later on to dump mouse state (state of the buttons, position of the mouse and the displacement from previous position
+modelled by `deltaX` and `deltaY` attributes).
+
+The rest of the functions are defined like this:
+
+```zig
+pub const Wnd = struct {
+    ...
+    pub fn cleanup(self: *Wnd) !void {
+        log.debug("Destroying window", .{});
+        self.window.deinit();
+        sdl3.shutdown();
+    }
+
+    pub fn getSize(self: *Wnd) !Size {
+        const res = try sdl3.video.Window.getSizeInPixels(self.window);
+        return Size{ .width = res[0], .height = res[1] };
+    }
+
+    pub fn isKeyPressed(self: *Wnd, keyCode: sdl3.Scancode) bool {
+        _ = self;
+        const keyState = sdl3.keyboard.getState();
+        return keyState[@intFromEnum(keyCode)];
+    }
+
+    pub fn pollEvents(self: *Wnd) !void {
+        self.resized = false;
+        self.mouseState.deltaX = 0.0;
+        self.mouseState.deltaY = 0.0;
+
+        while (sdl3.events.poll()) |event| {
+            switch (event) {
+                .quit, .terminating => self.closed = true,
+                .mouse_motion => {
+                    self.mouseState.deltaX += event.mouse_motion.x_rel;
+                    self.mouseState.deltaY += event.mouse_motion.y_rel;
+                },
+                .window_resized => {
+                    self.resized = true;
+                },
+                else => {},
+            }
+        }
+        const mouseState = sdl3.mouse.getState();
+
+        self.mouseState.flags = mouseState[0];
+        self.mouseState.x = mouseState[1];
+        self.mouseState.y = mouseState[2];
+    }
+};
+```
+The `cleanup` function shall be called to free allocated resources. The `getSize` function will return current size in pixels and 
+`isKeyPressed` returns `true` if the key code passed as a parameter is currently pressed. The `pollEvents` will be called before input
+processing and basically checks if the window should be closed, if the mouse has moved (to compute relative displacement) and if the
+window has been resized. It also retrieves mouse state.
+
+
+If you run the sample, you will get a nice black window that you can resize, move and close.
+With that, this chapter comes to its end.
+In the next chapter, we will start viewing the first basic Vulkan concepts.
+
+[Next chapter](../chapter-02/chapter-02.md)
