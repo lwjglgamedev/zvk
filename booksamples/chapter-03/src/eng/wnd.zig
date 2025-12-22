@@ -7,11 +7,8 @@ pub const MouseState = struct {
     flags: sdl3.mouse.ButtonFlags,
     x: f32 = 0.0,
     y: f32 = 0.0,
-    prevX: f32 = 0.0,
-    prevY: f32 = 0.0,
     deltaX: f32 = 0.0,
     deltaY: f32 = 0.0,
-    scroll: f32 = 0.0,
 };
 
 const Size = struct {
@@ -20,11 +17,10 @@ const Size = struct {
 };
 
 pub const Wnd = struct {
-    initFlags: sdl3.InitFlags,
     window: sdl3.video.Window,
     closed: bool,
     mouseState: MouseState,
-    keyState: ?[]const bool,
+    resized: bool,
 
     pub fn create(wndTitle: [:0]const u8) !Wnd {
         log.debug("Creating window", .{});
@@ -65,7 +61,6 @@ pub const Wnd = struct {
         }
 
         return .{
-            .initFlags = initFlags,
             .window = window,
             .closed = false,
             .mouseState = .{ .flags = .{
@@ -75,59 +70,49 @@ pub const Wnd = struct {
                 .side1 = false,
                 .side2 = false,
             } },
-            .keyState = null,
+            .resized = false,
         };
     }
 
     pub fn cleanup(self: *Wnd) !void {
         log.debug("Destroying window", .{});
         self.window.deinit();
-        sdl3.quit(self.initFlags);
+        sdl3.shutdown();
     }
 
     pub fn getSize(self: *Wnd) !Size {
-        const res = try sdl3.video.Window.getSize(self.window);
+        const res = try sdl3.video.Window.getSizeInPixels(self.window);
         return Size{ .width = res[0], .height = res[1] };
     }
 
     pub fn isKeyPressed(self: *Wnd, keyCode: sdl3.Scancode) bool {
-        var result = false;
-        if (self.keyState) |state| {
-            result = state[@intFromEnum(keyCode)];
-        }
-
-        return result;
+        _ = self;
+        const keyState = sdl3.keyboard.getState();
+        return keyState[@intFromEnum(keyCode)];
     }
 
     pub fn pollEvents(self: *Wnd) !void {
+        self.resized = false;
+        self.mouseState.deltaX = 0.0;
+        self.mouseState.deltaY = 0.0;
+
         while (sdl3.events.poll()) |event| {
             switch (event) {
                 .quit, .terminating => self.closed = true,
-                .mouse_wheel => {
-                    if (event.mouse_wheel.scroll_y != 0.0) {
-                        self.mouseState.scroll = event.mouse_wheel.scroll_y;
-                    }
+                .mouse_motion => {
+                    self.mouseState.deltaX += event.mouse_motion.x_rel;
+                    self.mouseState.deltaY += event.mouse_motion.y_rel;
+                },
+                .window_resized => {
+                    self.resized = true;
                 },
                 else => {},
             }
         }
-
-        const keyState = sdl3.keyboard.getState();
-        self.keyState = keyState;
-
         const mouseState = sdl3.mouse.getState();
-
-        self.mouseState.deltaX = 0.0;
-        self.mouseState.deltaY = 0.0;
-
-        self.mouseState.prevX = self.mouseState.x;
-        self.mouseState.prevY = self.mouseState.y;
 
         self.mouseState.flags = mouseState[0];
         self.mouseState.x = mouseState[1];
         self.mouseState.y = mouseState[2];
-
-        self.mouseState.deltaX = self.mouseState.x - self.mouseState.prevX;
-        self.mouseState.deltaY = self.mouseState.y - self.mouseState.prevY;
     }
 };

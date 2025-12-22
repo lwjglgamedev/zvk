@@ -187,7 +187,7 @@ pub const Render = struct {
 
         var res = vk.swap.ImageAcquisitionResult{ .err = true };
         res = try self.vkCtx.vkSwapChain.acquire(self.vkCtx.vkDevice, self.semsPresComplete[self.currentFrame]);
-        if (self.mustResize or res == .err) {
+        if (engCtx.wnd.resized or self.mustResize or res == .err) {
             try vkCmdBuff.end(&self.vkCtx);
             try self.resize(engCtx);
             return;
@@ -283,12 +283,12 @@ pub const Render = struct {
         for (self.semsRenderComplete) |sem| {
             sem.cleanup(&self.vkCtx);
         }
-        defer allocator.free(self.semsRenderComplete);
+        allocator.free(self.semsRenderComplete);
 
         for (self.semsPresComplete) |sem| {
             sem.cleanup(&self.vkCtx);
         }
-        defer allocator.free(self.semsPresComplete);
+        allocator.free(self.semsPresComplete);
 
         const semsRenderComplete = try allocator.alloc(vk.sync.VkSemaphore, self.vkCtx.vkSwapChain.imageViews.len);
         for (semsRenderComplete) |*sem| {
