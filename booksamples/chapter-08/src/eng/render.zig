@@ -301,6 +301,16 @@ pub const Render = struct {
         self.semsPresComplete = semsPresComplete;
         self.semsRenderComplete = semsRenderComplete;
 
+        const constants = engCtx.constants;
+        const extent = self.vkCtx.vkSwapChain.extent;
+        engCtx.scene.camera.projData.update(
+            constants.fov,
+            constants.zNear,
+            constants.zFar,
+            @as(f32, @floatFromInt(extent.width)),
+            @as(f32, @floatFromInt(extent.height)),
+        );
+
         try self.renderScn.resize(&self.vkCtx, engCtx);
     }
 
