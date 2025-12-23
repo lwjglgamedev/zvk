@@ -4,7 +4,7 @@ const com = @import("com");
 const vk = @import("mod.zig");
 
 const log = std.log.scoped(.vk);
-const required_device_extensions = [_][*:0]const u8{vulkan.extensions.khr_swapchain.name};
+const reqExtensions = [_][*:0]const u8{vulkan.extensions.khr_swapchain.name};
 
 const QueuesInfo = struct {
     graphics_family: u32,
@@ -21,7 +21,7 @@ pub const VkPhysDevice = struct {
         const pdevs = try instance.enumeratePhysicalDevicesAlloc(allocator);
         defer allocator.free(pdevs);
 
-        var list = try std.ArrayList(VkPhysDevice).initCapacity(allocator, 0);
+        var list = try std.ArrayList(VkPhysDevice).initCapacity(allocator, 1);
         defer list.deinit(allocator);
 
         for (pdevs) |pdev| {
@@ -39,7 +39,7 @@ pub const VkPhysDevice = struct {
                     .queuesInfo = queuesInfo,
                     .memProps = memProps,
                 };
-                const name_slice = std.mem.span(@as([*:0]const u8, @ptrCast(&vkPhysDevice.props.device_name)));
+                const name_slice = std.mem.sliceTo(&vkPhysDevice.props.device_name, 0);
                 if (std.mem.eql(u8, constants.gpu, name_slice)) {
                     try list.insert(allocator, 0, vkPhysDevice);
                     break;
@@ -50,6 +50,9 @@ pub const VkPhysDevice = struct {
                     try list.append(allocator, vkPhysDevice);
                 }
             }
+        }
+        if (list.items.len == 0) {
+            return error.NoSuitablePhysicalDevice;
         }
         const result = list.items[0];
 
@@ -69,16 +72,18 @@ pub const VkPhysDevice = struct {
         var graphics_family: ?u32 = null;
         var present_family: ?u32 = null;
 
-        const surfaceKhr: vulkan.SurfaceKHR = @enumFromInt(@intFromPtr(vkSurface.surface.surface));
+        const surfaceKhr = vkSurface.surface;
 
         for (families, 0..) |properties, i| {
             const family: u32 = @intCast(i);
 
-            if (graphics_family == null and properties.queue_flags.graphics_bit) {
+            if (graphics_family == null and properties.queue_count > 0 and properties.queue_flags.graphics_bit) {
                 graphics_family = family;
             }
 
-            if (present_family == null and (try instance.getPhysicalDeviceSurfaceSupportKHR(pdev, family, surfaceKhr)) == vulkan.Bool32.true) {
+            if (present_family == null and properties.queue_count > 0 and
+                (try instance.getPhysicalDeviceSurfaceSupportKHR(pdev, family, surfaceKhr)) == vulkan.Bool32.true)
+            {
                 present_family = family;
             }
         }
@@ -101,7 +106,7 @@ pub const VkPhysDevice = struct {
         const propsv = try instance.enumerateDeviceExtensionPropertiesAlloc(pdev, null, allocator);
         defer allocator.free(propsv);
 
-        for (required_device_extensions) |ext| {
+        for (reqExtensions) |ext| {
             for (propsv) |props| {
                 if (std.mem.eql(u8, std.mem.span(ext), std.mem.sliceTo(&props.extension_name, 0))) {
                     break;

@@ -3,13 +3,13 @@ const vulkan = @import("vulkan");
 const vk = @import("mod.zig");
 
 const log = std.log.scoped(.vk);
-const required_device_extensions = [_][*:0]const u8{vulkan.extensions.khr_swapchain.name};
+const reqExtensions = [_][*:0]const u8{vulkan.extensions.khr_swapchain.name};
 
 pub const VkDevice = struct {
     deviceProxy: vulkan.DeviceProxy,
 
     pub fn create(allocator: std.mem.Allocator, vkInstance: vk.inst.VkInstance, vkPhysDevice: vk.phys.VkPhysDevice) !VkDevice {
-        const priority = [_]f32{1};
+        const priority = [_]f32{0};
         const qci = [_]vulkan.DeviceQueueCreateInfo{
             .{
                 .queue_family_index = vkPhysDevice.queuesInfo.graphics_family,
@@ -23,7 +23,7 @@ pub const VkDevice = struct {
             },
         };
 
-        const queue_count: u32 = if (vkPhysDevice.queuesInfo.graphics_family == vkPhysDevice.queuesInfo.present_family)
+        const queueCount: u32 = if (vkPhysDevice.queuesInfo.graphics_family == vkPhysDevice.queuesInfo.present_family)
             1
         else
             2;
@@ -37,11 +37,11 @@ pub const VkDevice = struct {
         };
 
         const devCreateInfo: vulkan.DeviceCreateInfo = .{
-            .queue_create_info_count = queue_count,
+            .queue_create_info_count = queueCount,
             .p_next = @ptrCast(&features2),
             .p_queue_create_infos = &qci,
-            .enabled_extension_count = required_device_extensions.len,
-            .pp_enabled_extension_names = @ptrCast(&required_device_extensions),
+            .enabled_extension_count = reqExtensions.len,
+            .pp_enabled_extension_names = reqExtensions[0..].ptr,
         };
         const device = try vkInstance.instanceProxy.createDevice(vkPhysDevice.pdev, &devCreateInfo, null);
 

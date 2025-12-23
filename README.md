@@ -22,15 +22,11 @@ This book is the result of my self learning language, that I think it may help t
 
 ## Book Code
 
-The book itself is also hosted in [GitHub](https://github.com/lwjglgamedev/zvk/tree/test/bookcontents).
+The book itself is also hosted in [GitHub](https://github.com/lwjglgamedev/zvk/bookcontents).
 
 ## Source Code
 
-The source code of the samples of this book is in [GitHub](https://github.com/lwjglgamedev/zvk/tree/test/booksamples).
-
-## EPUB version
-
-An EPUB verion is automatically gerenated in [GitHub](https://github.com/lwjglgamedev/zvk/tree/master/test/vulkanbook.epub).
+The source code of the samples of this book is in [GitHub](https://github.com/lwjglgamedev/zvk/booksamples).
 
 ## Support
 
@@ -45,9 +41,3 @@ If you find something confusing, or you would like something clarified in the bo
 ## Author
 
 Antonio Hernández Bejarano.
-
-## Special Thanks
-
-To all the readers that have contributed with corrections, improvements and ideas. Specifically to (sorry if I forget someone, please feel free to remind that to me):
-
-- TBD

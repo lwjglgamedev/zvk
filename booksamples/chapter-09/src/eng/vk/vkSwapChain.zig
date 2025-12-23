@@ -36,7 +36,7 @@ pub const VkSwapChain = struct {
         vsync: bool,
     ) !VkSwapChain {
         const presentMode = if (vsync) vulkan.PresentModeKHR.fifo_khr else vulkan.PresentModeKHR.immediate_khr;
-        const surfaceKhr: vulkan.SurfaceKHR = @enumFromInt(@intFromPtr(vkSurface.surface.surface));
+        const surfaceKhr: vulkan.SurfaceKHR = vkSurface.surface;
         const surfaceFormat = try vkSurface.getSurfaceFormat(allocator, vkInstance, vkPhysDevice);
         const caps = try vkSurface.getSurfaceCaps(vkInstance, vkPhysDevice);
         const extent = try calcSurfaceExtent(window, caps);
