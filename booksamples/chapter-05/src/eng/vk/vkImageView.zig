@@ -28,6 +28,7 @@ pub const VkImageView = struct {
                 .base_array_layer = imageViewData.baseArrayLayer,
                 .layer_count = imageViewData.layerCount,
             },
+            .p_next = null,
         };
         const imageView = try vkDevice.deviceProxy.createImageView(&createInfo, null);
 
@@ -37,7 +38,8 @@ pub const VkImageView = struct {
         };
     }
 
-    pub fn cleanup(self: VkImageView, vkDevice: vk.dev.VkDevice) void {
+    pub fn cleanup(self: *VkImageView, vkDevice: vk.dev.VkDevice) void {
         vkDevice.deviceProxy.destroyImageView(self.view, null);
+        self.view = .null_handle;
     }
 };

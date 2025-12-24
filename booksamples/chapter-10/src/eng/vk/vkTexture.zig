@@ -97,7 +97,7 @@ pub const VkTexture = struct {
         };
     }
 
-    pub fn cleanup(self: *const VkTexture, vkCtx: *const vk.ctx.VkCtx) void {
+    pub fn cleanup(self: *VkTexture, vkCtx: *const vk.ctx.VkCtx) void {
         if (self.vkStageBuffer) |sb| {
             sb.cleanup(vkCtx);
         }

@@ -37,7 +37,7 @@ pub const Attachment = struct {
         };
     }
 
-    pub fn cleanup(self: *const Attachment, vkCtx: *const vk.ctx.VkCtx) void {
+    pub fn cleanup(self: *Attachment, vkCtx: *const vk.ctx.VkCtx) void {
         self.vkImageView.cleanup(vkCtx.vkDevice);
         self.vkImage.cleanup(vkCtx);
     }

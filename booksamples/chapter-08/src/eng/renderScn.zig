@@ -61,7 +61,7 @@ pub const RenderScn = struct {
         allocator.free(self.renderInfos);
         allocator.free(self.renderAttachmentInfos);
         allocator.free(self.depthAttachmentInfos);
-        for (self.depthAttachments) |depthAttachment| {
+        for (self.depthAttachments) |*depthAttachment| {
             depthAttachment.cleanup(vkCtx);
         }
         allocator.free(self.depthAttachments);
@@ -402,7 +402,7 @@ pub const RenderScn = struct {
         allocator.free(self.renderInfos);
         allocator.free(self.renderAttachmentInfos);
         allocator.free(self.depthAttachmentInfos);
-        for (self.depthAttachments) |depthAttachment| {
+        for (self.depthAttachments) |*depthAttachment| {
             depthAttachment.cleanup(vkCtx);
         }
         allocator.free(self.depthAttachments);

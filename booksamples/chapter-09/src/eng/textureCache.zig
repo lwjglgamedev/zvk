@@ -65,7 +65,7 @@ pub const TextureCache = struct {
         var iter = self.textureMap.iterator();
         while (iter.next()) |entry| {
             allocator.free(entry.key_ptr.*);
-            const texture = entry.value_ptr.*;
+            const texture = entry.value_ptr;
             texture.cleanup(vkCtx);
         }
         self.textureMap.deinit();

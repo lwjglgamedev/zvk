@@ -18,7 +18,7 @@ pub const VkSwapChain = struct {
     vsync: bool,
 
     pub fn cleanup(self: *const VkSwapChain, allocator: std.mem.Allocator, device: vk.dev.VkDevice) void {
-        for (self.imageViews) |iv| {
+        for (self.imageViews) |*iv| {
             iv.cleanup(device);
         }
         allocator.free(self.imageViews);
@@ -73,21 +73,21 @@ pub const VkSwapChain = struct {
 
         const handle = try device.deviceProxy.createSwapchainKHR(&swapchain_info, null);
 
-        const image_views = try createImageViews(
+        const imageViews = try createImageViews(
             allocator,
             device,
             handle,
             surfaceFormat.format,
         );
 
-        log.info(
+        log.debug(
             "VkSwapChain created: {d} images, extent {d}x{d}, present mode {any}",
-            .{ image_views.len, extent.width, extent.height, presentMode },
+            .{ imageViews.len, extent.width, extent.height, presentMode },
         );
 
         return .{
             .extent = extent,
-            .imageViews = image_views,
+            .imageViews = imageViews,
             .surfaceFormat = surfaceFormat,
             .handle = handle,
             .vsync = vsync,
