@@ -109,14 +109,17 @@ pub const Render = struct {
         const vkCmdBuff = self.cmdBuffs[self.currentFrame];
         try vkCmdBuff.begin(&self.vkCtx);
 
-        var res = vk.swap.ImageAcquisitionResult{ .err = true };
-        res = try self.vkCtx.vkSwapChain.acquire(self.vkCtx.vkDevice, self.semsPresComplete[self.currentFrame]);
-        if (res == .err) {
-            try vkCmdBuff.end(&self.vkCtx);
-            return;
+        const acquire = try self.vkCtx.vkSwapChain.acquire(self.vkCtx.vkDevice, self.semsPresComplete[self.currentFrame]);
+        var imageIndex: u32 = 0;
+        switch (acquire) {
+            .ok => |image_index| {
+                imageIndex = image_index;
+            },
+            .recreate => {
+                try vkCmdBuff.end(&self.vkCtx);
+                return;
+            },
         }
-
-        const imageIndex = res.imageIndex;
 
         self.renderInit(vkCmdBuff, imageIndex);
 
