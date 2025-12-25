@@ -15,7 +15,7 @@ pub const VkQueue = struct {
     pub fn submit(self: *const VkQueue, vkCtx: *const vk.ctx.VkCtx, cmdBufferSubmitInfo: []const vulkan.CommandBufferSubmitInfo, semSignalInfo: []const vulkan.SemaphoreSubmitInfo, semWaitInfo: []const vulkan.SemaphoreSubmitInfo, vkFence: vk.sync.VkFence) !void {
         try vkFence.reset(vkCtx);
         const si = vulkan.SubmitInfo2{
-            .command_buffer_info_count = 1,
+            .command_buffer_info_count = @as(u32, @intCast(cmdBufferSubmitInfo.len)),
             .p_command_buffer_infos = cmdBufferSubmitInfo.ptr,
             .signal_semaphore_info_count = @as(u32, @intCast(semSignalInfo.len)),
             .p_signal_semaphore_infos = semSignalInfo.ptr,

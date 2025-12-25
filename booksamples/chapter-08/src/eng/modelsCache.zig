@@ -83,7 +83,7 @@ pub const MaterialsCache = struct {
     ) !void {
         const nuMaterials = initData.materials.items.len;
         log.debug("Loading {d} material(s)", .{nuMaterials});
-        const cmdBuff = try vk.cmd.VkCmdBuff.create(allocator, vkCtx, cmdPool, true);
+        const cmdBuff = try vk.cmd.VkCmdBuff.create(vkCtx, cmdPool, true);
         const cmdHandle = cmdBuff.cmdBuffProxy.handle;
 
         const buffSize = nuMaterials * @sizeOf(MaterialBuffRecord);
@@ -169,7 +169,7 @@ pub const ModelsCache = struct {
     ) !void {
         log.debug("Loading {d} model(s)", .{initData.models.len});
 
-        const cmdBuff = try vk.cmd.VkCmdBuff.create(allocator, vkCtx, cmdPool, true);
+        const cmdBuff = try vk.cmd.VkCmdBuff.create(vkCtx, cmdPool, true);
         const cmdHandle = cmdBuff.cmdBuffProxy.handle;
 
         var srcBuffers = try std.ArrayList(vk.buf.VkBuffer).initCapacity(allocator, 1);

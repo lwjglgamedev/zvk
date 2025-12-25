@@ -117,7 +117,7 @@ pub const Render = struct {
 
         const cmdBuffs = try allocator.alloc(vk.cmd.VkCmdBuff, com.common.FRAMES_IN_FLIGHT);
         for (cmdBuffs, 0..) |*cmdBuff, i| {
-            cmdBuff.* = try vk.cmd.VkCmdBuff.create(allocator, &vkCtx, &cmdPools[i], true);
+            cmdBuff.* = try vk.cmd.VkCmdBuff.create(&vkCtx, &cmdPools[i], true);
         }
 
         const queueGraphics = vk.queue.VkQueue.create(&vkCtx, vkCtx.vkPhysDevice.queuesInfo.graphics_family);

@@ -58,7 +58,7 @@ pub const ModelsCache = struct {
     ) !void {
         log.debug("Loading {d} model(s)", .{initData.models.len});
 
-        const cmdBuff = try vk.cmd.VkCmdBuff.create(allocator, vkCtx, cmdPool, true);
+        const cmdBuff = try vk.cmd.VkCmdBuff.create(vkCtx, cmdPool, true);
 
         var srcBuffers = try std.ArrayList(vk.buf.VkBuffer).initCapacity(allocator, 1);
         try cmdBuff.begin(vkCtx);

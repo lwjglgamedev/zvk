@@ -97,7 +97,7 @@ pub const TextureCache = struct {
                 allocator.free(textureInfo.id);
             }
         }
-        const cmd = try vk.cmd.VkCmdBuff.create(allocator, vkCtx, vkCmdPool, true);
+        const cmd = try vk.cmd.VkCmdBuff.create(vkCtx, vkCmdPool, true);
         defer cmd.cleanup(vkCtx, vkCmdPool);
 
         try cmd.begin(vkCtx);

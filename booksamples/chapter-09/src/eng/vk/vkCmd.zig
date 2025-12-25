@@ -24,17 +24,16 @@ pub const VkCmdBuff = struct {
     cmdBuffProxy: vulkan.CommandBufferProxy,
     oneTime: bool,
 
-    pub fn create(allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx, vkCmdPool: *vk.cmd.VkCmdPool, oneTime: bool) !VkCmdBuff {
+    pub fn create(vkCtx: *const vk.ctx.VkCtx, vkCmdPool: *vk.cmd.VkCmdPool, oneTime: bool) !VkCmdBuff {
         const allocateInfo: vulkan.CommandBufferAllocateInfo = .{
             .command_buffer_count = 1,
             .command_pool = vkCmdPool.commandPool,
             .level = vulkan.CommandBufferLevel.primary,
         };
-        const cmdBuffs = try allocator.alloc(vulkan.CommandBuffer, 1);
-        defer allocator.free(cmdBuffs);
+        var cmds: [1]vulkan.CommandBuffer = undefined;
+        try vkCtx.vkDevice.deviceProxy.allocateCommandBuffers(&allocateInfo, &cmds);
+        const cmdBuffProxy = vulkan.CommandBufferProxy.init(cmds[0], vkCtx.vkDevice.deviceProxy.wrapper);
 
-        try vkCtx.vkDevice.deviceProxy.allocateCommandBuffers(&allocateInfo, cmdBuffs.ptr);
-        const cmdBuffProxy = vulkan.CommandBufferProxy.init(cmdBuffs[0], vkCtx.vkDevice.deviceProxy.wrapper);
         return .{ .cmdBuffProxy = cmdBuffProxy, .oneTime = oneTime };
     }
 
