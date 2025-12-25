@@ -619,10 +619,219 @@ you get som implicit image transitions (which basically prepared images from und
 define layout transitions and synchronization, which requires a little bit m ore of code, but is not so dramatic. In addition, I personally find more clear
 the dynamic render approach, where everything is explicit and you do not have to guess what automatic transition or locking is applied.
 
-We will explain how to use dynamic rendering while we define the `ScnRender` struct. Let's start by reviewing the constructor:
+We will explain how to use dynamic rendering while we define the `RenderScn` struct
 
+```zig
+const std = @import("std");
+const vk = @import("vk");
+const vulkan = @import("vulkan");
+
+pub const RenderScn = struct {
+    pub fn cleanup(self: *RenderScn, allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx) void {
+        _ = self;
+        _ = allocator;
+        _ = vkCtx;
+    }
+
+    pub fn create(allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx) !RenderScn {
+        _ = allocator;
+        _ = vkCtx;
+
+        return .{};
+    }
+
+    pub fn render(self: *RenderScn, vkCtx: *const vk.ctx.VkCtx, vkCmd: vk.cmd.VkCmdBuff, imageIndex: u32) !void {
+        _ = self;
+
+        const cmdHandle = vkCmd.cmdBuffProxy.handle;
+        const device = vkCtx.vkDevice.deviceProxy;
+
+        const renderAttInfo = vulkan.RenderingAttachmentInfo{
+            .image_view = vkCtx.vkSwapChain.imageViews[imageIndex].view,
+            .image_layout = vulkan.ImageLayout.attachment_optimal_khr,
+            .load_op = vulkan.AttachmentLoadOp.clear,
+            .store_op = vulkan.AttachmentStoreOp.store,
+            .clear_value = vulkan.ClearValue{ .color = .{ .float_32 = .{ 0.5, 0.7, 0.9, 1.0 } } },
+            .resolve_mode = vulkan.ResolveModeFlags{},
+            .resolve_image_layout = vulkan.ImageLayout.attachment_optimal_khr,
+        };
+
+        const extent = vkCtx.vkSwapChain.extent;
+        const renderInfo = vulkan.RenderingInfo{
+            .render_area = .{ .extent = extent, .offset = .{ .x = 0, .y = 0 } },
+            .layer_count = 1,
+            .color_attachment_count = 1,
+            .p_color_attachments = @ptrCast(&renderAttInfo),
+            .view_mask = 0,
+        };
+
+        device.cmdBeginRendering(cmdHandle, @ptrCast(&renderInfo));
+        device.cmdEndRendering(cmdHandle);
+    }
+};
+```
+
+The `create` function will be used to instantiate the `RenderScn` struct. You will see that there are many unused parameters. Do not worry about them,
+we will use them in next chapters. The `cleanup` function is also empty by now. The interesting part is in the `render` function.
+
+In this function you may see that we create an instance of the `RenderingAttachmentInfo` struct which is defined by the following attributes:
+
+- `image_view`: This is the image view that will be used for rendering. In our case a swap chain image (the one that we have acquired).
+- `image_layout`: The layout that the image will be when rendering. Vulkan image layouts define how the GPU interprets the memory of an image at any given time. Is
+like the "mode" into which an image is in in order to read/write data to/from it.
+- `load_op`: Specifies what will happen to the contents of this attachment when the render starts. In our case we want to clear the contents so we use the
+`vulkan.AttachmentLoadOp.clear` value (equivalent to `VK_ATTACHMENT_LOAD_OP_CLEAR` value). Other possible values are `vulkan.AttachmentLoadOp.load`
+(equivalent to `VK_ATTACHMENT_LOAD_OP_LOAD`) to preserve the contents of the attachment (from a previous pass) or `vulkan.AttachmentLoadOp.dont_care`
+(equivalent to`VK_ATTACHMENT_LOAD_OP_DONT_CARE`) if we just simply don't care (for example, we may be sure that we are going to fill up again the attachment
+contents and we do not want to waste time in clearing it).
+- `store_op`: Which specify what we will do the contents of the attachment once we have finished rendering. In this case we use
+`vulkan.AttachmentStoreOp.store` (equivalent to`VK_ATTACHMENT_STORE_OP_STORE`) which states that the contents of the attachment will be stored in memory.
+We want to preserve the contents to be presented on the screen. Another option is to use the `vulkan.AttachmentStoreOp.dont_care` (equivalent to
+`VK_ATTACHMENT_STORE_OP_DONT_CARE`) value if we just simply don`t care.
+- `clear_value`: The color that will be used to clear the render area.
+- `resolve_mode` and `resolve_image_layout`: These attributes can be used when applying MSAA, we can ignore them by now.
+
+Render information is defined by the `RenderingInfo` structure which is defined by the following attributes:
+- receives the attachments array created in the `createAttachments` and will also require to create specific render information per swap chain image in the form of
+`VkRenderingInfo` instances, which is defined by the following attributes:
+
+- `render_area`: Is the area of the attachments that we will be using to render.
+- `layer_count`: The number of layers rendered in each attachment.
+- `color_attachment_count`: The number of color attachments to be used (from the list passed in the `)p_color_attachments`).
+- `p_color_attachments`: The list of color attachments (we may have other types of attachments for example to render depth). In our case it will be the attachments created previously.
+- `view_mask`: It is bitmask which controls which views are active while rendering. We will not be using this so we will set ti to `0`. 
+
+Now it is turn to go back to the `Render` struct to revisit pending functions to be described. Let's start with `renderInit`:
+
+```zig
+pub const Render = struct {
+    ...
+    fn renderInit(self: *Render, vkCmd: vk.cmd.VkCmdBuff, imageIndex: u32) void {
+        const initBarriers = [_]vulkan.ImageMemoryBarrier2{.{
+            .old_layout = vulkan.ImageLayout.undefined,
+            .new_layout = vulkan.ImageLayout.color_attachment_optimal,
+            .src_stage_mask = .{ .color_attachment_output_bit = true },
+            .dst_stage_mask = .{ .color_attachment_output_bit = true },
+            .src_access_mask = .{},
+            .dst_access_mask = .{ .color_attachment_write_bit = true },
+            .src_queue_family_index = vulkan.QUEUE_FAMILY_IGNORED,
+            .dst_queue_family_index = vulkan.QUEUE_FAMILY_IGNORED,
+            .subresource_range = .{
+                .aspect_mask = .{ .color_bit = true },
+                .base_mip_level = 0,
+                .level_count = vulkan.REMAINING_MIP_LEVELS,
+                .base_array_layer = 0,
+                .layer_count = vulkan.REMAINING_ARRAY_LAYERS,
+            },
+            .image = self.vkCtx.vkSwapChain.imageViews[imageIndex].image,
+        }};
+        const initDepInfo = vulkan.DependencyInfo{
+            .image_memory_barrier_count = initBarriers.len,
+            .p_image_memory_barriers = &initBarriers,
+        };
+        self.vkCtx.vkDevice.deviceProxy.cmdPipelineBarrier2(vkCmd.cmdBuffProxy.handle, &initDepInfo);
+    }    
+    ...
+};
+```
+
+this code executes sets up an image barrier for the current swap chain image to be used to render to. This is a new synchronization element that we will use to
+set up the image view in the proper layout. When using render passes (old Vulkan approach), some of these transitions were done automatically when starting g the
+render pass. With dynamic render we need to explicitly transition al the images. It may seem a little bit verbose, but, in my opinion, it helps
+to properly understand what is happening under the hood. Dynamic rendering also removes some verbosity associated to render passes, so at the end, I think it
+is worth the effort of explicitly transition image layouts.
+
+So what are image barriers? Image barriers are the way to proper synchronize access to images in Vulkan, either for read or write operations and to manage
+image layout transitions. A barrier is set in a command buffer to control the execution of next commands. In order to execute them, the conditions
+set by the barrier need to be fulfilled. This is why it is called a barrier, because it blocks next commands to be processed.
+In order to properly use swap chain images, we need to transition to the proper layout. We need to transition from `vulkan.ImageLayout.undefined`
+(`VK_IMAGE_LAYOUT_UNDEFINED`) to `vulkan.ImageLayout.color_attachment_optimal` (`VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL`) before rendering, and then
+to `vulkan.ImageLayout.present_src_khr` (`VK_IMAGE_LAYOUT_PRESENT_SRC_KHR`) before presentation. We will achieve this with memory barriers.
+
+In the code, we just create a `ImageMemoryBarrier2` structure and record it to the command buffer by calling `cmdPipelineBarrier2`.
+The layout fields of the `ImageMemoryBarrier2` are:
+- `old_layout` is the old layout in an image layout transition. The layout that we expect to have.
+- `new_layout` is the new layout in an image layout transition. The layout that we want to have after the barrier.
+
+Let's talk about a little bit about memory. In the GPU there will be multiple caches, which allow fast access to memory data for the ongoing commands.
+As you may guess, having multiple places where data can reside may lead to inconsistencies. Therefore, we need to properly control how we access that.
+In Vulkan, when we say that memory is "available" this means that the data is ready in the main cache, so it can be accessed by lower level caches, which will the
+ones used by the cores that execute the commands. When the data finally reaches those low level caches we say that is "visible". In order to control
+"availability" and "visibility" we use the combination of stage and access masks. With stage masks, we control to which point in the pipeline (think as a set of
+steps which command need to transverse) we are referring to, and with access masks we define the purpose (for what, to read to write, etc.).
+
+Let's analyze the first image memory barrier:
+- We set the `old_layout` to `vulkan.ImageLayout.undefined` (`VK_IMAGE_LAYOUT_UNDEFINED`), which basically says, we do not care about previous layout state
+and set `new_layout` to `vulkan.ImageLayout.color_attachment_optimal` (`VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL`) which is is the state we want to perform
+rendering operations.
+- We set `src_stage_mask` mask to `color_attachment_output_bit` (`VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT`) which basically states that all
+previously submitted commands need to have finished that state in the pipeline.
+- We set `src_access_mask` empty (equivalent to `VK_ACCESS_2_NONE`), because we do not care an initial layout we do not need to set any special restriction
+on source access.
+- We set `dst_stage_mask` to `color_attachment_output_bit` (`VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT`) because we will be accessing this image when
+outputting color. Any command that we submit later on dos not need to be affected until it reaches this stage.
+- We set `dst_access_mask` to `color_attachment_write_bit` (`VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT`) because we want to control write operations, which will
+only happen in combination with `dstStage`.
+- We use  the `color_bit` flag (`VK_IMAGE_ASPECT_COLOR_BIT`) as `aspect_mask` since we are dealing with color information now. We will not be using mip levels
+or array layers of images so we just them to default values.
+
+It is the turn now for the `renderFinish` function:
+
+```zig
+pub const Render = struct {
+    ...
+    fn renderFinish(self: *Render, vkCmd: vk.cmd.VkCmdBuff, imageIndex: u32) void {
+        const endBarriers = [_]vulkan.ImageMemoryBarrier2{.{
+            .old_layout = vulkan.ImageLayout.color_attachment_optimal,
+            .new_layout = vulkan.ImageLayout.present_src_khr,
+            .src_stage_mask = .{ .color_attachment_output_bit = true },
+            .dst_stage_mask = .{ .bottom_of_pipe_bit = true },
+            .src_access_mask = .{ .color_attachment_write_bit = true },
+            .dst_access_mask = .{},
+            .src_queue_family_index = vulkan.QUEUE_FAMILY_IGNORED,
+            .dst_queue_family_index = vulkan.QUEUE_FAMILY_IGNORED,
+            .subresource_range = .{
+                .aspect_mask = .{ .color_bit = true },
+                .base_mip_level = 0,
+                .level_count = vulkan.REMAINING_MIP_LEVELS,
+                .base_array_layer = 0,
+                .layer_count = vulkan.REMAINING_ARRAY_LAYERS,
+            },
+            .image = self.vkCtx.vkSwapChain.imageViews[imageIndex].image,
+        }};
+        const endDepInfo = vulkan.DependencyInfo{
+            .image_memory_barrier_count = endBarriers.len,
+            .p_image_memory_barriers = &endBarriers,
+        };
+        self.vkCtx.vkDevice.deviceProxy.cmdPipelineBarrier2(vkCmd.cmdBuffProxy.handle, &endDepInfo);
+    }    
+    ...
+};
+```
+
+This will be called once the render commands have been recorded and prior to swap chain image presentation. We need just to set up another
+image barrier to perform the layout transition:
+
+- We set the `old_layout` to `vulkan.ImageLayout.color_attachment_optimal` (`VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL`), which is the layout that our
+swap chain image will be when rendering, and set `new_layout` to `vulkan.ImageLayout.present_src_khr` (`VK_IMAGE_LAYOUT_PRESENT_SRC_KHR`) which is 
+the state we want to have when presenting the image.
+- We set `src_stage_mask` mask to `color_attachment_output_bit` (`VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT`) which basically states that all
+previously submitted commands need to have finished that state in the pipeline. All the rendering commands must have passed that stage.
+- We set `src_access_mask` to `color_attachment_write_bit` (`VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT`), because we need to wait to any operation which
+writes to the image.
+- We set `dst_stage_mask` to `bottom_of_pipe_bit` (`VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT`) to represent the end of the pipeline and we use to state that
+no subsequent GPU operations depend on it.
+- We set `dst_access_mask` to an empty value (equivalent to `VK_PIPELINE_STAGE_2_NONE`) since , again, no subsequent GPU operations depend on it.
+- We use  the `color_bit` flag (`VK_IMAGE_ASPECT_COLOR_BIT`) as `aspect_mask` since we are dealing with color information now. We will not be using mip levels
+or array layers of images so we just them to default values.
+
+Synchronization is a complex topic. If you want to have goog understanding of it this [video](https://youtu.be/GiKbGWI4M-Y?si=lNfBCfV4w6V7GsD5) is the best one
+you can find. I definitely recommend you to watch it.
+
+We have finished by now! With all that code we are no able to see a wonderful empty  screen with the clear color specified like this:
+
+![Clear Screen](rc05-clear_screen.png)
+
+This chapter is a little bit long, but I think is important to present all these concepts together. Now you are really starting to understand why Vulkan is called an explicit API.  The good news is that, in my opinion, the elements presented here are the harder to get. Although we still need to define some important topics, such as pipelines or data buffers, I think they will be easier to understand once you have made your head around this.
 
 [Next chapter](../chapter-06/chapter-06.md)
-
-
-TBD render INIT AND RENDER FINISH

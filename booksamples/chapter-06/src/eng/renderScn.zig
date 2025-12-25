@@ -24,20 +24,14 @@ const VtxBuffDesc = struct {
 };
 
 pub const RenderScn = struct {
-    renderAttachmentInfos: []vulkan.RenderingAttachmentInfo,
-    renderInfos: []vulkan.RenderingInfo,
     vkPipeline: vk.pipe.VkPipeline,
 
     pub fn cleanup(self: *RenderScn, allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx) void {
+        _ = allocator;
         self.vkPipeline.cleanup(vkCtx);
-        allocator.free(self.renderInfos);
-        allocator.free(self.renderAttachmentInfos);
     }
 
     pub fn create(allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx) !RenderScn {
-        const renderAttachmentInfos = try createRenderingAttachmentInfo(allocator, vkCtx);
-        const renderInfos = try createRenderInfos(allocator, vkCtx, renderAttachmentInfos);
-
         // Shader modules
         var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
         defer arena.deinit();
@@ -83,55 +77,37 @@ pub const RenderScn = struct {
         const vkPipeline = try vk.pipe.VkPipeline.create(allocator, vkCtx, &vkPipelineCreateInfo);
 
         return .{
-            .renderAttachmentInfos = renderAttachmentInfos,
-            .renderInfos = renderInfos,
             .vkPipeline = vkPipeline,
         };
-    }
-
-    fn createRenderingAttachmentInfo(allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx) ![]vulkan.RenderingAttachmentInfo {
-        const numImages = vkCtx.vkSwapChain.imageViews.len;
-        const renderAttachmentInfos = try allocator.alloc(vulkan.RenderingAttachmentInfo, numImages);
-        for (renderAttachmentInfos, 0..) |*attachmentInfo, i| {
-            attachmentInfo.* = vulkan.RenderingAttachmentInfo{
-                .image_view = vkCtx.vkSwapChain.imageViews[i].view,
-                .image_layout = vulkan.ImageLayout.attachment_optimal_khr,
-                .load_op = vulkan.AttachmentLoadOp.clear,
-                .store_op = vulkan.AttachmentStoreOp.store,
-                .clear_value = vulkan.ClearValue{ .color = .{ .float_32 = .{ 0.0, 0.0, 0.0, 1.0 } } },
-                .resolve_mode = vulkan.ResolveModeFlags{},
-                .resolve_image_layout = vulkan.ImageLayout.attachment_optimal_khr,
-            };
-        }
-        return renderAttachmentInfos;
-    }
-
-    fn createRenderInfos(allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx, renderAttachmentInfos: []vulkan.RenderingAttachmentInfo) ![]vulkan.RenderingInfo {
-        const numImages = vkCtx.vkSwapChain.imageViews.len;
-        const extent = vkCtx.vkSwapChain.extent;
-        const renderInfos = try allocator.alloc(vulkan.RenderingInfo, numImages);
-        for (renderInfos, 0..) |*renderInfo, i| {
-            renderInfo.* = vulkan.RenderingInfo{
-                .render_area = .{ .extent = extent, .offset = .{ .x = 0, .y = 0 } },
-                .layer_count = 1,
-                .color_attachment_count = 1,
-                .p_color_attachments = @ptrCast(&renderAttachmentInfos[i]),
-                .view_mask = 0,
-            };
-        }
-        return renderInfos;
     }
 
     pub fn render(self: *RenderScn, vkCtx: *const vk.ctx.VkCtx, vkCmd: vk.cmd.VkCmdBuff, modelsCache: *const eng.mcach.ModelsCache, imageIndex: u32) !void {
         const cmdHandle = vkCmd.cmdBuffProxy.handle;
         const device = vkCtx.vkDevice.deviceProxy;
-        const renderInfo = self.renderInfos[imageIndex];
+
+        const renderAttInfo = vulkan.RenderingAttachmentInfo{
+            .image_view = vkCtx.vkSwapChain.imageViews[imageIndex].view,
+            .image_layout = vulkan.ImageLayout.attachment_optimal_khr,
+            .load_op = vulkan.AttachmentLoadOp.clear,
+            .store_op = vulkan.AttachmentStoreOp.store,
+            .clear_value = vulkan.ClearValue{ .color = .{ .float_32 = .{ 0.0, 0.0, 0.0, 1.0 } } },
+            .resolve_mode = vulkan.ResolveModeFlags{},
+            .resolve_image_layout = vulkan.ImageLayout.attachment_optimal_khr,
+        };
+
+        const extent = vkCtx.vkSwapChain.extent;
+        const renderInfo = vulkan.RenderingInfo{
+            .render_area = .{ .extent = extent, .offset = .{ .x = 0, .y = 0 } },
+            .layer_count = 1,
+            .color_attachment_count = 1,
+            .p_color_attachments = @ptrCast(&renderAttInfo),
+            .view_mask = 0,
+        };
 
         device.cmdBeginRendering(cmdHandle, @ptrCast(&renderInfo));
 
         device.cmdBindPipeline(cmdHandle, vulkan.PipelineBindPoint.graphics, self.vkPipeline.pipeline);
 
-        const extent = vkCtx.vkSwapChain.extent;
         const viewPort = [_]vulkan.Viewport{.{
             .x = 0,
             .y = @as(f32, @floatFromInt(extent.height)),

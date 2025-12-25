@@ -51,15 +51,11 @@ pub const RenderScn = struct {
     descLayoutFrgSt: vk.desc.VkDescSetLayout,
     descLayoutVtx: vk.desc.VkDescSetLayout,
     descLayoutTexture: vk.desc.VkDescSetLayout,
-    renderAttachmentInfos: []vulkan.RenderingAttachmentInfo,
-    renderInfos: []vulkan.RenderingInfo,
     textSampler: vk.text.VkTextSampler,
     vkPipeline: vk.pipe.VkPipeline,
 
     pub fn cleanup(self: *RenderScn, allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx) void {
         self.vkPipeline.cleanup(vkCtx);
-        allocator.free(self.renderInfos);
-        allocator.free(self.renderAttachmentInfos);
         allocator.free(self.depthAttachmentInfos);
         for (self.depthAttachments) |*depthAttachment| {
             depthAttachment.cleanup(vkCtx);
@@ -78,9 +74,7 @@ pub const RenderScn = struct {
 
     pub fn create(allocator: std.mem.Allocator, vkCtx: *vk.ctx.VkCtx) !RenderScn {
         const depthAttachments = try createDepthAttachments(allocator, vkCtx);
-        const renderAttachmentInfos = try createRenderingAttachmentInfo(allocator, vkCtx);
         const depthAttachmentInfos = try createDepthAttachmentInfo(allocator, vkCtx, depthAttachments);
-        const renderInfos = try createRenderInfos(allocator, vkCtx, renderAttachmentInfos, depthAttachmentInfos);
 
         // Shader modules
         var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
@@ -187,8 +181,6 @@ pub const RenderScn = struct {
             .descLayoutFrgSt = descLayoutFrgSt,
             .descLayoutVtx = descLayoutVtx,
             .descLayoutTexture = descLayoutTexture,
-            .renderAttachmentInfos = renderAttachmentInfos,
-            .renderInfos = renderInfos,
             .textSampler = textSampler,
             .vkPipeline = vkPipeline,
         };
@@ -245,45 +237,6 @@ pub const RenderScn = struct {
         return renderAttachmentInfos;
     }
 
-    fn createRenderingAttachmentInfo(allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx) ![]vulkan.RenderingAttachmentInfo {
-        const numImages = vkCtx.vkSwapChain.imageViews.len;
-        const renderAttachmentInfos = try allocator.alloc(vulkan.RenderingAttachmentInfo, numImages);
-        for (renderAttachmentInfos, 0..) |*attachmentInfo, i| {
-            attachmentInfo.* = vulkan.RenderingAttachmentInfo{
-                .image_view = vkCtx.vkSwapChain.imageViews[i].view,
-                .image_layout = vulkan.ImageLayout.attachment_optimal_khr,
-                .load_op = vulkan.AttachmentLoadOp.clear,
-                .store_op = vulkan.AttachmentStoreOp.store,
-                .clear_value = vulkan.ClearValue{ .color = .{ .float_32 = .{ 0.0, 0.0, 0.0, 1.0 } } },
-                .resolve_mode = vulkan.ResolveModeFlags{},
-                .resolve_image_layout = vulkan.ImageLayout.attachment_optimal_khr,
-            };
-        }
-        return renderAttachmentInfos;
-    }
-
-    fn createRenderInfos(
-        allocator: std.mem.Allocator,
-        vkCtx: *const vk.ctx.VkCtx,
-        renderAttachmentInfos: []vulkan.RenderingAttachmentInfo,
-        depthAttachmentInfos: []vulkan.RenderingAttachmentInfo,
-    ) ![]vulkan.RenderingInfo {
-        const numImages = vkCtx.vkSwapChain.imageViews.len;
-        const extent = vkCtx.vkSwapChain.extent;
-        const renderInfos = try allocator.alloc(vulkan.RenderingInfo, numImages);
-        for (renderInfos, 0..) |*renderInfo, i| {
-            renderInfo.* = vulkan.RenderingInfo{
-                .render_area = .{ .extent = extent, .offset = .{ .x = 0, .y = 0 } },
-                .layer_count = 1,
-                .color_attachment_count = 1,
-                .p_color_attachments = @ptrCast(&renderAttachmentInfos[i]),
-                .p_depth_attachment = &depthAttachmentInfos[i],
-                .view_mask = 0,
-            };
-        }
-        return renderInfos;
-    }
-
     pub fn init(self: *RenderScn, allocator: std.mem.Allocator, vkCtx: *vk.ctx.VkCtx, textureCache: *eng.tcach.TextureCache, materialsCache: *eng.mcach.MaterialsCache) !void {
         const imageViews = try allocator.alloc(vk.imv.VkImageView, textureCache.textureMap.count());
         defer allocator.free(imageViews);
@@ -315,7 +268,26 @@ pub const RenderScn = struct {
         const scene = &engCtx.scene;
         const cmdHandle = vkCmd.cmdBuffProxy.handle;
         const device = vkCtx.vkDevice.deviceProxy;
-        const renderInfo = self.renderInfos[imageIndex];
+
+        const renderAttInfo = vulkan.RenderingAttachmentInfo{
+            .image_view = vkCtx.vkSwapChain.imageViews[imageIndex].view,
+            .image_layout = vulkan.ImageLayout.attachment_optimal_khr,
+            .load_op = vulkan.AttachmentLoadOp.clear,
+            .store_op = vulkan.AttachmentStoreOp.store,
+            .clear_value = vulkan.ClearValue{ .color = .{ .float_32 = .{ 0.0, 0.0, 0.0, 1.0 } } },
+            .resolve_mode = vulkan.ResolveModeFlags{},
+            .resolve_image_layout = vulkan.ImageLayout.attachment_optimal_khr,
+        };
+
+        const extent = vkCtx.vkSwapChain.extent;
+        const renderInfo = vulkan.RenderingInfo{
+            .render_area = .{ .extent = extent, .offset = .{ .x = 0, .y = 0 } },
+            .layer_count = 1,
+            .color_attachment_count = 1,
+            .p_color_attachments = @ptrCast(&renderAttInfo),
+            .p_depth_attachment = &self.depthAttachmentInfos[imageIndex],
+            .view_mask = 0,
+        };
 
         const image: vulkan.Image = @enumFromInt(@intFromPtr(self.depthAttachments[imageIndex].vkImage.image));
         const initBarriers = [_]vulkan.ImageMemoryBarrier2{.{
@@ -351,7 +323,6 @@ pub const RenderScn = struct {
 
         device.cmdBindPipeline(cmdHandle, vulkan.PipelineBindPoint.graphics, self.vkPipeline.pipeline);
 
-        const extent = vkCtx.vkSwapChain.extent;
         const viewPort = [_]vulkan.Viewport{.{
             .x = 0,
             .y = @as(f32, @floatFromInt(extent.height)),
@@ -437,8 +408,6 @@ pub const RenderScn = struct {
     pub fn resize(self: *RenderScn, vkCtx: *const vk.ctx.VkCtx, engCtx: *const eng.engine.EngCtx) !void {
         const allocator = engCtx.allocator;
 
-        allocator.free(self.renderInfos);
-        allocator.free(self.renderAttachmentInfos);
         allocator.free(self.depthAttachmentInfos);
         for (self.depthAttachments) |*depthAttachment| {
             depthAttachment.cleanup(vkCtx);
@@ -446,14 +415,10 @@ pub const RenderScn = struct {
         allocator.free(self.depthAttachments);
 
         const depthAttachments = try createDepthAttachments(allocator, vkCtx);
-        const renderAttachmentInfos = try createRenderingAttachmentInfo(allocator, vkCtx);
         const depthAttachmentInfos = try createDepthAttachmentInfo(allocator, vkCtx, depthAttachments);
-        const renderInfos = try createRenderInfos(allocator, vkCtx, renderAttachmentInfos, depthAttachmentInfos);
 
         self.depthAttachments = depthAttachments;
-        self.renderAttachmentInfos = renderAttachmentInfos;
         self.depthAttachmentInfos = depthAttachmentInfos;
-        self.renderInfos = renderInfos;
     }
 
     fn setPushConstants(self: *RenderScn, vkCtx: *const vk.ctx.VkCtx, cmdHandle: vulkan.CommandBuffer, entity: *eng.ent.Entity, materialIdx: u32) void {
