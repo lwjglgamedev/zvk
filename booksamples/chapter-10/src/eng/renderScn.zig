@@ -195,7 +195,7 @@ pub const RenderScn = struct {
                 .{ .uniform_buffer_bit = true },
                 @intFromEnum(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSSequentialWriteBit),
                 vk.vma.VmaUsage.VmaUsageAuto,
-                vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBit,
+                vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBitAndCoherent,
             );
         }
         return buffers;

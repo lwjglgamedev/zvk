@@ -94,7 +94,7 @@ pub const MaterialsCache = struct {
             vulkan.BufferUsageFlags{ .transfer_src_bit = true },
             @intFromEnum(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSSequentialWriteBit),
             vk.vma.VmaUsage.VmaUsageAuto,
-            vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBit,
+            vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBitAndCoherent,
         );
         defer srcBuffer.cleanup(vkCtx);
         const dstBuffer = try vk.buf.VkBuffer.create(
@@ -203,7 +203,7 @@ pub const ModelsCache = struct {
                     vulkan.BufferUsageFlags{ .transfer_src_bit = true },
                     @intFromEnum(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSSequentialWriteBit),
                     vk.vma.VmaUsage.VmaUsageAuto,
-                    vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBit,
+                    vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBitAndCoherent,
                 );
                 try srcBuffers.append(allocator, srcVtxBuffer);
                 const dstVtxBuffer = try vk.buf.VkBuffer.create(
@@ -228,7 +228,7 @@ pub const ModelsCache = struct {
                     vulkan.BufferUsageFlags{ .transfer_src_bit = true },
                     @intFromEnum(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSSequentialWriteBit),
                     vk.vma.VmaUsage.VmaUsageAuto,
-                    vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBit,
+                    vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBitAndCoherent,
                 );
                 try srcBuffers.append(allocator, srcIdxBuffer);
                 const dstIdxBuffer = try vk.buf.VkBuffer.create(

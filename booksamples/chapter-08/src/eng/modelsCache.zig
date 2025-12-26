@@ -174,7 +174,6 @@ pub const ModelsCache = struct {
 
         var srcBuffers = try std.ArrayList(vk.buf.VkBuffer).initCapacity(allocator, 1);
         defer srcBuffers.deinit(allocator);
-
         try cmdBuff.begin(vkCtx);
 
         for (initData.models) |*modelData| {
@@ -191,14 +190,14 @@ pub const ModelsCache = struct {
                     vkCtx,
                     verticesSize,
                     vulkan.BufferUsageFlags{ .transfer_src_bit = true },
-                    vulkan.MemoryPropertyFlags{ .host_visible_bit = true },
+                    vulkan.MemoryPropertyFlags{ .host_visible_bit = true, .host_coherent_bit = true },
                 );
                 try srcBuffers.append(allocator, srcVtxBuffer);
                 const dstVtxBuffer = try vk.buf.VkBuffer.create(
                     vkCtx,
                     verticesSize,
                     vulkan.BufferUsageFlags{ .vertex_buffer_bit = true, .transfer_dst_bit = true },
-                    vulkan.MemoryPropertyFlags{},
+                    vulkan.MemoryPropertyFlags{ .device_local_bit = true },
                 );
 
                 const dataVertices = try srcVtxBuffer.map(vkCtx);
@@ -212,14 +211,14 @@ pub const ModelsCache = struct {
                     vkCtx,
                     indicesSize,
                     vulkan.BufferUsageFlags{ .transfer_src_bit = true },
-                    vulkan.MemoryPropertyFlags{ .host_visible_bit = true },
+                    vulkan.MemoryPropertyFlags{ .host_visible_bit = true, .host_coherent_bit = true },
                 );
                 try srcBuffers.append(allocator, srcIdxBuffer);
                 const dstIdxBuffer = try vk.buf.VkBuffer.create(
                     vkCtx,
                     indicesSize,
                     vulkan.BufferUsageFlags{ .index_buffer_bit = true, .transfer_dst_bit = true },
-                    vulkan.MemoryPropertyFlags{},
+                    vulkan.MemoryPropertyFlags{ .device_local_bit = true },
                 );
 
                 const dataIndices = try srcIdxBuffer.map(vkCtx);

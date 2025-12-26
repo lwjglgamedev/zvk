@@ -22,7 +22,7 @@ const Game = struct {
         _ = self;
         _ = engCtx;
 
-        const cubeModel = eng.mdata.ModelData{
+        const triangleModel = eng.mdata.ModelData{
             .id = "TriangleModel",
             .meshes = &[_]eng.mdata.MeshData{
                 .{
@@ -33,7 +33,7 @@ const Game = struct {
             },
         };
         const models = try arenaAlloc.alloc(eng.mdata.ModelData, 1);
-        models[0] = cubeModel;
+        models[0] = triangleModel;
 
         return .{ .models = models };
     }

@@ -5,13 +5,11 @@ const vk = @import("mod.zig");
 pub const ShaderModuleInfo = struct {
     module: vulkan.ShaderModule,
     stage: vulkan.ShaderStageFlags,
-    specInfo: ?*const vulkan.SpecializationInfo = null,
 };
 
 pub const VkPipelineCreateInfo = struct {
     colorFormat: vulkan.Format,
     modulesInfo: []ShaderModuleInfo,
-    pipelineLayout: vulkan.PipelineLayout,
     useBlend: bool,
     vtxBuffDesc: VtxBuffDesc,
 };
@@ -34,16 +32,8 @@ pub const VkPipeline = struct {
                 .stage = createInfo.modulesInfo[i].stage,
                 .module = createInfo.modulesInfo[i].module,
                 .p_name = "main",
-                .p_specialization_info = createInfo.modulesInfo[i].specInfo,
             };
         }
-
-        const pvisci = vulkan.PipelineVertexInputStateCreateInfo{
-            .vertex_binding_description_count = 1,
-            .p_vertex_binding_descriptions = @ptrCast(&createInfo.vtxBuffDesc.binding_description),
-            .vertex_attribute_description_count = @intCast(createInfo.vtxBuffDesc.attribute_description.len),
-            .p_vertex_attribute_descriptions = createInfo.vtxBuffDesc.attribute_description.ptr,
-        };
 
         const piasci = vulkan.PipelineInputAssemblyStateCreateInfo{
             .topology = .triangle_list,
@@ -78,6 +68,13 @@ pub const VkPipeline = struct {
             .alpha_to_one_enable = vulkan.Bool32.false,
         };
 
+        const dynstate = [_]vulkan.DynamicState{ .viewport, .scissor };
+        const pdsci = vulkan.PipelineDynamicStateCreateInfo{
+            .flags = .{},
+            .dynamic_state_count = dynstate.len,
+            .p_dynamic_states = &dynstate,
+        };
+
         const pcbas = vulkan.PipelineColorBlendAttachmentState{
             .blend_enable = if (createInfo.useBlend) vulkan.Bool32.true else vulkan.Bool32.false,
             .color_blend_op = .add,
@@ -97,13 +94,6 @@ pub const VkPipeline = struct {
             .blend_constants = [_]f32{ 0, 0, 0, 0 },
         };
 
-        const dynstate = [_]vulkan.DynamicState{ .viewport, .scissor };
-        const pdsci = vulkan.PipelineDynamicStateCreateInfo{
-            .flags = .{},
-            .dynamic_state_count = dynstate.len,
-            .p_dynamic_states = &dynstate,
-        };
-
         const formats = [_]vulkan.Format{createInfo.colorFormat};
         const renderCreateInfo = vulkan.PipelineRenderingCreateInfo{
             .color_attachment_count = 1,
@@ -113,9 +103,24 @@ pub const VkPipeline = struct {
             .stencil_attachment_format = vulkan.Format.undefined,
         };
 
+        const pvisci = vulkan.PipelineVertexInputStateCreateInfo{
+            .vertex_binding_description_count = 1,
+            .p_vertex_binding_descriptions = @ptrCast(&createInfo.vtxBuffDesc.binding_description),
+            .vertex_attribute_description_count = @intCast(createInfo.vtxBuffDesc.attribute_description.len),
+            .p_vertex_attribute_descriptions = createInfo.vtxBuffDesc.attribute_description.ptr,
+        };
+
+        const pipelineLayout = try vkCtx.vkDevice.deviceProxy.createPipelineLayout(&.{
+            .flags = .{},
+            .set_layout_count = 0,
+            .p_set_layouts = null,
+            .push_constant_range_count = 0,
+            .p_push_constant_ranges = null,
+        }, null);
+
         const gpci = vulkan.GraphicsPipelineCreateInfo{
             .flags = .{},
-            .stage_count = 2,
+            .stage_count = @intCast(createInfo.modulesInfo.len),
             .p_stages = pssci.ptr,
             .p_vertex_input_state = &pvisci,
             .p_input_assembly_state = &piasci,
@@ -126,7 +131,7 @@ pub const VkPipeline = struct {
             .p_depth_stencil_state = null,
             .p_color_blend_state = &pcbsci,
             .p_dynamic_state = &pdsci,
-            .layout = createInfo.pipelineLayout,
+            .layout = pipelineLayout,
             .subpass = 0,
             .base_pipeline_handle = .null_handle,
             .base_pipeline_index = -1,
@@ -142,7 +147,7 @@ pub const VkPipeline = struct {
             @ptrCast(&pipeline),
         );
 
-        return .{ .pipeline = pipeline, .pipelineLayout = createInfo.pipelineLayout };
+        return .{ .pipeline = pipeline, .pipelineLayout = pipelineLayout };
     }
 
     pub fn cleanup(self: *VkPipeline, vkCtx: *const vk.ctx.VkCtx) void {

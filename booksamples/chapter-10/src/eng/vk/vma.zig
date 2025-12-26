@@ -16,7 +16,7 @@ pub const VmaUsage = enum(u32) {
 
 pub const VmaMemoryFlags = enum(u32) {
     None = 0,
-    MemoryPropertyHostVisibleBit = vma.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+    MemoryPropertyHostVisibleBitAndCoherent = vma.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | vma.VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
 };
 
 pub const VkVmaAlloc = struct {

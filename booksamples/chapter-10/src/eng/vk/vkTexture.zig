@@ -82,7 +82,7 @@ pub const VkTexture = struct {
             vulkan.BufferUsageFlags{ .transfer_src_bit = true },
             @intFromEnum(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSSequentialWriteBit),
             vk.vma.VmaUsage.VmaUsageAuto,
-            vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBit,
+            vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBitAndCoherent,
         );
         try vk.buf.copyDataToBuffer(vkCtx, &vkStageBuffer, &vkTextureInfo.data);
 

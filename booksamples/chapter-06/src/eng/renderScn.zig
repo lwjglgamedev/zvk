@@ -54,20 +54,10 @@ pub const RenderScn = struct {
         modulesInfo[1] = .{ .module = frag, .stage = .{ .fragment_bit = true } };
         defer allocator.free(modulesInfo);
 
-        // Pipeline layout
-        const pipelineLayout = try vkCtx.vkDevice.deviceProxy.createPipelineLayout(&.{
-            .flags = .{},
-            .set_layout_count = 0,
-            .p_set_layouts = null,
-            .push_constant_range_count = 0,
-            .p_push_constant_ranges = null,
-        }, null);
-
         // Pipeline
         const vkPipelineCreateInfo = vk.pipe.VkPipelineCreateInfo{
             .colorFormat = vkCtx.vkSwapChain.surfaceFormat.format,
             .modulesInfo = modulesInfo,
-            .pipelineLayout = pipelineLayout,
             .useBlend = false,
             .vtxBuffDesc = .{
                 .attribute_description = @constCast(&VtxBuffDesc.attribute_description)[0..],
