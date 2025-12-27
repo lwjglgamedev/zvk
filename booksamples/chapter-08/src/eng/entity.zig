@@ -10,13 +10,9 @@ pub const Entity = struct {
     rotation: zm.Quat,
     scale: f32,
 
-    pub fn create(allocator: std.mem.Allocator, idOpt: ?[]const u8, modelId: []const u8) !*Entity {
-        const ownedId = try if (idOpt) |id|
-            allocator.dupe(u8, id)
-        else
-            eng.ent.Entity.generateUuid(allocator);
-
-        var entity = try allocator.create(eng.ent.Entity);
+    pub fn create(allocator: std.mem.Allocator, id: []const u8, modelId: []const u8) !*Entity {
+        const ownedId = try allocator.dupe(u8, id);
+        var entity = try allocator.create(Entity);
         entity.id = ownedId;
         entity.modelId = try allocator.dupe(u8, modelId);
         entity.pos = zm.f32x4(0, 0, 0, 1);
@@ -38,36 +34,6 @@ pub const Entity = struct {
         self.pos[0] = x;
         self.pos[1] = y;
         self.pos[2] = z;
-    }
-
-    pub fn generateUuid(allocator: std.mem.Allocator) ![]const u8 {
-        var bytes: [16]u8 = undefined;
-        std.crypto.random.bytes(&bytes);
-
-        // Set version (4) and variant bits (RFC 4122)
-        bytes[6] = (bytes[6] & 0x0F) | 0x40;
-        bytes[8] = (bytes[8] & 0x3F) | 0x80;
-
-        // Format as UUID string
-        const hex_chars = "0123456789abcdef";
-        var uuid = try allocator.alloc(u8, 36);
-        errdefer allocator.free(uuid);
-
-        var i: usize = 0;
-        for (bytes, 0..) |byte, j| {
-            switch (j) {
-                4, 6, 8, 10 => {
-                    uuid[i] = '-';
-                    i += 1;
-                },
-                else => {},
-            }
-            uuid[i] = hex_chars[byte >> 4];
-            uuid[i + 1] = hex_chars[byte & 0x0F];
-            i += 2;
-        }
-
-        return uuid;
     }
 
     pub fn update(self: *Entity) void {

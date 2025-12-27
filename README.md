@@ -8,8 +8,6 @@ This [online book](bookcontents/) will introduce the main concepts required to w
 
 This book is the result of my self learning language, that I think it may help the community.
 
-![Sample screen shot](./bookcontents/chapter-17/rc17-screen-shot.png)
-
 > [!NOTE]
 > This is a new version which tries to use modern Vulkan features, such us:
 > - Dynamic rendering
@@ -34,7 +32,7 @@ If you like the book you can become a [sponsor](https://github.com/sponsors/lwjg
 
 ## Comments are welcome
 
-Suggestions and corrections are more than welcome (and if you do like it please rate it with a star). Please send them using the discussion forum and make the corrections you consider in order to improve the book.
+Suggestions and corrections are more than welcome (and if you do like it please rate it with a star). Please send them using the discussion forum and make the corrections you consider in order to improve the book. Please consider that I also just started with Zig!.
 
 If you find something confusing, or you would like something clarified in the book, please [submit an issue](https://github.com/lwjglgamedev/zvk/issues/new/choose) on GitHub.
 

@@ -5,11 +5,6 @@ const vk = @import("vk");
 const vulkan = @import("vulkan");
 const zm = @import("zmath");
 
-const PushConstantsVtx = struct {
-    modelMatrix: zm.Mat,
-    projMatrix: zm.Mat,
-};
-
 const VtxBuffDesc = struct {
     const binding_description = vulkan.VertexInputBindingDescription{
         .binding = 0,
@@ -36,16 +31,19 @@ const VtxBuffDesc = struct {
     textCoords: [2]f32,
 };
 
+const PushConstantsVtx = struct {
+    modelMatrix: zm.Mat,
+    projMatrix: zm.Mat,
+};
+
 const DEPTH_FORMAT = vulkan.Format.d16_unorm;
 
 pub const RenderScn = struct {
     depthAttachments: []eng.rend.Attachment,
-    depthAttachmentInfos: []vulkan.RenderingAttachmentInfo,
     vkPipeline: vk.pipe.VkPipeline,
 
     pub fn cleanup(self: *RenderScn, allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx) void {
         self.vkPipeline.cleanup(vkCtx);
-        allocator.free(self.depthAttachmentInfos);
         for (self.depthAttachments) |*depthAttachment| {
             depthAttachment.cleanup(vkCtx);
         }
@@ -54,7 +52,6 @@ pub const RenderScn = struct {
 
     pub fn create(allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx) !RenderScn {
         const depthAttachments = try createDepthAttachments(allocator, vkCtx);
-        const depthAttachmentInfos = try createDepthAttachmentInfo(allocator, vkCtx, depthAttachments);
 
         // Shader modules
         var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
@@ -85,21 +82,12 @@ pub const RenderScn = struct {
             .size = @sizeOf(PushConstantsVtx),
         }};
 
-        // Pipeline layout
-        const pipelineLayout = try vkCtx.vkDevice.deviceProxy.createPipelineLayout(&.{
-            .flags = .{},
-            .set_layout_count = 0,
-            .p_set_layouts = null,
-            .push_constant_range_count = pushConstants.len,
-            .p_push_constant_ranges = &pushConstants,
-        }, null);
-
         // Pipeline
         const vkPipelineCreateInfo = vk.pipe.VkPipelineCreateInfo{
             .colorFormat = vkCtx.vkSwapChain.surfaceFormat.format,
             .depthFormat = DEPTH_FORMAT,
             .modulesInfo = modulesInfo,
-            .pipelineLayout = pipelineLayout,
+            .pushConstants = pushConstants[0..],
             .useBlend = false,
             .vtxBuffDesc = .{
                 .attribute_description = @constCast(&VtxBuffDesc.attribute_description)[0..],
@@ -110,7 +98,6 @@ pub const RenderScn = struct {
 
         return .{
             .depthAttachments = depthAttachments,
-            .depthAttachmentInfos = depthAttachmentInfos,
             .vkPipeline = vkPipeline,
         };
     }
@@ -134,23 +121,6 @@ pub const RenderScn = struct {
         return depthAttachments;
     }
 
-    fn createDepthAttachmentInfo(allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx, attachments: []eng.rend.Attachment) ![]vulkan.RenderingAttachmentInfo {
-        const numImages = vkCtx.vkSwapChain.imageViews.len;
-        const renderAttachmentInfos = try allocator.alloc(vulkan.RenderingAttachmentInfo, numImages);
-        for (renderAttachmentInfos, 0..) |*attachmentInfo, i| {
-            attachmentInfo.* = vulkan.RenderingAttachmentInfo{
-                .image_view = attachments[i].vkImageView.view,
-                .image_layout = vulkan.ImageLayout.depth_stencil_attachment_optimal,
-                .load_op = vulkan.AttachmentLoadOp.clear,
-                .store_op = vulkan.AttachmentStoreOp.dont_care,
-                .clear_value = vulkan.ClearValue{ .depth_stencil = .{ .depth = 1.0, .stencil = 0.0 } },
-                .resolve_mode = vulkan.ResolveModeFlags{},
-                .resolve_image_layout = vulkan.ImageLayout.undefined,
-            };
-        }
-        return renderAttachmentInfos;
-    }
-
     pub fn render(
         self: *RenderScn,
         vkCtx: *const vk.ctx.VkCtx,
@@ -171,6 +141,15 @@ pub const RenderScn = struct {
             .resolve_mode = vulkan.ResolveModeFlags{},
             .resolve_image_layout = vulkan.ImageLayout.attachment_optimal_khr,
         };
+        const depthAttInfo = vulkan.RenderingAttachmentInfo{
+            .image_view = self.depthAttachments[imageIndex].vkImageView.view,
+            .image_layout = vulkan.ImageLayout.depth_stencil_attachment_optimal,
+            .load_op = vulkan.AttachmentLoadOp.clear,
+            .store_op = vulkan.AttachmentStoreOp.dont_care,
+            .clear_value = vulkan.ClearValue{ .depth_stencil = .{ .depth = 1.0, .stencil = 0.0 } },
+            .resolve_mode = vulkan.ResolveModeFlags{},
+            .resolve_image_layout = vulkan.ImageLayout.undefined,
+        };
 
         const extent = vkCtx.vkSwapChain.extent;
         const renderInfo = vulkan.RenderingInfo{
@@ -178,7 +157,7 @@ pub const RenderScn = struct {
             .layer_count = 1,
             .color_attachment_count = 1,
             .p_color_attachments = @ptrCast(&renderAttInfo),
-            .p_depth_attachment = &self.depthAttachmentInfos[imageIndex],
+            .p_depth_attachment = @ptrCast(&depthAttInfo),
             .view_mask = 0,
         };
 
@@ -255,17 +234,14 @@ pub const RenderScn = struct {
     pub fn resize(self: *RenderScn, vkCtx: *const vk.ctx.VkCtx, engCtx: *const eng.engine.EngCtx) !void {
         const allocator = engCtx.allocator;
 
-        allocator.free(self.depthAttachmentInfos);
         for (self.depthAttachments) |*depthAttachment| {
             depthAttachment.cleanup(vkCtx);
         }
         allocator.free(self.depthAttachments);
 
         const depthAttachments = try createDepthAttachments(allocator, vkCtx);
-        const depthAttachmentInfos = try createDepthAttachmentInfo(allocator, vkCtx, depthAttachments);
 
         self.depthAttachments = depthAttachments;
-        self.depthAttachmentInfos = depthAttachmentInfos;
     }
 
     fn setPushConstants(self: *RenderScn, vkCtx: *const vk.ctx.VkCtx, cmdHandle: vulkan.CommandBuffer, entity: *eng.ent.Entity, engCtx: *const eng.engine.EngCtx) void {

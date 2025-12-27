@@ -5,14 +5,13 @@ const vk = @import("mod.zig");
 pub const ShaderModuleInfo = struct {
     module: vulkan.ShaderModule,
     stage: vulkan.ShaderStageFlags,
-    specInfo: ?*const vulkan.SpecializationInfo = null,
 };
 
 pub const VkPipelineCreateInfo = struct {
     colorFormat: vulkan.Format,
     depthFormat: vulkan.Format = vulkan.Format.undefined,
     modulesInfo: []ShaderModuleInfo,
-    pipelineLayout: vulkan.PipelineLayout,
+    pushConstants: ?[]const vulkan.PushConstantRange,
     useBlend: bool,
     vtxBuffDesc: VtxBuffDesc,
 };
@@ -66,7 +65,7 @@ pub const VkPipeline = struct {
         const pmsci = vulkan.PipelineMultisampleStateCreateInfo{
             .rasterization_samples = .{ .@"1_bit" = true },
             .sample_shading_enable = vulkan.Bool32.false,
-            .min_sample_shading = 1,
+            .min_sample_shading = 0,
             .alpha_to_coverage_enable = vulkan.Bool32.false,
             .alpha_to_one_enable = vulkan.Bool32.false,
         };
@@ -93,7 +92,7 @@ pub const VkPipeline = struct {
             .logic_op_enable = vulkan.Bool32.false,
             .logic_op = .copy,
             .attachment_count = 1,
-            .p_attachments = @ptrCast(&pcbas),
+            .p_attachments = &[_]vulkan.PipelineColorBlendAttachmentState{pcbas},
             .blend_constants = [_]f32{ 0, 0, 0, 0 },
         };
 
@@ -142,6 +141,14 @@ pub const VkPipeline = struct {
             .max_depth_bounds = 0.0,
         };
 
+        const pipelineLayout = try vkCtx.vkDevice.deviceProxy.createPipelineLayout(&.{
+            .flags = .{},
+            .set_layout_count = 0,
+            .p_set_layouts = null,
+            .push_constant_range_count = if (createInfo.pushConstants) |pc| @as(u32, @intCast(pc.len)) else 0,
+            .p_push_constant_ranges = if (createInfo.pushConstants) |pcs| pcs.ptr else null,
+        }, null);
+
         const gpci = vulkan.GraphicsPipelineCreateInfo{
             .flags = .{},
             .stage_count = @intCast(createInfo.modulesInfo.len),
@@ -155,7 +162,7 @@ pub const VkPipeline = struct {
             .p_depth_stencil_state = if (createInfo.depthFormat != vulkan.Format.undefined) &depthState else null,
             .p_color_blend_state = &pcbsci,
             .p_dynamic_state = &pdsci,
-            .layout = createInfo.pipelineLayout,
+            .layout = pipelineLayout,
             .subpass = 0,
             .base_pipeline_handle = .null_handle,
             .base_pipeline_index = -1,
@@ -171,7 +178,7 @@ pub const VkPipeline = struct {
             @ptrCast(&pipeline),
         );
 
-        return .{ .pipeline = pipeline, .pipelineLayout = createInfo.pipelineLayout };
+        return .{ .pipeline = pipeline, .pipelineLayout = pipelineLayout };
     }
 
     pub fn cleanup(self: *VkPipeline, vkCtx: *const vk.ctx.VkCtx) void {

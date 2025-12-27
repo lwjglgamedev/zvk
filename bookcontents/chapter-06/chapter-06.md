@@ -612,7 +612,7 @@ pub const VkPipeline = struct {
             .depth_clamp_enable = vulkan.Bool32.false,
             .rasterizer_discard_enable = vulkan.Bool32.false,
             .polygon_mode = .fill,
-            .cull_mode = .{ .back_bit = true },
+            .cull_mode = .{},
             .front_face = .clockwise,
             .depth_bias_enable = vulkan.Bool32.false,
             .depth_bias_constant_factor = 0,
@@ -651,7 +651,7 @@ pub const VkPipeline = struct {
         const pmsci = vulkan.PipelineMultisampleStateCreateInfo{
             .rasterization_samples = .{ .@"1_bit" = true },
             .sample_shading_enable = vulkan.Bool32.false,
-            .min_sample_shading = 1,
+            .min_sample_shading = 0,
             .alpha_to_coverage_enable = vulkan.Bool32.false,
             .alpha_to_one_enable = vulkan.Bool32.false,
         };
@@ -707,7 +707,7 @@ pub const VkPipeline = struct {
             .logic_op_enable = vulkan.Bool32.false,
             .logic_op = .copy,
             .attachment_count = 1,
-            .p_attachments = @ptrCast(&pcbas),
+            .p_attachments = &[_]vulkan.PipelineColorBlendAttachmentState{pcbas},
             .blend_constants = [_]f32{ 0, 0, 0, 0 },
         };
 
