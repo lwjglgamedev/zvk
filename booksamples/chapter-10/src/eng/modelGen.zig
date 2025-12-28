@@ -65,63 +65,78 @@ pub fn main() !void {
     const vtxFile = try dir.createFile(vtxFileName, .{ .truncate = true });
     defer vtxFile.close();
 
-    var meshIntDataList = std.ArrayListUnmanaged(MeshIntData){};
-    defer meshIntDataList.deinit(allocator);
-
+    var meshDataList = std.ArrayListUnmanaged(eng.mdata.MeshData){};
+    defer meshDataList.deinit(allocator);
     const defText = [_]f32{ 0.0, 0.0 };
-    if (data.meshes_count > 0 and data.meshes != null) {
-        const meshes = data.meshes.?[0..data.meshes_count];
-        for (meshes, 0..) |mesh, meshIdx| {
-            for (mesh.primitives, 0..mesh.primitives_count) |primitive, primIdx| {
-                const meshIntData = try processMesh(
-                    allocator,
-                    data,
-                    &primitive,
-                    @as(u32, @intCast(meshIdx)),
-                    @as(u32, @intCast(primIdx)),
-                    materialList,
-                );
-                try meshIntDataList.append(allocator, meshIntData);
+    var idxOffset: usize = 0;
+    var vtxOffset: usize = 0;
+    if (data.meshes_count == 0 or data.meshes == null) {
+        std.debug.print("No meshes found\n", .{});
+        return;
+    }
+    const meshes = data.meshes.?[0..data.meshes_count];
+    for (meshes, 0..) |mesh, meshIdx| {
+        for (mesh.primitives, 0..mesh.primitives_count) |primitive, primIdx| {
+            var meshIntData = try processMesh(
+                allocator,
+                data,
+                &primitive,
+                @as(u32, @intCast(meshIdx)),
+                @as(u32, @intCast(primIdx)),
+                materialList,
+            );
+            defer meshIntData.cleanup(allocator);
 
-                // Dump to indices file
-                try idxFile.writeAll(std.mem.sliceAsBytes(meshIntData.indices.items));
+            // Dump to indices file
+            try idxFile.writeAll(std.mem.sliceAsBytes(meshIntData.indices.items));
 
-                // Dump to vertices file
-                for (meshIntData.positions.items, 0..) |_, idx| {
-                    try vtxFile.writeAll(std.mem.sliceAsBytes(std.mem.asBytes(&meshIntData.positions.items[idx])));
-                    if (idx < meshIntData.texcoords.items.len) {
-                        try vtxFile.writeAll(std.mem.sliceAsBytes(std.mem.asBytes(&meshIntData.texcoords.items[idx])));
-                    } else {
-                        try vtxFile.writeAll(std.mem.sliceAsBytes(std.mem.asBytes(&defText)));
-                    }
+            // Dump to vertices file
+            for (meshIntData.positions.items, 0..) |_, idx| {
+                try vtxFile.writeAll(std.mem.sliceAsBytes(std.mem.asBytes(&meshIntData.positions.items[idx])));
+                if (idx < meshIntData.texcoords.items.len) {
+                    try vtxFile.writeAll(std.mem.sliceAsBytes(std.mem.asBytes(&meshIntData.texcoords.items[idx])));
+                } else {
+                    try vtxFile.writeAll(std.mem.sliceAsBytes(std.mem.asBytes(&defText)));
                 }
             }
+
+            const numIndices = meshIntData.indices.items.len;
+            // There can be models with no texture coords, but we fill up with empty coords
+            const numFloats = meshIntData.positions.items.len * 3 + meshIntData.positions.items.len * 2;
+            const meshData = eng.mdata.MeshData{
+                .id = meshIntData.id,
+                .materialId = meshIntData.materialId,
+                .idxOffset = idxOffset,
+                .idxSize = numIndices * @sizeOf(u32),
+                .vtxOffset = vtxOffset,
+                .vtxSize = numFloats * @sizeOf(f32),
+            };
+            try meshDataList.append(allocator, meshData);
+
+            idxOffset += meshData.idxSize;
+            vtxOffset += meshData.vtxSize;
         }
     }
 
-    var meshDataList = std.ArrayListUnmanaged(eng.mdata.MeshData){};
-    defer meshDataList.deinit(allocator);
-    var idxOffset: usize = 0;
-    var vtxOffset: usize = 0;
-    for (meshIntDataList.items) |*meshIntData| {
-        const numIndices = meshIntData.indices.items.len;
-        // There can be models with no texture coords, but we fill up with empty coords
-        const numVertices = meshIntData.positions.items.len * 3 + meshIntData.positions.items.len * 2;
-        const meshData = eng.mdata.MeshData{
-            .id = meshIntData.id,
-            .materialId = meshIntData.materialId,
-            .idxOffset = idxOffset,
-            .idxSize = numIndices * @sizeOf(u32),
-            .vtxOffset = vtxOffset,
-            .vtxSize = numVertices * @sizeOf(f32),
-        };
-        try meshDataList.append(allocator, meshData);
+    // Dump materials file
+    var writerMaterials = std.Io.Writer.Allocating.init(allocator);
+    var jsonMat = std.json.Stringify{
+        .writer = &writerMaterials.writer,
+        .options = .{
+            .whitespace = .indent_2,
+            .emit_null_optional_fields = true,
+            .escape_unicode = false,
+            .emit_nonportable_numbers_as_strings = false,
+        },
+    };
+    const fileMaterialsName = try std.fmt.allocPrint(allocator, "{s}-mat.json", .{modelId});
+    try jsonMat.write(materialList);
+    const fileMaterials = try dir.createFile(fileMaterialsName, .{ .truncate = true });
+    defer fileMaterials.close();
+    try fileMaterials.writeAll(writerMaterials.written());
+    std.debug.print("Dumped materials [{s}]\n", .{fileMaterialsName});
 
-        idxOffset += meshData.idxSize;
-        vtxOffset += meshData.vtxSize;
-        meshIntData.cleanup(allocator);
-    }
-
+    // Build model data
     const idxRelPath = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ baseDir, idxFileName });
     const vtxRelPath = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ baseDir, vtxFileName });
 
@@ -132,29 +147,9 @@ pub fn main() !void {
         .vtxFilename = vtxRelPath,
     };
 
-    var writerMaterials = std.Io.Writer.Allocating.init(allocator);
-
-    var jsonMat = std.json.Stringify{
-        .writer = &writerMaterials.writer,
-        .options = .{
-            .whitespace = .indent_2,
-            .emit_null_optional_fields = true,
-            .escape_unicode = false,
-            .emit_nonportable_numbers_as_strings = false,
-        },
-    };
-
-    // Dump materials file
-    const fileMaterialsName = try std.fmt.allocPrint(allocator, "{s}-mat.json", .{modelId});
-    try jsonMat.write(materialList);
-    const fileMaterials = try dir.createFile(fileMaterialsName, .{ .truncate = true });
-    defer fileMaterials.close();
-    try fileMaterials.writeAll(writerMaterials.written());
-    std.debug.print("Dumped materials [{s}]\n", .{fileMaterialsName});
-
+    // Dump model file
     var writerModel = std.Io.Writer.Allocating.init(allocator);
     defer writerModel.deinit();
-
     var jsonModel = std.json.Stringify{
         .writer = &writerModel.writer,
         .options = .{
@@ -165,7 +160,6 @@ pub fn main() !void {
         },
     };
 
-    // Dump model file
     const fileModelName = try std.fmt.allocPrint(allocator, "{s}.json", .{modelId});
     try jsonModel.write(modelData);
     const fileModel = try dir.createFile(fileModelName, .{ .truncate = true });
@@ -182,7 +176,13 @@ pub fn normalizePath(allocator: std.mem.Allocator, input_path: []const u8) ![]co
     return result;
 }
 
-fn processMaterial(allocator: std.mem.Allocator, material: *const zmesh.io.zcgltf.Material, baseDir: []const u8, modelId: []const u8, pos: usize) !eng.mdata.MaterialData {
+fn processMaterial(
+    allocator: std.mem.Allocator,
+    material: *const zmesh.io.zcgltf.Material,
+    baseDir: []const u8,
+    modelId: []const u8,
+    pos: usize,
+) !eng.mdata.MaterialData {
     var color = [_]f32{ 0.0, 0.0, 0.0, 0.0 };
     var texturePath: [*:0]const u8 = "";
     if (material.has_pbr_metallic_roughness > 0) {
