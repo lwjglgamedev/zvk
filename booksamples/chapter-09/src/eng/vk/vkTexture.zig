@@ -38,7 +38,7 @@ pub const VkTextSampler = struct {
 };
 
 pub const VkTextureInfo = struct {
-    data: []u8,
+    data: []const u8,
     width: u32,
     height: u32,
     format: vulkan.Format,
@@ -102,7 +102,7 @@ pub const VkTexture = struct {
         self.vkImage.cleanup(vkCtx);
     }
 
-    fn isTransparent(data: *const []u8) bool {
+    fn isTransparent(data: *const []const u8) bool {
         const numBlocks = data.len / 4;
         var transparent = false;
         for (0..numBlocks) |i| {
