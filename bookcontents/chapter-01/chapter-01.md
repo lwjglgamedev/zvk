@@ -181,7 +181,7 @@ This is controlled by the following functions:
 
 ## Engine
 
-Engine code us located under `src/eng` and all the submodules are defined in the `mod.zig` file:
+Engine code is located under `src/eng` and all the submodules are defined in the `mod.zig` file:
 
 ```zig
 pub const engine = @import("eng.zig");
@@ -493,5 +493,6 @@ window has been resized. It also retrieves mouse state.
 If you run the sample, you will get a nice black window that you can resize, move and close.
 With that, this chapter comes to its end.
 In the next chapter, we will start viewing the first basic Vulkan concepts.
+
 
 [Next chapter](../chapter-02/chapter-02.md)
