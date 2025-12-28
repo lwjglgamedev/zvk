@@ -217,8 +217,8 @@ const MeshIntData = struct {
 
 It stores the mesh identifier (`id`), the identifier of the material associated to it (`materialId`), the indices, positions and texture
 coordinates. We need this interim structs (that is what `Int` means) to store the data for the vertices and the indices. We will dump that
-that to t he binary files associated to the model and will not need them in the `en.mdata.MeshData` struct, which will be the one used in
-the engine. In the `en.mdata.MeshData` struct we will just store the offsets inside those binary files for the vertices and indices data
+that to t he binary files associated to the model and will not need them in the `eng.mdata.MeshData` struct, which will be the one used in
+the engine. In the `eng.mdata.MeshData` struct we will just store the offsets inside those binary files for the vertices and indices data
 (Remember that this struct is stored in the `src/eng/modelData.zig` file):
 
 ```zig
@@ -458,3 +458,414 @@ fn printHelp() void {
 }
 ```
 
+## Textures
+
+We have already created the classes that support images and image views, however, we need to be able to load texture context from image
+files and to properly copy its contents to a buffer setting up the adequate layout. We will create a new struct named `VkTexture` to support
+this. It will be included in a new file under `src/eng/vk/vkTexture` file. You will need to include in the `mod.zig` file: 
+`pub const text = @import("vkTexture.zig");`. In order to create textures we will a helper struct that will hold relevant information
+for texture creation. It will be named `VkTextureInfo` (defined in the same file):
+
+```zig
+pub const VkTextureInfo = struct {
+    data: []const u8,
+    width: u32,
+    height: u32,
+    format: vulkan.Format,
+};
+```
+
+It will store the texture data, its dimensions and the format of the image data. We will review now the `VkTexture` struct which starts like this:
+
+```zig
+pub const VkTexture = struct {
+    vkImage: vk.img.VkImage,
+    vkImageView: vk.imv.VkImageView,
+    vkStageBuffer: ?vk.buf.VkBuffer,
+    width: u32,
+    height: u32,
+
+    pub fn create(vkCtx: *const vk.ctx.VkCtx, vkTextureInfo: *const VkTextureInfo) !VkTexture {
+        const flags = vulkan.ImageUsageFlags{
+            .transfer_dst_bit = true,
+            .sampled_bit = true,
+        };
+        const vkImageData = vk.img.VkImageData{
+            .width = vkTextureInfo.width,
+            .height = vkTextureInfo.height,
+            .usage = flags,
+            .format = vkTextureInfo.format,
+        };
+        const vkImage = try vk.img.VkImage.create(vkCtx, vkImageData);
+        const imageViewData = vk.imv.VkImageViewData{ .format = vkTextureInfo.format };
+
+        const vkImageView = try vk.imv.VkImageView.create(vkCtx.vkDevice, vkImage.image, imageViewData);
+
+        const dataSize = vkTextureInfo.data.len;
+        const vkStageBuffer = try vk.buf.VkBuffer.create(
+            vkCtx,
+            dataSize,
+            .{ .transfer_src_bit = true },
+            .{ .host_visible_bit = true, .host_coherent_bit = true },
+        );
+        try vk.buf.copyDataToBuffer(vkCtx, &vkStageBuffer, &vkTextureInfo.data);
+
+        return .{
+            .vkImage = vkImage,
+            .vkImageView = vkImageView,
+            .vkStageBuffer = vkStageBuffer,
+            .width = vkTextureInfo.width,
+            .height = vkTextureInfo.height,
+        };
+    }
+    ...
+};
+```
+
+The `create` function will create new instances of `VkTexture` structs and will receive, in addition of the Vulkan the context,
+an instance of the `vkTextureInfo` struct that will hold all the required data. It creates first an image and image view and then
+a  staging buffer which is CPU accessible to copy image contents. It is interesting to review the usage flags we are using in in this case:
+
+- `transfer_dst_bit` (`VK_IMAGE_USAGE_TRANSFER_DST_BIT`): The image can be used as a destination of a transfer command.
+We need this, because in our case, we will copy from a staging buffer to the image.
+- `sampled_bit` (`VK_IMAGE_USAGE_SAMPLED_BIT`): The image can be used to occupy a descriptor set (more on this later).
+In our case, the image needs to be used by a sampler in a fragment shader, so we need to set this flag.
+
+At the end of the `create` function we just copy the image data to the staging buffer associated to the image by calling a function
+that is located in the `vkBuffer.zig`:
+
+```zig
+pub fn copyDataToBuffer(vkCtx: *const vk.ctx.VkCtx, vkBuffer: *const VkBuffer, data: *const []const u8) !void {
+    const buffData = try vkBuffer.map(vkCtx);
+    defer vkBuffer.unMap(vkCtx);
+
+    const gpuBytes: [*]u8 = @ptrCast(buffData);
+
+    @memcpy(gpuBytes[0..data.len], data.ptr);
+}
+```
+
+The `VkTexture` struct defines a `cleanup` function to free the resources:
+
+```zig
+pub const VkTexture = struct {
+    ...
+    pub fn cleanup(self: *VkTexture, vkCtx: *const vk.ctx.VkCtx) void {
+        if (self.vkStageBuffer) |sb| {
+            sb.cleanup(vkCtx);
+        }
+        self.vkImageView.cleanup(vkCtx.vkDevice);
+        self.vkImage.cleanup(vkCtx);
+    }
+    ...
+};
+```
+
+In order for Vulkan to correctly use the image, we need to perform the following steps:
+- We need to set the image into `transfer_dst_optimal` (`VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL`) layout to be ready
+to be in transfer state so we can copy the contents of the buffer.
+- Record a copy operation from the buffer to the image.
+- Set the image into `shader_read_only_optimal` (`VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL`) so it can be used in shaders.
+
+We will do all of these operations by recording image memory barriers and copy operations inside a command buffer in a
+function called `recordTransition`, which is defined like this:
+
+```zig
+pub const VkTexture = struct {
+    ...
+    pub fn recordTransition(self: *const VkTexture, vkCtx: *const vk.ctx.VkCtx, cmdHandle: vulkan.CommandBuffer) void {
+        // Record transition to dst optimal
+        const device = vkCtx.vkDevice.deviceProxy;
+        const initBarriers = [_]vulkan.ImageMemoryBarrier2{.{
+            .old_layout = vulkan.ImageLayout.undefined,
+            .new_layout = vulkan.ImageLayout.transfer_dst_optimal,
+            .src_stage_mask = .{ .top_of_pipe_bit = true },
+            .dst_stage_mask = .{ .all_transfer_bit = true },
+            .src_access_mask = .{},
+            .dst_access_mask = .{ .transfer_write_bit = true },
+            .src_queue_family_index = vulkan.QUEUE_FAMILY_IGNORED,
+            .dst_queue_family_index = vulkan.QUEUE_FAMILY_IGNORED,
+            .subresource_range = .{
+                .aspect_mask = .{ .color_bit = true },
+                .base_mip_level = 0,
+                .level_count = vulkan.REMAINING_MIP_LEVELS,
+                .base_array_layer = 0,
+                .layer_count = vulkan.REMAINING_ARRAY_LAYERS,
+            },
+            .image = self.vkImage.image,
+        }};
+        const initDepInfo = vulkan.DependencyInfo{
+            .image_memory_barrier_count = initBarriers.len,
+            .p_image_memory_barriers = &initBarriers,
+        };
+        device.cmdPipelineBarrier2(cmdHandle, &initDepInfo);
+
+        // Record copy
+        const region = [_]vulkan.BufferImageCopy{.{
+            .buffer_offset = 0,
+            .buffer_row_length = 0,
+            .buffer_image_height = 0,
+            .image_subresource = .{
+                .aspect_mask = vulkan.ImageAspectFlags{ .color_bit = true },
+                .mip_level = 0,
+                .base_array_layer = 0,
+                .layer_count = 1,
+            },
+            .image_offset = .{
+                .x = 0,
+                .y = 0,
+                .z = 0,
+            },
+            .image_extent = .{
+                .width = self.vkImage.width,
+                .height = self.vkImage.height,
+                .depth = 1,
+            },
+        }};
+        device.cmdCopyBufferToImage(
+            cmdHandle,
+            self.vkStageBuffer.?.buffer,
+            self.vkImage.image,
+            vulkan.ImageLayout.transfer_dst_optimal,
+            region.len,
+            &region,
+        );
+
+        // Record transition to src optimal
+        const endBarriers = [_]vulkan.ImageMemoryBarrier2{.{
+            .old_layout = vulkan.ImageLayout.transfer_dst_optimal,
+            .new_layout = vulkan.ImageLayout.shader_read_only_optimal,
+            .src_stage_mask = .{ .all_transfer_bit = true },
+            .dst_stage_mask = .{ .fragment_shader_bit = true },
+            .src_access_mask = .{ .transfer_write_bit = true },
+            .dst_access_mask = .{ .shader_read_bit = true },
+            .src_queue_family_index = vulkan.QUEUE_FAMILY_IGNORED,
+            .dst_queue_family_index = vulkan.QUEUE_FAMILY_IGNORED,
+            .subresource_range = .{
+                .aspect_mask = .{ .color_bit = true },
+                .base_mip_level = 0,
+                .level_count = vulkan.REMAINING_MIP_LEVELS,
+                .base_array_layer = 0,
+                .layer_count = vulkan.REMAINING_ARRAY_LAYERS,
+            },
+            .image = self.vkImage.image,
+        }};
+        const endDepInfo = vulkan.DependencyInfo{
+            .image_memory_barrier_count = endBarriers.len,
+            .p_image_memory_barriers = &endBarriers,
+        };
+        device.cmdPipelineBarrier2(cmdHandle, &endDepInfo);
+    }
+};
+```
+
+This function first records the transition of the image layout to one where we can copy the staging buffer contents. That is,
+we transition from `vulkan.ImageLayout.undefined` (`VK_IMAGE_LAYOUT_UNDEFINED`) to `vulkan.ImageLayout.transfer_dst_optimal`
+(`VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL`) layout by setting an image memory barrier. After that, it records the commands to copy
+the staging buffer contents to the image. It first defines the region to copy (in this case the whole image size) and calls
+the `cmdCopyBufferToImage` function. Finally, we record the commands to transition the layout from `vulkan.ImageLayout.transfer_dst_optimal`
+(`VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL`) to `vulkan.ImageLayout.shader_read_only_optimal` (`VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL`)
+by setting again an image memory barrier. The texture will be used in a shader, no one will be writing to it after we have finished
+with the staging buffer, therefore, the `vulkan.ImageLayout.shader_read_only_optimal` is the appropriate state.
+
+An important issue to highlight is that we are recording commands that can be submitted to a queue. In this way, we can group the commands associated to several textures and submit them using a single call, instead of going one by one. This should  reduce the loading time when dealing with several textures.
+
+Now that the `VkTexture` struct is complete, we are ready to to use it. In 3D models, it is common that multiple meshes share the same texture file,
+we want to control that to avoid loading the same resource multiple times. We will create a new struct named `TextureCache` to control this:
+
+```zig
+const com = @import("com");
+const std = @import("std");
+const vk = @import("vk");
+const vulkan = @import("vulkan");
+const zstbi = @import("zstbi");
+const log = std.log.scoped(.eng);
+
+pub const MAX_TEXTURES: u32 = 100;
+
+pub const TextureInfo = struct {
+    id: []const u8,
+    data: []const u8,
+    width: u32,
+    height: u32,
+    format: vulkan.Format,
+};
+
+const EMPTY_PIXELS = [_]u8{ 0, 0, 0, 0 };
+
+pub const TextureCache = struct {
+    textureMap: std.ArrayHashMap([]const u8, vk.text.VkTexture, std.array_hash_map.StringContext, false),
+    ...
+    pub fn create(allocator: std.mem.Allocator) TextureCache {
+        const textureMap = std.ArrayHashMap([]const u8, vk.text.VkTexture, std.array_hash_map.StringContext, false).init(allocator);
+        return .{ .textureMap = textureMap };
+    }
+    ...    
+};
+```
+
+This struct will store in a `ArrayHashMap` the textures indexed by the path to the file use to load them. The reason for this structure is to be able to recover the texture by its identifier (like in a `StringHashMap`) while maintaining the insertion order. Although by now, we will be accessing by identifier,
+later on we will need to get the textures by the position they were loaded.
+
+The `TextureCache` struct defines a function to add a `VkTexture` named `addTexture`. That function receives a `TextureInfo` struct
+with all te information required to cerate a `VkTexture` and will check if the texture has been already added to the cache,
+to avoid creating multiple textures for the same data. If it does not exists it will just instantiate a new `VkTexture`
+and store it in the cache. We have another variant  thar receives a  a path to a texture and another one receiving a
+`TextureInfo` will receive the path to the texture image:
+
+```zig
+pub const TextureCache = struct {
+    ...
+    pub fn addTexture(self: *TextureCache, allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx, textureInfo: *const TextureInfo) !void {
+        if (self.textureMap.contains(textureInfo.id)) {
+            return;
+        }
+        if (self.textureMap.count() >= MAX_TEXTURES) {
+            @panic("Exceeded maximum number of textures");
+        }
+        const ownedId = try allocator.dupe(u8, textureInfo.id);
+        const vkTextureInfo = vk.text.VkTextureInfo{
+            .data = textureInfo.data,
+            .width = textureInfo.width,
+            .height = textureInfo.height,
+            .format = textureInfo.format,
+        };
+        const vkTexture = try vk.text.VkTexture.create(vkCtx, &vkTextureInfo);
+        try self.textureMap.put(ownedId, vkTexture);
+    }
+
+    pub fn addTextureFromPath(self: *TextureCache, allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx, path: [:0]const u8) !bool {
+        if (self.textureMap.count() >= MAX_TEXTURES) {
+            @panic("Exceeded maximum number of textures");
+        }
+        std.fs.cwd().access(path, .{}) catch {
+            log.err("Could not load texture file [{s}]", .{path});
+            return false;
+        };
+        var image = try zstbi.Image.loadFromFile(path, 4);
+        defer image.deinit();
+
+        const textureInfo = TextureInfo{
+            .id = path,
+            .data = image.data,
+            .width = image.width,
+            .height = image.height,
+            .format = vulkan.Format.r8g8b8a8_srgb,
+        };
+
+        try self.addTexture(allocator, vkCtx, &textureInfo);
+        return true;
+    }
+    ...
+};
+```
+
+We will add also the classical `cleanup` function to free the images and a function to get a texture using its
+identifier.
+
+```zig
+pub const TextureCache = struct {
+    ...
+    pub fn cleanup(self: *TextureCache, allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx) void {
+        var iter = self.textureMap.iterator();
+        while (iter.next()) |entry| {
+            allocator.free(entry.key_ptr.*);
+            const texture = entry.value_ptr;
+            texture.cleanup(vkCtx);
+        }
+        self.textureMap.deinit();
+    }
+
+    pub fn getTexture(self: *const TextureCache, id: []const u8) vk.text.VkTexture {
+        const texture = self.textureMap.get(id) orelse {
+            @panic("Could not find texture");
+        };
+
+        return texture;
+    }
+    ...
+};
+```
+
+The only missing function is `recordTextures` which performs layout transitions over all the textures stored in the cache.
+It is defined like this:
+
+```zig
+pub const TextureCache = struct {
+    ...
+    pub fn recordTextures(self: *TextureCache, allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx, vkCmdPool: *vk.cmd.VkCmdPool, vkQueue: vk.queue.VkQueue) !void {
+        log.debug("Recording textures", .{});
+        const numTextures = self.textureMap.count();
+        if (numTextures < MAX_TEXTURES) {
+            const numPadding = MAX_TEXTURES - numTextures;
+            for (0..numPadding) |_| {
+                const id = try com.utils.generateUuid(allocator);
+                defer allocator.free(id);
+                const textureInfo = TextureInfo{
+                    .data = EMPTY_PIXELS[0..],
+                    .width = 1,
+                    .height = 1,
+                    .format = vulkan.Format.r8g8b8a8_srgb,
+                    .id = id,
+                };
+                try self.addTexture(allocator, vkCtx, &textureInfo);
+            }
+        }
+        const cmd = try vk.cmd.VkCmdBuff.create(vkCtx, vkCmdPool, true);
+        defer cmd.cleanup(vkCtx, vkCmdPool);
+
+        try cmd.begin(vkCtx);
+        const cmdHandle = cmd.cmdBuffProxy.handle;
+        var it = self.textureMap.iterator();
+        while (it.next()) |entry| {
+            entry.value_ptr.*.recordTransition(vkCtx, cmdHandle);
+        }
+        try cmd.end(vkCtx);
+        try cmd.submitAndWait(vkCtx, vkQueue);
+
+        log.debug("Recorded textures", .{});
+    }
+    ...
+};
+```
+
+We first check if we have reached the maximum number of textures. If we do not have reached that size, we will add empty slots
+with a default texture (just one pixel). The reason behind this code is that we will be using arrays of textures in the shaders. When using
+those arrays, the size needs to be set upfront and it expects to have valid images (empty slots will not work). We will see later
+on how this works. After that we just create a command buffer, iterate over the textures calling `recordTextureTransition` and
+submit the work and wait it to be completed. Using arrays of textures is also the reason  why we need to keeping track of the
+position of each texture is important. This is why we use the `ArrayHashMap` struct which basically keeps insertion order.
+
+
+## Models and Materials
+
+The next step is to update the `VulkanMesh` struct to hold a reference to the material identifier it is associated:
+
+```zig
+pub const VulkanMesh = struct {
+    buffIdx: vk.buf.VkBuffer,
+    buffVtx: vk.buf.VkBuffer,
+    id: []const u8,
+    materialId: []const u8,
+    numIndices: usize,
+
+    pub fn cleanup(self: *const VulkanMesh, allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx) void {
+        self.buffVtx.cleanup(vkCtx);
+        self.buffIdx.cleanup(vkCtx);
+        allocator.free(self.id);
+        allocator.free(self.materialId);
+    }
+};
+```
+
+We will also add a new `VulkanMaterial` struct which will just store an identifier by now:
+
+```zig
+pub const VulkanMaterial = struct {
+    id: []const u8,
+
+    pub fn cleanup(self: *VulkanMaterial, allocator: std.mem.Allocator) void {
+        allocator.free(self.id);
+    }
+};
+```

@@ -45,7 +45,7 @@ pub const VkBuffer = struct {
     }
 };
 
-pub fn copyDataToBuffer(vkCtx: *const vk.ctx.VkCtx, vkBuffer: *const VkBuffer, data: *const []u8) !void {
+pub fn copyDataToBuffer(vkCtx: *const vk.ctx.VkCtx, vkBuffer: *const VkBuffer, data: *const []const u8) !void {
     const buffData = try vkBuffer.map(vkCtx);
     defer vkBuffer.unMap(vkCtx);
 

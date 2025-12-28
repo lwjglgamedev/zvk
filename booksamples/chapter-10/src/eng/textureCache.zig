@@ -9,7 +9,7 @@ pub const MAX_TEXTURES: u32 = 100;
 
 pub const TextureInfo = struct {
     id: []const u8,
-    data: []u8,
+    data: []const u8,
     width: u32,
     height: u32,
     format: vulkan.Format,
@@ -19,6 +19,9 @@ pub const TextureCache = struct {
     textureMap: std.ArrayHashMap([]const u8, vk.text.VkTexture, std.array_hash_map.StringContext, false),
 
     pub fn addTexture(self: *TextureCache, allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx, textureInfo: *const TextureInfo) !void {
+        if (self.textureMap.contains(textureInfo.id)) {
+            return;
+        }
         if (self.textureMap.count() >= MAX_TEXTURES) {
             @panic("Exceeded maximum number of textures");
         }
@@ -86,15 +89,16 @@ pub const TextureCache = struct {
             const numPadding = MAX_TEXTURES - numTextures;
             var data = [_]u8{ 0, 0, 0, 0 };
             for (0..numPadding) |_| {
+                const id = try com.utils.generateUuid(allocator);
+                defer allocator.free(id);
                 const textureInfo = TextureInfo{
                     .data = &data,
                     .width = 1,
                     .height = 1,
                     .format = vulkan.Format.r8g8b8a8_srgb,
-                    .id = try com.utils.generateUuid(allocator),
+                    .id = id,
                 };
                 try self.addTexture(allocator, vkCtx, &textureInfo);
-                allocator.free(textureInfo.id);
             }
         }
         const cmd = try vk.cmd.VkCmdBuff.create(vkCtx, vkCmdPool, true);

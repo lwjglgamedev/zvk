@@ -37,7 +37,7 @@ pub const VkTextSampler = struct {
 };
 
 pub const VkTextureInfo = struct {
-    data: []u8,
+    data: []const u8,
     width: u32,
     height: u32,
     format: vulkan.Format,
@@ -53,7 +53,6 @@ pub const VkTexture = struct {
     pub fn create(vkCtx: *const vk.ctx.VkCtx, vkTextureInfo: *const VkTextureInfo) !VkTexture {
         const flags = vulkan.ImageUsageFlags{
             .transfer_dst_bit = true,
-            .transfer_src_bit = true,
             .sampled_bit = true,
         };
         const vkImageData = vk.img.VkImageData{
