@@ -12,6 +12,7 @@ const QueuesInfo = struct {
 };
 
 pub const VkPhysDevice = struct {
+    features: vulkan.PhysicalDeviceFeatures,
     pdev: vulkan.PhysicalDevice,
     props: vulkan.PhysicalDeviceProperties,
     queuesInfo: QueuesInfo,
@@ -27,6 +28,7 @@ pub const VkPhysDevice = struct {
         for (pdevs) |pdev| {
             const props = instance.getPhysicalDeviceProperties(pdev);
             const memProps = instance.getPhysicalDeviceMemoryProperties(pdev);
+            const features = instance.getPhysicalDeviceFeatures(pdev);
             log.debug("Checking [{s}] physical device", .{props.device_name});
 
             if (!try checkExtensionSupport(instance, pdev, allocator)) {
@@ -34,6 +36,7 @@ pub const VkPhysDevice = struct {
             }
             if (try hasGraphicsQueue(instance, pdev, vkSurface, allocator)) |queuesInfo| {
                 const vkPhysDevice = VkPhysDevice{
+                    .features = features,
                     .pdev = pdev,
                     .props = props,
                     .queuesInfo = queuesInfo,

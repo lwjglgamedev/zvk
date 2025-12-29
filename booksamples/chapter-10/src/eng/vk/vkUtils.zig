@@ -18,10 +18,16 @@ pub fn createHostVisibleBuff(
         bufferUsage,
         @intFromEnum(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSSequentialWriteBit),
         vk.vma.VmaUsage.VmaUsageAuto,
-        vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBit,
+        vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBitAndCoherent,
     );
 
-    const descSet = try vkCtx.vkDescAllocator.addDescSet(allocator, vkCtx.vkDevice, id, vkDescSetLayout);
+    const descSet = try vkCtx.vkDescAllocator.addDescSet(
+        allocator,
+        vkCtx.vkPhysDevice,
+        vkCtx.vkDevice,
+        id,
+        vkDescSetLayout,
+    );
     descSet.setBuffer(vkCtx.vkDevice, buffer, vkDescSetLayout.binding, vkDescSetLayout.descType);
 
     return buffer;

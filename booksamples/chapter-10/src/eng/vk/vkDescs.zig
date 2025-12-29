@@ -13,16 +13,15 @@ const PoolInfo = struct {
     }
 
     pub fn create(allocator: std.mem.Allocator, vkPhysDevice: vk.phys.VkPhysDevice, vkDevice: vk.dev.VkDevice) !PoolInfo {
-        const limits = vkPhysDevice.props.limits;
         const descPoolSize = [_]vulkan.DescriptorPoolSize{ .{
             .type = vulkan.DescriptorType.uniform_buffer,
-            .descriptor_count = limits.max_descriptor_set_uniform_buffers,
+            .descriptor_count = try getLimits(vkPhysDevice, vulkan.DescriptorType.uniform_buffer),
         }, .{
             .type = vulkan.DescriptorType.combined_image_sampler,
-            .descriptor_count = limits.max_descriptor_set_samplers,
+            .descriptor_count = try getLimits(vkPhysDevice, vulkan.DescriptorType.combined_image_sampler),
         }, .{
             .type = vulkan.DescriptorType.storage_buffer,
-            .descriptor_count = limits.max_descriptor_set_storage_buffers,
+            .descriptor_count = try getLimits(vkPhysDevice, vulkan.DescriptorType.storage_buffer),
         } };
         const vkDescPool = try VkDescPool.create(vkDevice, &descPoolSize);
         var descCount = std.AutoArrayHashMap(vulkan.DescriptorType, u32).init(allocator);
@@ -35,15 +34,26 @@ const PoolInfo = struct {
             .vkDescPool = vkDescPool,
         };
     }
+
+    pub fn getLimits(vkPhysDevice: vk.phys.VkPhysDevice, descType: vulkan.DescriptorType) !u32 {
+        const limits = vkPhysDevice.props.limits;
+        return switch (descType) {
+            vulkan.DescriptorType.uniform_buffer => limits.max_descriptor_set_uniform_buffers,
+            vulkan.DescriptorType.combined_image_sampler => limits.max_descriptor_set_samplers,
+            vulkan.DescriptorType.storage_buffer => limits.max_descriptor_set_storage_buffers,
+            else => return error.NotSupportedDeviceType,
+        };
+    }
 };
 
 pub const VkDescAllocator = struct {
-    poolInfoList: std.ArrayList(PoolInfo),
+    poolInfoList: std.ArrayList(*PoolInfo),
     descSetMap: std.StringHashMap(VkDesSet),
 
     pub fn addDescSet(
         self: *VkDescAllocator,
         allocator: std.mem.Allocator,
+        vkPhysDevice: vk.phys.VkPhysDevice,
         vkDevice: vk.dev.VkDevice,
         id: []const u8,
         vkDescSetLayout: VkDescSetLayout,
@@ -55,8 +65,15 @@ pub const VkDescAllocator = struct {
             log.err("Duplicate key for descriptor set [{s}]", .{id});
             return error.DuplicateDescKey;
         }
-        for (self.poolInfoList.items) |*poolInfo| {
+        for (self.poolInfoList.items) |poolInfo| {
             const available = poolInfo.descCount.get(vkDescSetLayout.descType) orelse return error.KeyNotFound;
+            const limit = try PoolInfo.getLimits(vkPhysDevice, vkDescSetLayout.descType);
+            if (count > limit) {
+                log.err("Cannot create more than [{d}] for descriptor type [{any}]", .{
+                    limit, vkDescSetLayout.descType,
+                });
+                return error.DescLimitExceeded;
+            }
             if (available >= count) {
                 vkDescPoolOpt = poolInfo.vkDescPool;
                 poolInfoOpt = poolInfo;
@@ -64,9 +81,27 @@ pub const VkDescAllocator = struct {
             }
         }
 
+        if (poolInfoOpt == null) {
+            const poolInfo = try allocator.create(PoolInfo);
+            poolInfo.* = try PoolInfo.create(allocator, vkPhysDevice, vkDevice);
+            try self.poolInfoList.append(allocator, poolInfo);
+
+            vkDescPoolOpt = poolInfo.vkDescPool;
+            poolInfoOpt = poolInfo;
+        }
+
         if (vkDescPoolOpt) |vkDescPool| {
             const vkDescSet = try VkDesSet.create(vkDevice, vkDescPool, vkDescSetLayout);
-            try poolInfoOpt.?.descCount.put(vkDescSetLayout.descType, @as(u32, @intCast(poolInfoOpt.?.descCount.get(vkDescSetLayout.descType) orelse 0)) - count);
+            const poolInfo = poolInfoOpt.?;
+            const available = poolInfo.descCount.get(vkDescSetLayout.descType) orelse return error.KeyNotFound;
+            if (available < count) {
+                return error.NotAvailable;
+            }
+
+            try poolInfo.descCount.put(
+                vkDescSetLayout.descType,
+                available - count,
+            );
             const ownedId = try allocator.dupe(u8, id);
             try self.descSetMap.put(ownedId, vkDescSet);
             return vkDescSet;
@@ -76,8 +111,9 @@ pub const VkDescAllocator = struct {
     }
 
     pub fn cleanup(self: *VkDescAllocator, allocator: std.mem.Allocator, vkDevice: vk.dev.VkDevice) void {
-        for (self.poolInfoList.items) |*poolInfo| {
+        for (self.poolInfoList.items) |poolInfo| {
             poolInfo.cleanup(vkDevice);
+            allocator.destroy(poolInfo);
         }
         self.poolInfoList.deinit(allocator);
 
@@ -93,8 +129,9 @@ pub const VkDescAllocator = struct {
             allocator,
         );
 
-        const poolInfo = try PoolInfo.create(allocator, vkPhysDevice, vkDevice);
-        var poolInfoList = try std.ArrayList(PoolInfo).initCapacity(allocator, 1);
+        const poolInfo = try allocator.create(PoolInfo);
+        poolInfo.* = try PoolInfo.create(allocator, vkPhysDevice, vkDevice);
+        var poolInfoList = try std.ArrayList(*PoolInfo).initCapacity(allocator, 1);
         try poolInfoList.append(allocator, poolInfo);
 
         return .{

@@ -27,6 +27,7 @@ const QueuesInfo = struct {
 };
 
 pub const VkPhysDevice = struct {
+    features: vulkan.PhysicalDeviceFeatures,
     pdev: vulkan.PhysicalDevice,
     props: vulkan.PhysicalDeviceProperties,
     queuesInfo: QueuesInfo,
@@ -36,8 +37,9 @@ pub const VkPhysDevice = struct {
 ```
 
 The `QueuesInfo` struct will hold the family indices of the queues used to submit graphics or present commands (more on this later). The `VkPhysDevice`
-struct stores a reference to the Vulkan physical device (`pdev`), its properties (`props`), the queues information and the device
-memory properties (`memProps`). It provides a `create` method which instantiates this struct and that starts like this:
+struct stores the features of the physical device (`features`), a reference to the Vulkan physical device (`pdev`), its properties (`props`),
+the queues information and the device memory properties (`memProps`). It provides a `create` method which instantiates this struct and that starts
+like this:
 
 ```zig
 pub const VkPhysDevice = struct {
@@ -66,6 +68,7 @@ pub const VkPhysDevice = struct {
         for (pdevs) |pdev| {
             const props = instance.getPhysicalDeviceProperties(pdev);
             const memProps = instance.getPhysicalDeviceMemoryProperties(pdev);
+            const features = instance.getPhysicalDeviceFeatures(pdev);
             log.debug("Checking [{s}] physical device", .{props.device_name});
 
             if (!try checkExtensionSupport(instance, pdev, allocator)) {
@@ -73,6 +76,7 @@ pub const VkPhysDevice = struct {
             }
             if (try hasGraphicsQueue(instance, pdev, vkSurface, allocator)) |queuesInfo| {
                 const vkPhysDevice = VkPhysDevice{
+                    .features = features,
                     .pdev = pdev,
                     .props = props,
                     .queuesInfo = queuesInfo,
@@ -244,6 +248,9 @@ pub const VkDevice = struct {
         const features2 = vulkan.PhysicalDeviceVulkan12Features{
             .p_next = @constCast(&features3),
         };
+        const features = vulkan.PhysicalDeviceFeatures{
+            .sampler_anisotropy = vkPhysDevice.features.sampler_anisotropy,
+        };
 
         const devCreateInfo: vulkan.DeviceCreateInfo = .{
             .queue_create_info_count = queueCount,
@@ -251,6 +258,7 @@ pub const VkDevice = struct {
             .p_queue_create_infos = &qci,
             .enabled_extension_count = reqExtensions.len,
             .pp_enabled_extension_names = reqExtensions[0..].ptr,
+            .p_enabled_features = @ptrCast(&features),
         };
         const device = try vkInstance.instanceProxy.createDevice(vkPhysDevice.pdev, &devCreateInfo, null);
 
@@ -272,7 +280,8 @@ We basically create an array of `DeviceQueueCreateInfo` structs which will hold 
 so if this the case we will just use the first one by setting the `queueCount` to 1.
 
 We need to enable some features that are present in the `PhysicalDeviceVulkan13Features` struct to enable dynamic render and new synchronization functions (also
-called sync2) which we will use in next chapters.
+called sync2) which we will use in next chapters. We will also enable sampler anisotropy (we will use it later on for textures) if available
+by setting the proper flag in the `PhysicalDeviceFeatures` struct.
 
 With all of the above we can fill up the structure required to create a logical device, which is called `DeviceCreateInfo`.
 

@@ -5,14 +5,6 @@ const vk = @import("vk");
 const vulkan = @import("vulkan");
 const zm = @import("zmath");
 
-const PushConstantsVtx = struct {
-    modelMatrix: zm.Mat,
-};
-
-const PushConstantsFrg = struct {
-    materialIdx: u32,
-};
-
 const VtxBuffDesc = struct {
     const binding_description = vulkan.VertexInputBindingDescription{
         .binding = 0,
@@ -37,6 +29,14 @@ const VtxBuffDesc = struct {
 
     pos: [3]f32,
     textCoords: [2]f32,
+};
+
+const PushConstantsVtx = struct {
+    modelMatrix: zm.Mat,
+};
+
+const PushConstantsFrg = struct {
+    materialIdx: u32,
 };
 
 const DEPTH_FORMAT = vulkan.Format.d16_unorm;
@@ -95,6 +95,7 @@ pub const RenderScn = struct {
         // Textures
         const samplerInfo = vk.text.VkTextSamplerInfo{
             .addressMode = vulkan.SamplerAddressMode.repeat,
+            .anisotropy = true,
             .borderColor = vulkan.BorderColor.float_opaque_black,
         };
         const textSampler = try vk.text.VkTextSampler.create(vkCtx, samplerInfo);
@@ -146,21 +147,13 @@ pub const RenderScn = struct {
             },
         };
 
-        // Pipeline layout
-        const pipelineLayout = try vkCtx.vkDevice.deviceProxy.createPipelineLayout(&.{
-            .flags = .{},
-            .set_layout_count = descSetLayouts.len,
-            .p_set_layouts = &descSetLayouts,
-            .push_constant_range_count = pushConstants.len,
-            .p_push_constant_ranges = &pushConstants,
-        }, null);
-
         // Pipeline
         const vkPipelineCreateInfo = vk.pipe.VkPipelineCreateInfo{
             .colorFormat = vkCtx.vkSwapChain.surfaceFormat.format,
             .depthFormat = DEPTH_FORMAT,
+            .descSetLayouts = descSetLayouts[0..],
             .modulesInfo = modulesInfo,
-            .pipelineLayout = pipelineLayout,
+            .pushConstants = pushConstants[0..],
             .useBlend = false,
             .vtxBuffDesc = .{
                 .attribute_description = @constCast(&VtxBuffDesc.attribute_description)[0..],
@@ -203,7 +196,13 @@ pub const RenderScn = struct {
         const imageViews = try allocator.alloc(vk.imv.VkImageView, textureCache.textureMap.count());
         defer allocator.free(imageViews);
 
-        const descSet = try vkCtx.vkDescAllocator.addDescSet(allocator, vkCtx.vkDevice, DESC_ID_TEXTS, self.descLayoutTexture);
+        const descSet = try vkCtx.vkDescAllocator.addDescSet(
+            allocator,
+            vkCtx.vkPhysDevice,
+            vkCtx.vkDevice,
+            DESC_ID_TEXTS,
+            self.descLayoutTexture,
+        );
         var iter = textureCache.textureMap.iterator();
         var i: u32 = 0;
         while (iter.next()) |entry| {
@@ -212,7 +211,13 @@ pub const RenderScn = struct {
         }
         try descSet.setImageArr(allocator, vkCtx.vkDevice, imageViews, self.textSampler, 0);
 
-        const matDescSet = try vkCtx.vkDescAllocator.addDescSet(allocator, vkCtx.vkDevice, DESC_ID_MAT, self.descLayoutFrgSt);
+        const matDescSet = try vkCtx.vkDescAllocator.addDescSet(
+            allocator,
+            vkCtx.vkPhysDevice,
+            vkCtx.vkDevice,
+            DESC_ID_MAT,
+            self.descLayoutFrgSt,
+        );
         matDescSet.setBuffer(vkCtx.vkDevice, materialsCache.materialsBuffer.?, self.descLayoutFrgSt.binding, self.descLayoutFrgSt.descType);
     }
 

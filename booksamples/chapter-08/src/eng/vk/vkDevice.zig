@@ -35,6 +35,9 @@ pub const VkDevice = struct {
         const features2 = vulkan.PhysicalDeviceVulkan12Features{
             .p_next = @constCast(&features3),
         };
+        const features = vulkan.PhysicalDeviceFeatures{
+            .sampler_anisotropy = vkPhysDevice.features.sampler_anisotropy,
+        };
 
         const devCreateInfo: vulkan.DeviceCreateInfo = .{
             .queue_create_info_count = queueCount,
@@ -42,6 +45,7 @@ pub const VkDevice = struct {
             .p_queue_create_infos = &qci,
             .enabled_extension_count = reqExtensions.len,
             .pp_enabled_extension_names = reqExtensions[0..].ptr,
+            .p_enabled_features = @ptrCast(&features),
         };
         const device = try vkInstance.instanceProxy.createDevice(vkPhysDevice.pdev, &devCreateInfo, null);
 

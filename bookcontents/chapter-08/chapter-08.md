@@ -1229,6 +1229,7 @@ in the `vkTexture.zig` file):
 ```zig
 pub const VkTextSamplerInfo = struct {
     addressMode: vulkan.SamplerAddressMode,
+    anisotropy: bool,
     borderColor: vulkan.BorderColor,
 };
 
@@ -1236,6 +1237,7 @@ pub const VkTextSampler = struct {
     sampler: vulkan.Sampler,
 
     pub fn create(vkCtx: *const vk.ctx.VkCtx, samplerInfo: VkTextSamplerInfo) !VkTextSampler {
+        const anisotropy = (vkCtx.vkPhysDevice.features.sampler_anisotropy == vulkan.Bool32.true) and samplerInfo.anisotropy;
         const createInfo = vulkan.SamplerCreateInfo{
             .mag_filter = vulkan.Filter.nearest,
             .min_filter = vulkan.Filter.nearest,
@@ -1244,14 +1246,14 @@ pub const VkTextSampler = struct {
             .address_mode_w = samplerInfo.addressMode,
             .border_color = samplerInfo.borderColor,
             .mipmap_mode = vulkan.SamplerMipmapMode.nearest,
-            .max_anisotropy = 0.0,
             .min_lod = 0.0,
             .max_lod = 0.0,
             .mip_lod_bias = 0.0,
             .compare_enable = vulkan.Bool32.false,
             .compare_op = vulkan.CompareOp.never,
             .unnormalized_coordinates = vulkan.Bool32.false,
-            .anisotropy_enable = vulkan.Bool32.false,
+            .anisotropy_enable = if (anisotropy) vulkan.Bool32.true else vulkan.Bool32.false,
+            .max_anisotropy = if (anisotropy) vkCtx.vkPhysDevice.props.limits.max_sampler_anisotropy else 0.0,
         };
         const sampler = try vkCtx.vkDevice.deviceProxy.createSampler(&createInfo, null);
         return .{ .sampler = sampler };
@@ -1264,7 +1266,7 @@ pub const VkTextSampler = struct {
 ```
 
 We will first define a helper struct that will encapsulate creation parameters named `VkTextSamplerInfo` which by now it will
-store the address mode and the border color for the texture (more on  this later)-
+store if anisotropy should be enabled, the address mode and the border color for the texture (more on this later).
 
 In order to create a sampler, we need to invoke the `createSampler` function which requires a `VkTextSamplerInfo` structure,
 defined by the following fields:
@@ -1283,9 +1285,640 @@ the texture is repeated endlessly over all the axis or `vulkan.SamplerAddressMod
 - `border_color`: This sets the color for the border that will be used for texture lookups beyond bounds when 
 `vulkan.SamplerAddressMode.clamp_to_edge` (`VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER`) is used in the `address_mode_X` attributes.
 - `mipmap_mode`: This is used to specify the mipmap filter to apply in lookups. We will address that in later chapters.
-- `min_lod`, `max_lod` and `mip_lod_bias`: These parameters are used for mip mapping, so we will review them later on.
+- `min_lod`, `max_lod` and `mip_lod_bias`: These parameters are used for mip mapping, so we will review them in later chpaters.
 - `compare_enable`: It enables a comparison when performing texture lookups.
 - `compare_op`: It specifies the comparison operation. We will not be using this at this moment.
 - `unnormalized_coordinates`: Texture coordinates cover the [0, 1] range. When this parameter is set to `true` the coordinates will
 cover the ranges [0, width], [0, height].
-- `anisotropy_enable`: It enables / disables anisotropic filtering.
+- `anisotropy_enable`: It enables / disables anisotropic filtering. We will enable it if the device support
+
+Finally, we enable anisotropic filter if the device supports it. With all that information we just call the `vkCreateSampler` function and complete the class with the usual `cleanup` and the getter methods. Anisotropic filtering is used to eliminate aliasing effects when sampling from a texture. The classes completes with classical `cleanup` method and a *getter* to access the texture sampler handle.
+
+
+It is turn now to create the a struct to model descriptor sets. The struct, named `VkDesSet`, starts like this:
+
+```zig
+pub const VkDesSet = struct {
+    descSet: vulkan.DescriptorSet,
+
+    pub fn create(vkDevice: vk.dev.VkDevice, vkDescPool: vk.desc.VkDescPool, vkDescSetLayout: VkDescSetLayout) !VkDesSet {
+        const descSetLayouts = [_]vulkan.DescriptorSetLayout{vkDescSetLayout.descSetLayout};
+        const allocInfo = vulkan.DescriptorSetAllocateInfo{
+            .descriptor_pool = vkDescPool.descPool,
+            .p_set_layouts = &descSetLayouts,
+            .descriptor_set_count = descSetLayouts.len,
+        };
+
+        var descSet: [1]vulkan.DescriptorSet = undefined;
+        try vkDevice.deviceProxy.allocateDescriptorSets(&allocInfo, &descSet);
+        return .{ .descSet = descSet[0] };
+    }
+    ...
+};
+```
+
+In the `create` function we allocate a Vulkan descriptor set. In order to that, we need to invoke the `allocateDescriptorSets`
+Vulkan function which requires a `DescriptorSetAllocateInfo` structure. This structure needs a handle to a descriptor pool and 
+ handle to the layout which describes the descriptor set.
+
+Now let's add some functions to associate a descriptor set with buffers or images, so we can use them in our shaders. Let's start with the
+`setBuffer` method:
+
+```zig
+pub const VkDesSet = struct {
+    ...
+    pub fn setBuffer(self: *const VkDesSet, vkDevice: vk.dev.VkDevice, vkBuffer: vk.buf.VkBuffer, binding: u32, descType: vulkan.DescriptorType) void {
+        const bufferInfo = [_]vulkan.DescriptorBufferInfo{.{
+            .buffer = vkBuffer.buffer,
+            .offset = 0,
+            .range = vkBuffer.size,
+        }};
+
+        const imageInfo = [_]vulkan.DescriptorImageInfo{};
+        const texelBufferView = [_]vulkan.BufferView{};
+
+        const descSets = [_]vulkan.WriteDescriptorSet{.{
+            .dst_set = self.descSet,
+            .descriptor_count = 1,
+            .dst_binding = binding,
+            .descriptor_type = descType,
+            .p_buffer_info = &bufferInfo,
+            .p_image_info = &imageInfo,
+            .p_texel_buffer_view = &texelBufferView,
+            .dst_array_element = 0,
+        }};
+
+        vkDevice.deviceProxy.updateDescriptorSets(descSets.len, &descSets, 0, null);
+    }
+    ...
+};
+```
+
+We first create an array of `DescriptorBufferInfo` (we will need one per descriptor set) which defines the buffer
+infomration that will be associated to each descriptor set. It expects the following attributes:
+- `buffer`: The Vulkan buffer to associate with.
+- `offset`: An offset in bytes for that buffer (we may opt to not bind to the wholw buffer but just a chunk).
+- `range`: The size in bytes of the chunk of the buffer to be associated to the descriptor set.
+
+After that, we create an array of `WriteDescriptorSet` (we will need one per descriptor set), which expects expects the 
+following attributes:
+- `dst_set`: The handle to the descriptor set.
+- `descriptor_count`: he number of descriptors.
+- `dst_binding`: The binding point to which write operation refers to. Remember that a descriptor set cana have many descriptors, each of
+them in a different binding point.
+- `descriptor_type`: The type of the descriptor (For example `uniform_buffer` (`VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT`) for uniforms).
+- `p_buffer_info`: A pointer to the `DescriptorBufferInfo` structure created before.
+- `p_image_info`: A pointer to the images to be associated to this decsriptor set. We will not use this feature
+in thi sfunction so we just pass an empty array.
+- `p_texel_buffer_view`: Same as above.
+- `dst_array_element`: We will not use this (used for inline uniform blocks).
+
+After that, we update the descriptor set by calling the `updateDescriptorSets` function. Let's add now a new function
+to associate a descriptor set with an image view:
+
+```zig
+pub const VkDesSet = struct {
+    ...
+    pub fn setImage(self: *const VkDesSet, vkDevice: vk.dev.VkDevice, vkImageView: vk.imv.VkImageView, vkTextSampler: vk.text.VkTextSampler, binding: u32) void {
+        const imageInfo = [_]vulkan.DescriptorImageInfo{.{
+            .image_layout = vulkan.ImageLayout.shader_read_only_optimal,
+            .image_view = vkImageView.view,
+            .sampler = vkTextSampler.sampler,
+        }};
+
+        const bufferInfo = [_]vulkan.DescriptorBufferInfo{};
+        const texelBufferView = [_]vulkan.BufferView{};
+
+        const descSets = [_]vulkan.WriteDescriptorSet{.{
+            .dst_set = self.descSet,
+            .descriptor_count = 1,
+            .dst_binding = binding,
+            .descriptor_type = vulkan.DescriptorType.combined_image_sampler,
+            .p_buffer_info = &bufferInfo,
+            .p_image_info = &imageInfo,
+            .p_texel_buffer_view = &texelBufferView,
+            .dst_array_element = 0,
+        }};
+
+        vkDevice.deviceProxy.updateDescriptorSets(descSets.len, &descSets, 0, null);
+    }
+    ...
+}
+```
+
+In this case, the process is quite similar, but we use a `DescriptorImageInfo` to associate with an image view instead of
+a buffer and use the `p_image_info` when writing to a descriptor set. In this case, we provide a method to associate to a
+image view. We need to use a `VkTextSampler`, which if you recall will specify how we will access to the image.
+
+Finally, let's add a new function to associate an array of images to a descriptor set:
+
+```zig
+pub const VkDesSet = struct {
+    ...
+    pub fn setImageArr(
+        self: *const VkDesSet,
+        allocator: std.mem.Allocator,
+        vkDevice: vk.dev.VkDevice,
+        vkImageViews: []const vk.imv.VkImageView,
+        vkTextSampler: vk.text.VkTextSampler,
+        binding: u32,
+    ) !void {
+        const imageInfos = try allocator.alloc(vulkan.DescriptorImageInfo, vkImageViews.len);
+        defer allocator.free(imageInfos);
+
+        for (vkImageViews, 0..) |vkImageView, i| {
+            imageInfos[i] = .{
+                .image_layout = vulkan.ImageLayout.shader_read_only_optimal,
+                .image_view = vkImageView.view,
+                .sampler = vkTextSampler.sampler,
+            };
+        }
+
+        const bufferInfo = [_]vulkan.DescriptorBufferInfo{};
+        const texelBufferView = [_]vulkan.BufferView{};
+
+        const descSets = [_]vulkan.WriteDescriptorSet{.{
+            .dst_set = self.descSet,
+            .descriptor_count = @as(u23, @intCast(imageInfos.len)),
+            .dst_binding = binding,
+            .descriptor_type = vulkan.DescriptorType.combined_image_sampler,
+            .p_buffer_info = &bufferInfo,
+            .p_image_info = @ptrCast(imageInfos.ptr),
+            .p_texel_buffer_view = &texelBufferView,
+            .dst_array_element = 0,
+        }};
+
+        vkDevice.deviceProxy.updateDescriptorSets(descSets.len, &descSets, 0, null);
+    }
+};
+```
+
+Please note that an array of just requires a single descriptor. As you can see the loop is used just to iterate over the
+image views to create as many `DescriptorImageInfo` instances as images, but we keep a single `WriteDescriptorSet` with a
+single binding point. We will use this to associate an array of textures for the materials.
+
+Now it is the turn to put everything in place in the `VkDescAllocator` struct which starts like this:
+
+```zig
+pub const VkDescAllocator = struct {
+    poolInfoList: std.ArrayList(*PoolInfo),
+    descSetMap: std.StringHashMap(VkDesSet),
+    ...
+    pub fn create(allocator: std.mem.Allocator, vkPhysDevice: vk.phys.VkPhysDevice, vkDevice: vk.dev.VkDevice) !VkDescAllocator {
+        const descSetMap = std.StringHashMap(VkDesSet).init(
+            allocator,
+        );
+
+        const poolInfo = try allocator.create(PoolInfo);
+        poolInfo.* = try PoolInfo.create(allocator, vkPhysDevice, vkDevice);
+        var poolInfoList = try std.ArrayList(*PoolInfo).initCapacity(allocator, 1);
+        try poolInfoList.append(allocator, poolInfo);
+
+        return .{
+            .poolInfoList = poolInfoList,
+            .descSetMap = descSetMap,
+        };
+    }
+    ...
+};
+```
+
+The `poolInfoList` will store the list of  descriptor pools. Remember that we will create new pools as long as we exhaust existing ones.
+The `descSetMap` will just contain the references of the descriptor sets to the pool used to create it (using the pool position). We
+initialize the `poolInfoList` with one entry. Let's review how the `PoolInfo` struct looks like:
+
+```zig
+const PoolInfo = struct {
+    descCount: std.AutoArrayHashMap(vulkan.DescriptorType, u32),
+    vkDescPool: VkDescPool,
+
+    pub fn cleanup(self: *PoolInfo, vkDevice: vk.dev.VkDevice) void {
+        self.descCount.deinit();
+        self.vkDescPool.cleanup(vkDevice);
+    }
+
+    pub fn create(allocator: std.mem.Allocator, vkPhysDevice: vk.phys.VkPhysDevice, vkDevice: vk.dev.VkDevice) !PoolInfo {
+        const descPoolSize = [_]vulkan.DescriptorPoolSize{ .{
+            .type = vulkan.DescriptorType.uniform_buffer,
+            .descriptor_count = try getLimits(vkPhysDevice, vulkan.DescriptorType.uniform_buffer),
+        }, .{
+            .type = vulkan.DescriptorType.combined_image_sampler,
+            .descriptor_count = try getLimits(vkPhysDevice, vulkan.DescriptorType.combined_image_sampler),
+        }, .{
+            .type = vulkan.DescriptorType.storage_buffer,
+            .descriptor_count = try getLimits(vkPhysDevice, vulkan.DescriptorType.storage_buffer),
+        } };
+        const vkDescPool = try VkDescPool.create(vkDevice, &descPoolSize);
+        var descCount = std.AutoArrayHashMap(vulkan.DescriptorType, u32).init(allocator);
+        for (descPoolSize) |item| {
+            try descCount.put(item.type, item.descriptor_count);
+        }
+
+        return .{
+            .descCount = descCount,
+            .vkDescPool = vkDescPool,
+        };
+    }
+
+    pub fn getLimits(vkPhysDevice: vk.phys.VkPhysDevice, descType: vulkan.DescriptorType) !u32 {
+        const limits = vkPhysDevice.props.limits;
+        return switch (descType) {
+            vulkan.DescriptorType.uniform_buffer => limits.max_descriptor_set_uniform_buffers,
+            vulkan.DescriptorType.combined_image_sampler => limits.max_descriptor_set_samplers,
+            vulkan.DescriptorType.storage_buffer => limits.max_descriptor_set_storage_buffers,
+            else => return error.NotSupportedDeviceType,
+        };
+    }
+};
+
+```
+
+In the `create` method we just get the device limits and define de size for each descriptor type to the maximum number
+supported. In our case, we will supporting uniform buffers (`max_descriptor_set_uniform_buffers`), texture samplers
+(`combined_image_sampler`) and storage buffers (`max_descriptor_set_storage_buffers`).
+
+Let's go back to the `VkDescAllocator` struct and review the function to add a single a descriptor set:
+
+```zig
+pub const VkDescAllocator = struct {
+    ...
+    pub fn addDescSet(
+        self: *VkDescAllocator,
+        allocator: std.mem.Allocator,
+        vkPhysDevice: vk.phys.VkPhysDevice,
+        vkDevice: vk.dev.VkDevice,
+        id: []const u8,
+        vkDescSetLayout: VkDescSetLayout,
+    ) !VkDesSet {
+        const count = 1;
+        var vkDescPoolOpt: ?VkDescPool = null;
+        var poolInfoOpt: ?*PoolInfo = null;
+        if (self.descSetMap.contains(id)) {
+            log.err("Duplicate key for descriptor set [{s}]", .{id});
+            return error.DuplicateDescKey;
+        }
+        for (self.poolInfoList.items) |poolInfo| {
+            const available = poolInfo.descCount.get(vkDescSetLayout.descType) orelse return error.KeyNotFound;
+            const limit = try PoolInfo.getLimits(vkPhysDevice, vkDescSetLayout.descType);
+            if (count > limit) {
+                log.err("Cannot create more than [{d}] for descriptor type [{any}]", .{
+                    limit, vkDescSetLayout.descType,
+                });
+                return error.DescLimitExceeded;
+            }
+            if (available >= count) {
+                vkDescPoolOpt = poolInfo.vkDescPool;
+                poolInfoOpt = poolInfo;
+                break;
+            }
+        }
+
+        if (poolInfoOpt == null) {
+            const poolInfo = try allocator.create(PoolInfo);
+            poolInfo.* = try PoolInfo.create(allocator, vkPhysDevice, vkDevice);
+            try self.poolInfoList.append(allocator, poolInfo);
+
+            vkDescPoolOpt = poolInfo.vkDescPool;
+            poolInfoOpt = poolInfo;
+        }
+
+        if (vkDescPoolOpt) |vkDescPool| {
+            const vkDescSet = try VkDesSet.create(vkDevice, vkDescPool, vkDescSetLayout);
+            const poolInfo = poolInfoOpt.?;
+            const available = poolInfo.descCount.get(vkDescSetLayout.descType) orelse return error.KeyNotFound;
+            if (available < count) {
+                return error.NotAvailable;
+            }
+
+            try poolInfo.descCount.put(
+                vkDescSetLayout.descType,
+                available - count,
+            );
+            const ownedId = try allocator.dupe(u8, id);
+            try self.descSetMap.put(ownedId, vkDescSet);
+            return vkDescSet;
+        } else {
+            return error.NotAvailable;
+        }
+    }
+    ...
+};
+```
+
+The process is as follows:
+- We iterate over all the created descriptor pools.
+- After that, we iterate over the descriptor set layout descriptor types. Remember that a descriptor set layout can reference several
+descriptor types.
+- For each of the types we get the available descriptors in the current pool.
+- If we do no recognize the descriptor type or we are requesting more descriptors than a single pool can handle (exceeding the physical
+device limits), we just abort.
+- If we find no pool with available space we will create a new one.
+- If we have finished iterating over tha available descriptor pools and we have not found one with available space, this means
+that we need to create another pool.
+- Once we have a pool, either because on of the existing ones have enough spare space or because we have created a new one, we create
+the descriptor set, and update the available space in the associated pool.
+
+The process can still be improved to reduce fragmentation, But I did not want to complicate the code even more. In any case, you get the
+idea and can modify it to be more efficient easily.
+
+The rest of the functions of the class are as follows:
+
+```zig
+pub const VkDescAllocator = struct {
+    ...
+    public synchronized void freeDescSet(Device device, String id) {
+        DescSetInfo descSetInfo = descSetInfoMap.get(id);
+        if (descSetInfo == null) {
+            Logger.info("Could not find descriptor set with id [{}]", id);
+            return;
+        }
+        if (descSetInfo.poolPos >= descPoolList.size()) {
+            Logger.info("Could not find descriptor pool associated to set with id [{}]", id);
+            return;
+        }
+        DescPoolInfo descPoolInfo = descPoolList.get(descSetInfo.poolPos);
+        Arrays.asList(descSetInfo.descSets).forEach(d -> descPoolInfo.descPool.freeDescriptorSet(device, d.getVkDescriptorSet()));
+    }
+
+    pub fn getDescSet(self: *const VkDescAllocator, id: []const u8) ?VkDesSet {
+        return self.descSetMap.get(id);
+    }
+};
+```
+
+The `cleanup` functions just iterates over the created pools and destroys them. The `getDescSet` just returns a descriptor set using its
+identifier. We will instantiate the `VkDescAllocator` struct in the `VkCtx` one so it can be used along the code:
+
+```zig
+pub const VkCtx = struct {
+    ...
+    vkDescAllocator: vk.desc.VkDescAllocator,
+    ...
+    pub fn create(allocator: std.mem.Allocator, constants: com.common.Constants, window: sdl3.video.Window) !VkCtx {
+        ...
+        const vkDescAllocator = try vk.desc.VkDescAllocator.create(allocator, vkPhysDevice, vkDevice);
+
+        return .{
+            .constants = constants,
+            .vkDescAllocator = vkDescAllocator,
+            .vkDevice = vkDevice,
+            .vkInstance = vkInstance,
+            .vkPhysDevice = vkPhysDevice,
+            .vkSurface = vkSurface,
+            .vkSwapChain = vkSwapChain,
+        };
+    }
+
+    pub fn cleanup(self: *VkCtx, allocator: std.mem.Allocator) !void {
+        self.vkDescAllocator.cleanup(allocator, self.vkDevice);
+        ...
+    }
+    ...    
+};
+```
+
+## Completing the changes
+
+We are almost finishing, we just need to put all the pieces together. First, we need to update the `VkPipeline` struct to take descriptor set
+layouts into consideration. We will first update the `VkPipelineCreateInfo` struct to be able to store and an array of descriptor set layouts:
+
+```zig
+pub const VkPipelineCreateInfo = struct {
+    ...
+    descSetLayouts: ?[]const vulkan.DescriptorSetLayout,
+    ...
+}
+```
+
+With that information, we can update the `VkPipeline` struct:
+
+```zig
+pub const VkPipeline = struct {
+    ...
+    pub fn create(allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx, createInfo: *const VkPipelineCreateInfo) !VkPipeline {
+        ...
+        const pipelineLayout = try vkCtx.vkDevice.deviceProxy.createPipelineLayout(&.{
+            .flags = .{},
+            .set_layout_count = if (createInfo.descSetLayouts) |ds| @as(u32, @intCast(ds.len)) else 0,
+            .p_set_layouts = if (createInfo.descSetLayouts) |ds| ds.ptr else null,
+            .push_constant_range_count = if (createInfo.pushConstants) |pc| @as(u32, @intCast(pc.len)) else 0,
+            .p_push_constant_ranges = if (createInfo.pushConstants) |pcs| pcs.ptr else null,
+        }, null);
+        ...
+    }
+    ...
+}
+```
+
+With the descriptor layouts passed as a parameter (inside the `VkPipelineCreateInfo` struct), we can now use the
+`p_set_layouts` which will hold a pointer to the descriptor set layouts and `set_layout_count` which will contain
+the number of those layouts.
+
+Prior to see what the changes will be in the `RenderScn` struct, let's update first the shaders. This is the source code of the vertex shader
+(`scn_vtx.glsl`):
+
+```glsl
+#version 450
+
+layout(location = 0) in vec3 inPos;
+layout(location = 1) in vec2 inTextCoords;
+
+layout(location = 0) out vec2 outTextCoords;
+
+layout(set = 0, binding = 0) uniform ProjUniform {
+    mat4 matrix;
+} projUniform;
+
+layout(push_constant) uniform pc {
+    mat4 modelMatrix;
+} push_constants;
+
+void main()
+{
+    gl_Position   = projUniform.matrix * push_constants.modelMatrix * vec4(inPos, 1);
+    outTextCoords = inTextCoords;
+}
+```
+
+In the vertex shader, we are using a uniform to hold the value of the projection matrix as a uniform. Therefore, we will need a descriptor
+set for this. The push constant just holds the model matrix. By changing this, we do not need to store the projection matrix in the push
+constants for each mesh. It will be set just once.
+
+The fragment shader source code (`scn_frg.glsl`) looks like this:
+
+```glsl
+#version 450
+
+// Keep in sync manually with code
+const int MAX_TEXTURES = 100;
+
+layout(location = 0) in vec2 inTextCoords;
+layout(location = 0) out vec4 outFragColor;
+
+struct Material {
+    vec4 diffuseColor;
+    uint hasTexture;
+    uint textureIdx;
+    uint padding[2];
+};
+
+layout(set = 1, binding = 0) readonly buffer MaterialUniform {
+    Material materials[];
+} matUniform;
+
+layout(set = 2, binding = 0) uniform sampler2D textSampler[MAX_TEXTURES];
+
+layout(push_constant) uniform pc {
+    layout(offset = 64) uint materialIdx;
+} push_constants;
+
+void main()
+{
+    Material material = matUniform.materials[push_constants.materialIdx];
+    if (material.hasTexture == 1) {
+        outFragColor = texture(textSampler[material.textureIdx], inTextCoords);
+    } else {
+        outFragColor = material.diffuseColor;
+    }
+}
+```
+
+We first define a constant (`MAX_TEXTURES`) which sets the maximum number of textures that we will support. We will be using n array
+of `sampler2D` uniform to perform texture lookups. This array needs to be sized at compile time. So make sure that you are in sync
+with this constant in `GLSL` code and the one in Zig side. In next chapters we will see how to use specialization constants,
+which allows us to modify constants when loading shader modules, but this should bot be used in these array of uniforms.
+
+Then we define a read only buffer which holds an array of materials, which is a struct that maps material information (diffuse color, 
+if it has texture and the associated index). Remember, that due to `std140` layout constraints (the default), we need to take into
+consideration extra padding. This will be a storage buffer, and does not need to be sized.
+
+We will receive the position of the associated material in the buffer through a push constant. With all that information we can get
+the outout color either form the associated texture or the material diffuse color.
+
+Now it's the moment to use all these concepts together in the `RenderScn` struct:
+
+```zig
+...
+const PushConstantsVtx = struct {
+    modelMatrix: zm.Mat,
+};
+
+const PushConstantsFrg = struct {
+    materialIdx: u32,
+};
+
+const DEPTH_FORMAT = vulkan.Format.d16_unorm;
+const DESC_ID_MAT = "SCN_DESC_ID_MAT";
+const DESC_ID_PROJ = "SCN_DESC_ID_PROJ";
+const DESC_ID_TEXTS = "SCN_DESC_ID_TEXTS";
+
+pub const RenderScn = struct {
+    buffProjMatrix: vk.buf.VkBuffer,
+    depthAttachments: []eng.rend.Attachment,
+    descLayoutFrgSt: vk.desc.VkDescSetLayout,
+    descLayoutVtx: vk.desc.VkDescSetLayout,
+    descLayoutTexture: vk.desc.VkDescSetLayout,
+    textSampler: vk.text.VkTextSampler,
+    vkPipeline: vk.pipe.VkPipeline,
+    ...
+    pub fn create(allocator: std.mem.Allocator, vkCtx: *vk.ctx.VkCtx) !RenderScn {
+        ...
+        // Textures
+        const samplerInfo = vk.text.VkTextSamplerInfo{
+            .addressMode = vulkan.SamplerAddressMode.repeat,
+            .anisotropy = true,
+            .borderColor = vulkan.BorderColor.float_opaque_black,
+        };
+        const textSampler = try vk.text.VkTextSampler.create(vkCtx, samplerInfo);
+
+        // Descriptor set layouts
+        const descLayoutVtx = try vk.desc.VkDescSetLayout.create(
+            vkCtx,
+            0,
+            vulkan.DescriptorType.uniform_buffer,
+            vulkan.ShaderStageFlags{ .vertex_bit = true },
+            1,
+        );
+        const descLayoutFrgSt = try vk.desc.VkDescSetLayout.create(
+            vkCtx,
+            0,
+            vulkan.DescriptorType.storage_buffer,
+            vulkan.ShaderStageFlags{ .fragment_bit = true },
+            1,
+        );
+        const descLayoutTexture = try vk.desc.VkDescSetLayout.create(
+            vkCtx,
+            0,
+            vulkan.DescriptorType.combined_image_sampler,
+            vulkan.ShaderStageFlags{ .fragment_bit = true },
+            eng.tcach.MAX_TEXTURES,
+        );
+        const descSetLayouts = [_]vulkan.DescriptorSetLayout{ descLayoutVtx.descSetLayout, descLayoutFrgSt.descSetLayout, descLayoutTexture.descSetLayout };
+
+        const buffProjMatrix = try vk.util.createHostVisibleBuff(
+            allocator,
+            vkCtx,
+            DESC_ID_PROJ,
+            vk.util.MATRIX_SIZE,
+            .{ .uniform_buffer_bit = true },
+            descLayoutVtx,
+        );
+
+        // Push constants
+        const pushConstants = [_]vulkan.PushConstantRange{
+            .{
+                .stage_flags = vulkan.ShaderStageFlags{ .vertex_bit = true },
+                .offset = 0,
+                .size = @sizeOf(PushConstantsVtx),
+            },
+            .{
+                .stage_flags = vulkan.ShaderStageFlags{ .fragment_bit = true },
+                .offset = @sizeOf(PushConstantsVtx),
+                .size = @sizeOf(PushConstantsFrg),
+            },
+        };
+
+        // Pipeline
+        const vkPipelineCreateInfo = vk.pipe.VkPipelineCreateInfo{
+            .colorFormat = vkCtx.vkSwapChain.surfaceFormat.format,
+            .depthFormat = DEPTH_FORMAT,
+            .descSetLayouts = descSetLayouts[0..],
+            .modulesInfo = modulesInfo,
+            .pushConstants = pushConstants[0..],
+            .useBlend = false,
+            .vtxBuffDesc = .{
+                .attribute_description = @constCast(&VtxBuffDesc.attribute_description)[0..],
+                .binding_description = VtxBuffDesc.binding_description,
+            },
+        };
+        const vkPipeline = try vk.pipe.VkPipeline.create(allocator, vkCtx, &vkPipelineCreateInfo);
+
+        return .{
+            .buffProjMatrix = buffProjMatrix,
+            .depthAttachments = depthAttachments,
+            .descLayoutFrgSt = descLayoutFrgSt,
+            .descLayoutVtx = descLayoutVtx,
+            .descLayoutTexture = descLayoutTexture,
+            .textSampler = textSampler,
+            .vkPipeline = vkPipeline,
+        };
+    }
+    ...
+};
+```
+
+First we need to modify the push constant used in the vertex shader to hold just the model matrix and then create
+a new push constant to be used in the fragment shader that will contain material infromation. Then we define some constants
+that will hold the identifiers associated to the descriptor sets we are going to use:
+- `DESC_ID_MAT`: for the materials.
+- `DESC_ID_PROJ`: for the projection matrix.
+- `DESC_ID_TEXTS`: for the array of textures.
+
+In the `create` function we create a new texture sampler, and the descriptor set layouts to support the descriptors
+declared in our shaders. The descriptor set associated to the projection matrix will have the `vulkan.DescriptorType.uniform_buffer`
+layout (`VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER`) as it will be a uniform and the stage will have the `vertex_bit` activated
+(`VK_SHADER_STAGE_VERTEX_BIT`) since it will be used in the vertex shader. The descriptor set layout for the storage buffer 
+that will hold the materials will have the `vulkan.DescriptorType.storage_buffer` type (`VK_DESCRIPTOR_TYPE_STORAGE_BUFFER`)
+and the `fragment_bit` flag since it will be used in the fragment stage.
+
+

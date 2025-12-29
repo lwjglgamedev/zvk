@@ -19,7 +19,13 @@ pub fn createHostVisibleBuff(
         .{ .host_visible_bit = true, .host_coherent_bit = true },
     );
 
-    const descSet = try vkCtx.vkDescAllocator.addDescSet(allocator, vkCtx.vkDevice, id, vkDescSetLayout);
+    const descSet = try vkCtx.vkDescAllocator.addDescSet(
+        allocator,
+        vkCtx.vkPhysDevice,
+        vkCtx.vkDevice,
+        id,
+        vkDescSetLayout,
+    );
     descSet.setBuffer(vkCtx.vkDevice, buffer, vkDescSetLayout.binding, vkDescSetLayout.descType);
 
     return buffer;

@@ -3,6 +3,7 @@ const vulkan = @import("vulkan");
 
 pub const VkTextSamplerInfo = struct {
     addressMode: vulkan.SamplerAddressMode,
+    anisotropy: bool,
     borderColor: vulkan.BorderColor,
 };
 
@@ -10,6 +11,7 @@ pub const VkTextSampler = struct {
     sampler: vulkan.Sampler,
 
     pub fn create(vkCtx: *const vk.ctx.VkCtx, samplerInfo: VkTextSamplerInfo) !VkTextSampler {
+        const anisotropy = (vkCtx.vkPhysDevice.features.sampler_anisotropy == vulkan.Bool32.true) and samplerInfo.anisotropy;
         const createInfo = vulkan.SamplerCreateInfo{
             .mag_filter = vulkan.Filter.nearest,
             .min_filter = vulkan.Filter.nearest,
@@ -18,14 +20,14 @@ pub const VkTextSampler = struct {
             .address_mode_w = samplerInfo.addressMode,
             .border_color = samplerInfo.borderColor,
             .mipmap_mode = vulkan.SamplerMipmapMode.nearest,
-            .max_anisotropy = 0.0,
             .min_lod = 0.0,
-            .max_lod = 0.0,
+            .max_lod = vulkan.LOD_CLAMP_NONE,
             .mip_lod_bias = 0.0,
             .compare_enable = vulkan.Bool32.false,
             .compare_op = vulkan.CompareOp.never,
             .unnormalized_coordinates = vulkan.Bool32.false,
-            .anisotropy_enable = vulkan.Bool32.false,
+            .anisotropy_enable = if (anisotropy) vulkan.Bool32.true else vulkan.Bool32.false,
+            .max_anisotropy = if (anisotropy) vkCtx.vkPhysDevice.props.limits.max_sampler_anisotropy else 0.0,
         };
         const sampler = try vkCtx.vkDevice.deviceProxy.createSampler(&createInfo, null);
         return .{ .sampler = sampler };
