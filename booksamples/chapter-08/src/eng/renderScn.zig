@@ -41,11 +41,11 @@ const PushConstantsFrg = struct {
 
 const DEPTH_FORMAT = vulkan.Format.d16_unorm;
 const DESC_ID_MAT = "SCN_DESC_ID_MAT";
-const DESC_ID_PROJ = "SCN_DESC_ID_PROJ";
+const DESC_ID_CAM = "SCN_DESC_ID_CAM";
 const DESC_ID_TEXTS = "SCN_DESC_ID_TEXTS";
 
 pub const RenderScn = struct {
-    buffProjMatrix: vk.buf.VkBuffer,
+    buffCamera: vk.buf.VkBuffer,
     depthAttachments: []eng.rend.Attachment,
     descLayoutFrgSt: vk.desc.VkDescSetLayout,
     descLayoutVtx: vk.desc.VkDescSetLayout,
@@ -64,7 +64,7 @@ pub const RenderScn = struct {
         self.descLayoutFrgSt.cleanup(vkCtx);
         self.descLayoutVtx.cleanup(vkCtx);
         self.descLayoutTexture.cleanup(vkCtx);
-        self.buffProjMatrix.cleanup(vkCtx);
+        self.buffCamera.cleanup(vkCtx);
     }
 
     pub fn create(allocator: std.mem.Allocator, vkCtx: *vk.ctx.VkCtx) !RenderScn {
@@ -124,10 +124,10 @@ pub const RenderScn = struct {
         );
         const descSetLayouts = [_]vulkan.DescriptorSetLayout{ descLayoutVtx.descSetLayout, descLayoutFrgSt.descSetLayout, descLayoutTexture.descSetLayout };
 
-        const buffProjMatrix = try vk.util.createHostVisibleBuff(
+        const buffCamera = try vk.util.createHostVisibleBuff(
             allocator,
             vkCtx,
-            DESC_ID_PROJ,
+            DESC_ID_CAM,
             vk.util.MATRIX_SIZE,
             .{ .uniform_buffer_bit = true },
             descLayoutVtx,
@@ -163,7 +163,7 @@ pub const RenderScn = struct {
         const vkPipeline = try vk.pipe.VkPipeline.create(allocator, vkCtx, &vkPipelineCreateInfo);
 
         return .{
-            .buffProjMatrix = buffProjMatrix,
+            .buffCamera = buffCamera,
             .depthAttachments = depthAttachments,
             .descLayoutFrgSt = descLayoutFrgSt,
             .descLayoutVtx = descLayoutVtx,
@@ -312,14 +312,13 @@ pub const RenderScn = struct {
         }};
         device.cmdSetScissor(cmdHandle, 0, scissor.len, &scissor);
 
-        // Copy projection matrix
-        try self.updateProj(vkCtx, &scene.camera.projData.projMatrix);
+        try self.updateCamera(vkCtx, &scene.camera.projData.projMatrix);
 
         // Bind descriptor sets
         const vkDescAllocator = vkCtx.vkDescAllocator;
         var descSets = try std.ArrayList(vulkan.DescriptorSet).initCapacity(allocator, 3);
         defer descSets.deinit(allocator);
-        try descSets.append(allocator, vkDescAllocator.getDescSet(DESC_ID_PROJ).?.descSet);
+        try descSets.append(allocator, vkDescAllocator.getDescSet(DESC_ID_CAM).?.descSet);
         try descSets.append(allocator, vkDescAllocator.getDescSet(DESC_ID_MAT).?.descSet);
         try descSets.append(allocator, vkDescAllocator.getDescSet(DESC_ID_TEXTS).?.descSet);
 
@@ -398,9 +397,9 @@ pub const RenderScn = struct {
         );
     }
 
-    fn updateProj(self: *RenderScn, vkCtx: *const vk.ctx.VkCtx, projMatrix: *const zm.Mat) !void {
-        const buffData = try self.buffProjMatrix.map(vkCtx);
-        defer self.buffProjMatrix.unMap(vkCtx);
+    fn updateCamera(self: *RenderScn, vkCtx: *const vk.ctx.VkCtx, projMatrix: *const zm.Mat) !void {
+        const buffData = try self.buffCamera.map(vkCtx);
+        defer self.buffCamera.unMap(vkCtx);
         const gpuBytes: [*]u8 = @ptrCast(buffData);
 
         const projMatrixBytes = std.mem.asBytes(projMatrix);

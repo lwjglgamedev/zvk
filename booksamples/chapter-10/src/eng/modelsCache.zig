@@ -108,7 +108,6 @@ pub const MaterialsCache = struct {
         );
         const data = try srcBuffer.map(vkCtx);
         defer srcBuffer.unMap(vkCtx);
-
         const mappedData: [*]MaterialBuffRecord = @ptrCast(@alignCast(data));
 
         for (initData.materials.items, 0..) |*materialData, i| {

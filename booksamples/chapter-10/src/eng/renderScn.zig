@@ -327,7 +327,6 @@ pub const RenderScn = struct {
         }};
         device.cmdSetScissor(cmdHandle, 0, scissor.len, &scissor);
 
-        // Copy matrices
         try self.updateCamera(vkCtx, frameIdx, &scene.camera.projData.projMatrix, &scene.camera.viewData.viewMatrix);
 
         // Bind descriptor sets

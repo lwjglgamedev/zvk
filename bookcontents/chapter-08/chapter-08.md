@@ -1843,11 +1843,11 @@ const PushConstantsFrg = struct {
 
 const DEPTH_FORMAT = vulkan.Format.d16_unorm;
 const DESC_ID_MAT = "SCN_DESC_ID_MAT";
-const DESC_ID_PROJ = "SCN_DESC_ID_PROJ";
+const DESC_ID_CAM = "SCN_DESC_ID_CAM";
 const DESC_ID_TEXTS = "SCN_DESC_ID_TEXTS";
 
 pub const RenderScn = struct {
-    buffProjMatrix: vk.buf.VkBuffer,
+    buffCamera: vk.buf.VkBuffer,
     depthAttachments: []eng.rend.Attachment,
     descLayoutFrgSt: vk.desc.VkDescSetLayout,
     descLayoutVtx: vk.desc.VkDescSetLayout,
@@ -1889,7 +1889,7 @@ pub const RenderScn = struct {
         );
         const descSetLayouts = [_]vulkan.DescriptorSetLayout{ descLayoutVtx.descSetLayout, descLayoutFrgSt.descSetLayout, descLayoutTexture.descSetLayout };
 
-        const buffProjMatrix = try vk.util.createHostVisibleBuff(
+        const buffCamera = try vk.util.createHostVisibleBuff(
             allocator,
             vkCtx,
             DESC_ID_PROJ,
@@ -1928,7 +1928,7 @@ pub const RenderScn = struct {
         const vkPipeline = try vk.pipe.VkPipeline.create(allocator, vkCtx, &vkPipelineCreateInfo);
 
         return .{
-            .buffProjMatrix = buffProjMatrix,
+            .buffCamera = buffCamera,
             .depthAttachments = depthAttachments,
             .descLayoutFrgSt = descLayoutFrgSt,
             .descLayoutVtx = descLayoutVtx,
@@ -1945,7 +1945,7 @@ First we need to modify the push constant used in the vertex shader to hold just
 a new push constant to be used in the fragment shader that will contain material infromation. Then we define some constants
 that will hold the identifiers associated to the descriptor sets we are going to use:
 - `DESC_ID_MAT`: for the materials.
-- `DESC_ID_PROJ`: for the projection matrix.
+- `DESC_ID_CAMERA`: for camera the projection matrix.
 - `DESC_ID_TEXTS`: for the array of textures.
 
 In the `create` function we create a new texture sampler, and the descriptor set layouts to support the descriptors
@@ -2057,14 +2057,13 @@ pub const RenderScn = struct {
         const allocator = engCtx.allocator;
         const scene = &engCtx.scene;
         ...
-        // Copy projection matrix
-        try self.updateProj(vkCtx, &scene.camera.projData.projMatrix);
+        try self.updateCamera(vkCtx, &scene.camera.projData.projMatrix);
 
         // Bind descriptor sets
         const vkDescAllocator = vkCtx.vkDescAllocator;
         var descSets = try std.ArrayList(vulkan.DescriptorSet).initCapacity(allocator, 3);
         defer descSets.deinit(allocator);
-        try descSets.append(allocator, vkDescAllocator.getDescSet(DESC_ID_PROJ).?.descSet);
+        try descSets.append(allocator, vkDescAllocator.getDescSet(DESC_ID_CAM).?.descSet);
         try descSets.append(allocator, vkDescAllocator.getDescSet(DESC_ID_MAT).?.descSet);
         try descSets.append(allocator, vkDescAllocator.getDescSet(DESC_ID_TEXTS).?.descSet);
 
@@ -2103,7 +2102,7 @@ pub const RenderScn = struct {
 };
 ```
 
-We need to update the projection matrix buffer by calling the `updateProj` function. After that we will use
+We need to update the projection matrix buffer by calling the `updateCamera` function. After that we will use
 the `VkDescAllocator` class, we can fill up a list with the descriptor sets handles retrieving them by their id. In
 order to use them we need to bind them those descriptor sets while rendering by calling the `cmdBindDescriptorSets` Vulkan function.
 While iterating over the meshes, we get the material index and set the push constants accordingly.
@@ -2141,14 +2140,14 @@ pub const RenderScn = struct {
 };
 ```
 
-Finally, the `updateProj` function is defined like this:
+Finally, the `updateCamera` function is defined like this:
 
 ```zig
 pub const RenderScn = struct {
     ...
-    fn updateProj(self: *RenderScn, vkCtx: *const vk.ctx.VkCtx, projMatrix: *const zm.Mat) !void {
-        const buffData = try self.buffProjMatrix.map(vkCtx);
-        defer self.buffProjMatrix.unMap(vkCtx);
+    fn updateCamera(self: *RenderScn, vkCtx: *const vk.ctx.VkCtx, projMatrix: *const zm.Mat) !void {
+        const buffData = try self.v.map(vkCtx);
+        defer self.buffCamera.unMap(vkCtx);
         const gpuBytes: [*]u8 = @ptrCast(buffData);
 
         const projMatrixBytes = std.mem.asBytes(projMatrix);

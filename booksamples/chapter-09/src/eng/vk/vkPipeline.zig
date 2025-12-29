@@ -66,7 +66,7 @@ pub const VkPipeline = struct {
         const pmsci = vulkan.PipelineMultisampleStateCreateInfo{
             .rasterization_samples = .{ .@"1_bit" = true },
             .sample_shading_enable = vulkan.Bool32.false,
-            .min_sample_shading = 1,
+            .min_sample_shading = 0,
             .alpha_to_coverage_enable = vulkan.Bool32.false,
             .alpha_to_one_enable = vulkan.Bool32.false,
         };
