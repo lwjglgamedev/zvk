@@ -34,12 +34,36 @@ function getChapterSidebar() {
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
   srcDir: "bookcontents",
-  ignoreDeadLinks: false,
+  ignoreDeadLinks: [/booksamples/],
   rewrites: {
     "README.md": "index.md",
   },
   title: "ZVK",
   description: "Vulkan graphics programming in Zig",
+  markdown: {
+    config: (md) => {
+      // Transform booksamples links before VitePress processes them
+      const defaultRender =
+        md.renderer.rules.link_open ||
+        ((tokens, idx, options, _env, self) =>
+          self.renderToken(tokens, idx, options));
+
+      md.renderer.rules.link_open = (tokens, idx, options, env, self) => {
+        const hrefIndex = tokens[idx].attrIndex("href");
+        if (hrefIndex >= 0) {
+          const href = tokens[idx].attrs![hrefIndex][1];
+          if (href.includes("booksamples/chapter-")) {
+            const match = href.match(/booksamples\/(chapter-\d+)/);
+            if (match) {
+              tokens[idx].attrs![hrefIndex][1] =
+                `https://github.com/lwjglgamedev/zvk/tree/main/booksamples/${match[1]}`;
+            }
+          }
+        }
+        return defaultRender(tokens, idx, options, env, self);
+      };
+    },
+  },
   vite: {
     resolve: {
       preserveSymlinks: true,
