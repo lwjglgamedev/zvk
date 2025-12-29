@@ -117,7 +117,8 @@ pub const ModelsCache = struct {
                 };
                 try vulkanMeshes.append(allocator, vulkanMesh);
 
-                recordTransfer(vkCtx, cmdHandle, &srcVtxBuffer, &dstVtxBuffer, &srcIdxBuffer, &dstIdxBuffer);
+                recordTransfer(vkCtx, cmdHandle, &srcVtxBuffer, &dstVtxBuffer);
+                recordTransfer(vkCtx, cmdHandle, &srcIdxBuffer, &dstIdxBuffer);
             }
 
             const vulkanModel = VulkanModel{ .id = modelData.id, .meshes = vulkanMeshes };
@@ -133,26 +134,18 @@ pub const ModelsCache = struct {
 
         log.debug("Loaded {d} model(s)", .{initData.models.len});
     }
-
-    fn recordTransfer(
-        vkCtx: *const vk.ctx.VkCtx,
-        cmdHandle: vulkan.CommandBuffer,
-        srcVtxBuff: *const vk.buf.VkBuffer,
-        dstVtxBuff: *const vk.buf.VkBuffer,
-        srcIdxBuff: *const vk.buf.VkBuffer,
-        dstIdxBuff: *const vk.buf.VkBuffer,
-    ) void {
-        const copyVtxRegion = [_]vulkan.BufferCopy{.{
-            .src_offset = 0,
-            .dst_offset = 0,
-            .size = srcVtxBuff.size,
-        }};
-        vkCtx.vkDevice.deviceProxy.cmdCopyBuffer(cmdHandle, srcVtxBuff.buffer, dstVtxBuff.buffer, copyVtxRegion.len, &copyVtxRegion);
-        const copyIdxRegion = [_]vulkan.BufferCopy{.{
-            .src_offset = 0,
-            .dst_offset = 0,
-            .size = srcIdxBuff.size,
-        }};
-        vkCtx.vkDevice.deviceProxy.cmdCopyBuffer(cmdHandle, srcIdxBuff.buffer, dstIdxBuff.buffer, copyIdxRegion.len, &copyIdxRegion);
-    }
 };
+
+fn recordTransfer(
+    vkCtx: *const vk.ctx.VkCtx,
+    cmdHandle: vulkan.CommandBuffer,
+    srcBuff: *const vk.buf.VkBuffer,
+    dstBuff: *const vk.buf.VkBuffer,
+) void {
+    const copyRegion = [_]vulkan.BufferCopy{.{
+        .src_offset = 0,
+        .dst_offset = 0,
+        .size = srcBuff.size,
+    }};
+    vkCtx.vkDevice.deviceProxy.cmdCopyBuffer(cmdHandle, srcBuff.buffer, dstBuff.buffer, copyRegion.len, &copyRegion);
+}

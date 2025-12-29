@@ -1,3 +1,4 @@
+const com = @import("com");
 const eng = @import("mod.zig");
 const std = @import("std");
 const vk = @import("vk");
@@ -177,9 +178,9 @@ pub const ModelsCache = struct {
         try cmdBuff.begin(vkCtx);
 
         for (initData.models) |*modelData| {
-            const vtxData = try readFile(allocator, modelData.vtxFilename);
+            const vtxData = try com.utils.loadFile(allocator, modelData.vtxFilename);
             defer allocator.free(vtxData);
-            const idxData = try readFile(allocator, modelData.idxFilename);
+            const idxData = try com.utils.loadFile(allocator, modelData.idxFilename);
             defer allocator.free(idxData);
 
             var vulkanMeshes = try std.ArrayList(VulkanMesh).initCapacity(allocator, modelData.meshes.items.len);
@@ -252,21 +253,6 @@ pub const ModelsCache = struct {
         }
 
         log.debug("Loaded {d} model(s)", .{initData.models.len});
-    }
-
-    fn readFile(allocator: std.mem.Allocator, path: []const u8) ![]u8 {
-        std.fs.cwd().access(path, .{}) catch {
-            log.err("Could not load file [{s}]", .{path});
-            @panic("File not found");
-        };
-
-        const file = try std.fs.cwd().openFile(path, .{});
-        defer file.close();
-
-        const stat = try file.stat();
-        const size = @as(usize, @intCast(stat.size));
-
-        return file.readToEndAlloc(allocator, size);
     }
 };
 
