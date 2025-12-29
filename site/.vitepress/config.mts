@@ -33,6 +33,7 @@ function getChapterSidebar() {
 
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
+  base: process.argv.includes("build") ? "/zvk/" : "/",
   srcDir: "bookcontents",
   ignoreDeadLinks: [/booksamples/],
   rewrites: {
