@@ -1049,7 +1049,7 @@ const zm = @import("zm");
 const log = std.log.scoped(.main);
 ...
 const Game = struct {
-    const ENTITY_ID: []const u8 = "CubeModel";
+    const ENTITY_ID: []const u8 = "CubeEntity";
 
     angle: f32 = 0,
     ...    

@@ -836,6 +836,40 @@ on how this works. After that we just create a command buffer, iterate over the 
 submit the work and wait it to be completed. Using arrays of textures is also the reason  why we need to keeping track of the
 position of each texture is important. This is why we use the `ArrayHashMap` struct which basically keeps insertion order.
 
+In order to generate the identifiers of the "dummy" textures we will create an UUID identifiers so we guarantee
+that they ar unique. The function `generateUuid` (defined in the `src/eng/com/utils.zig` file) is defined like this:
+
+```zig
+pub fn generateUuid(allocator: std.mem.Allocator) ![]const u8 {
+    var bytes: [16]u8 = undefined;
+    std.crypto.random.bytes(&bytes);
+
+    // Set version (4) and variant bits (RFC 4122)
+    bytes[6] = (bytes[6] & 0x0F) | 0x40;
+    bytes[8] = (bytes[8] & 0x3F) | 0x80;
+
+    // Format as UUID string
+    const hex_chars = "0123456789abcdef";
+    var uuid = try allocator.alloc(u8, 36);
+    errdefer allocator.free(uuid);
+
+    var i: usize = 0;
+    for (bytes, 0..) |byte, j| {
+        switch (j) {
+            4, 6, 8, 10 => {
+                uuid[i] = '-';
+                i += 1;
+            },
+            else => {},
+        }
+        uuid[i] = hex_chars[byte >> 4];
+        uuid[i + 1] = hex_chars[byte & 0x0F];
+        i += 2;
+    }
+
+    return uuid;
+}
+```
 
 ## Models and Materials
 
@@ -1621,32 +1655,32 @@ the descriptor set, and update the available space in the associated pool.
 The process can still be improved to reduce fragmentation, But I did not want to complicate the code even more. In any case, you get the
 idea and can modify it to be more efficient easily.
 
-The rest of the functions of the class are as follows:
+The rest of the functions of the struct are as follows:
 
 ```zig
 pub const VkDescAllocator = struct {
     ...
-    public synchronized void freeDescSet(Device device, String id) {
-        DescSetInfo descSetInfo = descSetInfoMap.get(id);
-        if (descSetInfo == null) {
-            Logger.info("Could not find descriptor set with id [{}]", id);
-            return;
+    pub fn cleanup(self: *VkDescAllocator, allocator: std.mem.Allocator, vkDevice: vk.dev.VkDevice) void {
+        for (self.poolInfoList.items) |poolInfo| {
+            poolInfo.cleanup(vkDevice);
+            allocator.destroy(poolInfo);
         }
-        if (descSetInfo.poolPos >= descPoolList.size()) {
-            Logger.info("Could not find descriptor pool associated to set with id [{}]", id);
-            return;
-        }
-        DescPoolInfo descPoolInfo = descPoolList.get(descSetInfo.poolPos);
-        Arrays.asList(descSetInfo.descSets).forEach(d -> descPoolInfo.descPool.freeDescriptorSet(device, d.getVkDescriptorSet()));
-    }
+        self.poolInfoList.deinit(allocator);
 
+        var iter = self.descSetMap.iterator();
+        while (iter.next()) |entry| {
+            allocator.free(entry.key_ptr.*);
+        }
+        self.descSetMap.deinit();
+    }
+    ...
     pub fn getDescSet(self: *const VkDescAllocator, id: []const u8) ?VkDesSet {
         return self.descSetMap.get(id);
     }
 };
 ```
 
-The `cleanup` functions just iterates over the created pools and destroys them. The `getDescSet` just returns a descriptor set using its
+The `cleanup` function just iterates over the created pools and destroys them. The `getDescSet` just returns a descriptor set using its
 identifier. We will instantiate the `VkDescAllocator` struct in the `VkCtx` one so it can be used along the code:
 
 ```zig
@@ -1919,6 +1953,393 @@ declared in our shaders. The descriptor set associated to the projection matrix 
 layout (`VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER`) as it will be a uniform and the stage will have the `vertex_bit` activated
 (`VK_SHADER_STAGE_VERTEX_BIT`) since it will be used in the vertex shader. The descriptor set layout for the storage buffer 
 that will hold the materials will have the `vulkan.DescriptorType.storage_buffer` type (`VK_DESCRIPTOR_TYPE_STORAGE_BUFFER`)
-and the `fragment_bit` flag since it will be used in the fragment stage.
+and the `fragment_bit` flag since it will be used in the fragment stage. The descriptor set layout used for the texture sampler
+will have the type `combined_image_sampler` (`VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER`) and will also be used in the fragment
+stage.
 
+We will create a buffer to hold the projection matrix. Since we will be using buffers that can be accessed both by tha
+GPU and the CPU, which will have a descriptor set associated to it, we will create an utility function named `createHostVisibleBuff`,
+It will be defined in a new file: `src/eng/vk/VkUtils.zig` (Remember to include it in the `mod.zig` file:
+`pub const util = @import("vkUtils.zig");`). It is defined like this:
 
+```zig
+const std = @import("std");
+const vulkan = @import("vulkan");
+const vk = @import("mod.zig");
+
+pub const MATRIX_SIZE: u64 = 64;
+
+pub fn createHostVisibleBuff(
+    allocator: std.mem.Allocator,
+    vkCtx: *vk.ctx.VkCtx,
+    id: []const u8,
+    size: u64,
+    bufferUsage: vulkan.BufferUsageFlags,
+    vkDescSetLayout: vk.desc.VkDescSetLayout,
+) !vk.buf.VkBuffer {
+    const buffer = try vk.buf.VkBuffer.create(
+        vkCtx,
+        size,
+        bufferUsage,
+        .{ .host_visible_bit = true, .host_coherent_bit = true },
+    );
+
+    const descSet = try vkCtx.vkDescAllocator.addDescSet(
+        allocator,
+        vkCtx.vkPhysDevice,
+        vkCtx.vkDevice,
+        id,
+        vkDescSetLayout,
+    );
+    descSet.setBuffer(vkCtx.vkDevice, buffer, vkDescSetLayout.binding, vkDescSetLayout.descType);
+
+    return buffer;
+}
+```
+
+After that, we create the push constantas range definition and define the pipeline creation information using the descriptor
+sets layouts in the new `descSetLayouts` attribute to create the pipeline.
+
+We will add a new function named `named`. This function will create a descriptor set for the storage buffer that contains material
+data, and associate to the buffer we created in the `MaterialsCache` struct. We will also create the descriptor set for the array
+of images with the textures loaded in the `TextureCache` function. This function will need to be invoked uring initialization so
+descriptor sets are ready during render process.
+
+```zig
+pub const RenderScn = struct {
+    ...
+    pub fn init(self: *RenderScn, allocator: std.mem.Allocator, vkCtx: *vk.ctx.VkCtx, textureCache: *eng.tcach.TextureCache, materialsCache: *eng.mcach.MaterialsCache) !void {
+        const imageViews = try allocator.alloc(vk.imv.VkImageView, textureCache.textureMap.count());
+        defer allocator.free(imageViews);
+
+        const descSet = try vkCtx.vkDescAllocator.addDescSet(
+            allocator,
+            vkCtx.vkPhysDevice,
+            vkCtx.vkDevice,
+            DESC_ID_TEXTS,
+            self.descLayoutTexture,
+        );
+        var iter = textureCache.textureMap.iterator();
+        var i: u32 = 0;
+        while (iter.next()) |entry| {
+            imageViews[i] = entry.value_ptr.vkImageView;
+            i += 1;
+        }
+        try descSet.setImageArr(allocator, vkCtx.vkDevice, imageViews, self.textSampler, 0);
+
+        const matDescSet = try vkCtx.vkDescAllocator.addDescSet(
+            allocator,
+            vkCtx.vkPhysDevice,
+            vkCtx.vkDevice,
+            DESC_ID_MAT,
+            self.descLayoutFrgSt,
+        );
+        matDescSet.setBuffer(vkCtx.vkDevice, materialsCache.materialsBuffer.?, self.descLayoutFrgSt.binding, self.descLayoutFrgSt.descType);
+    }
+    ...
+};
+```
+
+We will need also to update the `render` function to use the descriptor sets:
+
+```zig
+pub const RenderScn = struct {
+    ...
+    pub fn render(
+        self: *RenderScn,
+        vkCtx: *const vk.ctx.VkCtx,
+        engCtx: *const eng.engine.EngCtx,
+        vkCmd: vk.cmd.VkCmdBuff,
+        modelsCache: *const eng.mcach.ModelsCache,
+        materialsCache: *const eng.mcach.MaterialsCache,
+        imageIndex: u32,
+    ) !void {
+        const allocator = engCtx.allocator;
+        const scene = &engCtx.scene;
+        ...
+        // Copy projection matrix
+        try self.updateProj(vkCtx, &scene.camera.projData.projMatrix);
+
+        // Bind descriptor sets
+        const vkDescAllocator = vkCtx.vkDescAllocator;
+        var descSets = try std.ArrayList(vulkan.DescriptorSet).initCapacity(allocator, 3);
+        defer descSets.deinit(allocator);
+        try descSets.append(allocator, vkDescAllocator.getDescSet(DESC_ID_PROJ).?.descSet);
+        try descSets.append(allocator, vkDescAllocator.getDescSet(DESC_ID_MAT).?.descSet);
+        try descSets.append(allocator, vkDescAllocator.getDescSet(DESC_ID_TEXTS).?.descSet);
+
+        device.cmdBindDescriptorSets(
+            cmdHandle,
+            vulkan.PipelineBindPoint.graphics,
+            self.vkPipeline.pipelineLayout,
+            0,
+            @as(u32, @intCast(descSets.items.len)),
+            descSets.items.ptr,
+            0,
+            null,
+        );
+        ...
+        while (iter.next()) |entityRef| {
+            const entity = entityRef.*;
+            const vulkanModel = modelsCache.modelsMap.get(entity.modelId);
+            if (vulkanModel) |*vm| {
+                for (vm.meshes.items) |mesh| {
+                    var materialIdx: u32 = 0;
+                    if (materialsCache.materialsMap.getIndex(mesh.materialId)) |idx| {
+                        materialIdx = @as(u32, @intCast(idx));
+                    }
+                    self.setPushConstants(vkCtx, cmdHandle, entity, materialIdx);
+                    device.cmdBindIndexBuffer(cmdHandle, mesh.buffIdx.buffer, 0, vulkan.IndexType.uint32);
+                    device.cmdBindVertexBuffers(cmdHandle, 0, 1, @ptrCast(&mesh.buffVtx.buffer), &offset);
+                    device.cmdDrawIndexed(cmdHandle, @as(u32, @intCast(mesh.numIndices)), 1, 0, 0, 0);
+                }
+            } else {
+                std.log.warn("Could not find model {s}", .{entity.modelId});
+            }
+        }
+        ...
+    }
+    ...
+};
+```
+
+We need to update the projection matrix buffer by calling the `updateProj` function. After that we will use
+the `VkDescAllocator` class, we can fill up a list with the descriptor sets handles retrieving them by their id. In
+order to use them we need to bind them those descriptor sets while rendering by calling the `cmdBindDescriptorSets` Vulkan function.
+While iterating over the meshes, we get the material index and set the push constants accordingly.
+
+The `setPushConstants` function needs also to be changed to use the new push constants:
+
+```zig
+pub const RenderScn = struct {
+    ...
+    fn setPushConstants(self: *RenderScn, vkCtx: *const vk.ctx.VkCtx, cmdHandle: vulkan.CommandBuffer, entity: *eng.ent.Entity, materialIdx: u32) void {
+        const pushConstantsVtx = PushConstantsVtx{
+            .modelMatrix = entity.modelMatrix,
+        };
+        vkCtx.vkDevice.deviceProxy.cmdPushConstants(
+            cmdHandle,
+            self.vkPipeline.pipelineLayout,
+            vulkan.ShaderStageFlags{ .vertex_bit = true },
+            0,
+            @sizeOf(PushConstantsVtx),
+            &pushConstantsVtx,
+        );
+        const pushConstantsFrg = PushConstantsFrg{
+            .materialIdx = materialIdx,
+        };
+        vkCtx.vkDevice.deviceProxy.cmdPushConstants(
+            cmdHandle,
+            self.vkPipeline.pipelineLayout,
+            vulkan.ShaderStageFlags{ .fragment_bit = true },
+            @sizeOf(PushConstantsVtx),
+            @sizeOf(PushConstantsFrg),
+            &pushConstantsFrg,
+        );
+    }
+    ...
+};
+```
+
+Finally, the `updateProj` function is defined like this:
+
+```zig
+pub const RenderScn = struct {
+    ...
+    fn updateProj(self: *RenderScn, vkCtx: *const vk.ctx.VkCtx, projMatrix: *const zm.Mat) !void {
+        const buffData = try self.buffProjMatrix.map(vkCtx);
+        defer self.buffProjMatrix.unMap(vkCtx);
+        const gpuBytes: [*]u8 = @ptrCast(buffData);
+
+        const projMatrixBytes = std.mem.asBytes(projMatrix);
+        const projMatrixPtr: [*]align(16) const u8 = projMatrixBytes.ptr;
+
+        @memcpy(gpuBytes[0..@sizeOf(zm.Mat)], projMatrixPtr[0..@sizeOf(zm.Mat)]);
+    }
+    ...
+};
+```
+
+The changes required in the `Render` struct are smaller, we basically instantiate the `MaterialsCache` and `TextureCache` strcust
+and adapt some functions to the new parameters added:
+
+```zig
+const log = std.log.scoped(.eng);
+...
+pub const Render = struct {
+    ...
+    materialsCache: eng.mcach.MaterialsCache,
+    ...
+    textureCache: eng.tcach.TextureCache,
+
+    pub fn cleanup(self: *Render, allocator: std.mem.Allocator) !void {
+        ...
+        self.textureCache.cleanup(allocator, &self.vkCtx);
+        self.materialsCache.cleanup(allocator, &self.vkCtx);
+        ...
+    }
+
+    pub fn create(allocator: std.mem.Allocator, constants: com.common.Constants, window: sdl3.video.Window) !Render {
+        var vkCtx = try vk.ctx.VkCtx.create(allocator, constants, window);
+        ...
+        const materialsCache = eng.mcach.MaterialsCache.create(allocator);
+        const modelsCache = eng.mcach.ModelsCache.create(allocator);
+
+        const textureCache = eng.tcach.TextureCache.create(allocator);
+
+        return .{
+            .vkCtx = vkCtx,
+            .cmdPools = cmdPools,
+            .cmdBuffs = cmdBuffs,
+            .currentFrame = 0,
+            .fences = fences,
+            .materialsCache = materialsCache,
+            .modelsCache = modelsCache,
+            .mustResize = false,
+            .queueGraphics = queueGraphics,
+            .queuePresent = queuePresent,
+            .renderScn = renderScn,
+            .semsPresComplete = semsPresComplete,
+            .semsRenderComplete = semsRenderComplete,
+            .textureCache = textureCache,
+        };
+    }
+
+    pub fn init(self: *Render, allocator: std.mem.Allocator, engCtx: *eng.engine.EngCtx, initData: *const eng.engine.InitData) !void {
+        log.debug("Starting render init", .{});
+        const constants = engCtx.constants;
+        const extent = self.vkCtx.vkSwapChain.extent;
+        engCtx.scene.camera.projData.update(
+            constants.fov,
+            constants.zNear,
+            constants.zFar,
+            @as(f32, @floatFromInt(extent.width)),
+            @as(f32, @floatFromInt(extent.height)),
+        );
+        try self.materialsCache.init(allocator, &self.vkCtx, &self.textureCache, &self.cmdPools[0], self.queueGraphics, initData);
+
+        try self.textureCache.recordTextures(allocator, &self.vkCtx, &self.cmdPools[0], self.queueGraphics);
+
+        try self.modelsCache.init(allocator, &self.vkCtx, &self.cmdPools[0], self.queueGraphics, initData);
+
+        try self.renderScn.init(allocator, &self.vkCtx, &self.textureCache, &self.materialsCache);
+        log.debug("Finished render init", .{});
+    }
+
+    pub fn render(self: *Render, engCtx: *eng.engine.EngCtx) !void {
+        ...
+        try self.renderScn.render(
+            &self.vkCtx,
+            engCtx,
+            vkCmdBuff,
+            &self.modelsCache,
+            &self.materialsCache,
+            imageIndex,
+        );
+        ...        
+    }
+    ...
+};
+```
+
+We will need also to update the `Engine` struct to initialize the zstbi libray prior to any texture loading code gets executed.
+In the `create` function we will add the following line prior to the `Render` instance creation: 
+
+```zig
+pub fn Engine(comptime GameLogic: type) type {
+    ...
+        pub fn create(allocator: std.mem.Allocator, gameLogic: *GameLogic, wndTitle: [:0]const u8) !Engine(GameLogic) {
+            ...
+            zstbi.init(allocator);
+            ...
+        }
+    ...
+}
+```
+
+In the `src/eng/modelData.zig` we will add to functions to load models and materials from the JSON files:
+
+```zig
+pub fn loadMaterials(allocator: std.mem.Allocator, path: []const u8) !std.ArrayList(MaterialData) {
+    log.debug("Loading materials from [{s}]", .{path});
+
+    const file = try std.fs.cwd().openFile(path, .{});
+    defer file.close();
+
+    const bytes = try file.readToEndAlloc(allocator, std.math.maxInt(usize));
+    defer allocator.free(bytes);
+
+    const parsed = try std.json.parseFromSlice(std.ArrayListUnmanaged(MaterialData), allocator, bytes, .{});
+    defer parsed.deinit();
+
+    var materials = try std.ArrayList(MaterialData).initCapacity(allocator, parsed.value.items.len);
+    for (parsed.value.items) |materialData| {
+        const ownedMaterialData = MaterialData{
+            .color = materialData.color,
+            .id = try allocator.dupe(u8, materialData.id),
+            .texturePath = try allocator.dupe(u8, materialData.texturePath),
+        };
+        try materials.append(allocator, ownedMaterialData);
+    }
+
+    return materials;
+}
+
+pub fn loadModel(allocator: std.mem.Allocator, path: []const u8) !ModelData {
+    log.debug("Loading model from [{s}]", .{path});
+
+    const file = try std.fs.cwd().openFile(path, .{});
+    defer file.close();
+
+    const bytes = try file.readToEndAlloc(allocator, std.math.maxInt(usize));
+    defer allocator.free(bytes);
+
+    const parsed = try std.json.parseFromSlice(ModelData, allocator, bytes, .{});
+    defer parsed.deinit();
+
+    var modelData = parsed.value;
+    modelData.id = try allocator.dupe(u8, modelData.id);
+    modelData.idxFilename = try allocator.dupe(u8, modelData.idxFilename);
+    modelData.vtxFilename = try allocator.dupe(u8, modelData.vtxFilename);
+
+    for (modelData.meshes.items) |*meshData| {
+        meshData.id = try allocator.dupe(u8, meshData.id);
+        meshData.materialId = try allocator.dupe(u8, meshData.materialId);
+    }
+
+    return modelData;
+}
+```
+
+We need to change we load the models in the `Game` struct. Instead of defining the data in the `init` function we just use the
+`loadModel` and `loadMaterials` functions to load the data:
+
+```zig
+const Game = struct {
+    ...
+    pub fn init(self: *Game, engCtx: *eng.engine.EngCtx, arenaAlloc: std.mem.Allocator) !eng.engine.InitData {
+        _ = self;
+
+        const cubeModel = try eng.mdata.loadModel(arenaAlloc, "res/models/cube/cube.json");
+        const models = try arenaAlloc.alloc(eng.mdata.ModelData, 1);
+        models[0] = cubeModel;
+
+        const cubeEntity = try eng.ent.Entity.create(engCtx.allocator, ENTITY_ID, cubeModel.id);
+        cubeEntity.setPos(0.0, 0.0, -4.0);
+        cubeEntity.update();
+        try engCtx.scene.addEntity(cubeEntity);
+
+        var materials = try std.ArrayList(eng.mdata.MaterialData).initCapacity(arenaAlloc, 1);
+        const cubeMaterials = try eng.mdata.loadMaterials(arenaAlloc, "res/models/cube/cube-mat.json");
+        try materials.appendSlice(arenaAlloc, cubeMaterials.items);
+
+        return .{ .models = models, .materials = materials };
+    }
+    ...
+};
+```
+With all of these changes you will be able to see a nice rotating cube with a texture:
+
+<img src="rc08-screen-shot.png" title="" alt="Screen Shot" data-align="center">
+
+[Next chapter](../chapter-09/chapter-09.md)

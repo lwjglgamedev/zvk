@@ -17,7 +17,7 @@ pub fn main() !void {
 }
 
 const Game = struct {
-    const ENTITY_ID: []const u8 = "CubeModel";
+    const ENTITY_ID: []const u8 = "CubeEntity";
 
     angle: f32 = 0,
 

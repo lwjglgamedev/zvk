@@ -312,8 +312,8 @@ pub const RenderScn = struct {
         }};
         device.cmdSetScissor(cmdHandle, 0, scissor.len, &scissor);
 
-        // Copy matrices
-        try self.updateProjView(vkCtx, &scene.camera.projData.projMatrix);
+        // Copy projection matrix
+        try self.updateProj(vkCtx, &scene.camera.projData.projMatrix);
 
         // Bind descriptor sets
         const vkDescAllocator = vkCtx.vkDescAllocator;
@@ -398,7 +398,7 @@ pub const RenderScn = struct {
         );
     }
 
-    fn updateProjView(self: *RenderScn, vkCtx: *const vk.ctx.VkCtx, projMatrix: *const zm.Mat) !void {
+    fn updateProj(self: *RenderScn, vkCtx: *const vk.ctx.VkCtx, projMatrix: *const zm.Mat) !void {
         const buffData = try self.buffProjMatrix.map(vkCtx);
         defer self.buffProjMatrix.unMap(vkCtx);
         const gpuBytes: [*]u8 = @ptrCast(buffData);
