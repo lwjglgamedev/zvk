@@ -5,6 +5,9 @@ import path from "node:path";
 export default defineConfig({
   srcDir: "bookcontents",
   ignoreDeadLinks: true,
+  rewrites: {
+    "README.md": "index.md",
+  },
   title: "ZVK",
   description: "Vulkan graphics programming in Zig",
   vite: {
