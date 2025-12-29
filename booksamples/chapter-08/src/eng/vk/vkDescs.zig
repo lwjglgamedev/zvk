@@ -50,21 +50,23 @@ pub const VkDescAllocator = struct {
     ) !VkDesSet {
         const count = 1;
         var vkDescPoolOpt: ?VkDescPool = null;
+        var poolInfoOpt: ?*PoolInfo = null;
         if (self.descSetMap.contains(id)) {
             log.err("Duplicate key for descriptor set [{s}]", .{id});
             return error.DuplicateDescKey;
         }
-        for (self.poolInfoList.items) |poolInfo| {
+        for (self.poolInfoList.items) |*poolInfo| {
             const available = poolInfo.descCount.get(vkDescSetLayout.descType) orelse return error.KeyNotFound;
-            if (available < count) {
-                continue;
+            if (available >= count) {
+                vkDescPoolOpt = poolInfo.vkDescPool;
+                poolInfoOpt = poolInfo;
+                break;
             }
-            vkDescPoolOpt = poolInfo.vkDescPool;
-            break;
         }
 
         if (vkDescPoolOpt) |vkDescPool| {
             const vkDescSet = try VkDesSet.create(vkDevice, vkDescPool, vkDescSetLayout);
+            try poolInfoOpt.?.descCount.put(vkDescSetLayout.descType, @as(u32, @intCast(poolInfoOpt.?.descCount.get(vkDescSetLayout.descType) orelse 0)) - count);
             const ownedId = try allocator.dupe(u8, id);
             try self.descSetMap.put(ownedId, vkDescSet);
             return vkDescSet;

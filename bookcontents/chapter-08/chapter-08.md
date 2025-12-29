@@ -869,3 +869,423 @@ pub const VulkanMaterial = struct {
     }
 };
 ```
+
+Let's update now the `ModelsCache` struct to be able to load preprocessed models. Remember that prior to use any model you
+need to preprocess it by using the model generator executable. Let's start with the `init` class:
+
+```zig
+const com = @import("com");
+...
+pub const ModelsCache = struct {
+    ...
+    pub fn init(
+        self: *ModelsCache,
+        allocator: std.mem.Allocator,
+        vkCtx: *const vk.ctx.VkCtx,
+        cmdPool: *vk.cmd.VkCmdPool,
+        vkQueue: vk.queue.VkQueue,
+        initData: *const eng.engine.InitData,
+    ) !void {
+        log.debug("Loading {d} model(s)", .{initData.models.len});
+
+        const cmdBuff = try vk.cmd.VkCmdBuff.create(vkCtx, cmdPool, true);
+        const cmdHandle = cmdBuff.cmdBuffProxy.handle;
+
+        var srcBuffers = try std.ArrayList(vk.buf.VkBuffer).initCapacity(allocator, 1);
+        defer srcBuffers.deinit(allocator);
+        try cmdBuff.begin(vkCtx);
+
+        for (initData.models) |*modelData| {
+            const vtxData = try com.utils.loadFile(allocator, modelData.vtxFilename);
+            defer allocator.free(vtxData);
+            const idxData = try com.utils.loadFile(allocator, modelData.idxFilename);
+            defer allocator.free(idxData);
+
+            var vulkanMeshes = try std.ArrayList(VulkanMesh).initCapacity(allocator, modelData.meshes.items.len);
+
+            for (modelData.meshes.items) |meshData| {
+                const verticesSize = meshData.vtxSize;
+                const srcVtxBuffer = try vk.buf.VkBuffer.create(
+                    vkCtx,
+                    verticesSize,
+                    vulkan.BufferUsageFlags{ .transfer_src_bit = true },
+                    vulkan.MemoryPropertyFlags{ .host_visible_bit = true, .host_coherent_bit = true },
+                );
+                try srcBuffers.append(allocator, srcVtxBuffer);
+                const dstVtxBuffer = try vk.buf.VkBuffer.create(
+                    vkCtx,
+                    verticesSize,
+                    vulkan.BufferUsageFlags{ .vertex_buffer_bit = true, .transfer_dst_bit = true },
+                    vulkan.MemoryPropertyFlags{ .device_local_bit = true },
+                );
+
+                const dataVertices = try srcVtxBuffer.map(vkCtx);
+                const gpuVertices: [*]u8 = @ptrCast(@alignCast(dataVertices));
+                const endVtx = meshData.vtxOffset + meshData.vtxSize;
+                @memcpy(gpuVertices, vtxData[meshData.vtxOffset..endVtx]);
+                srcVtxBuffer.unMap(vkCtx);
+
+                const indicesSize = meshData.idxSize;
+                const srcIdxBuffer = try vk.buf.VkBuffer.create(
+                    vkCtx,
+                    indicesSize,
+                    vulkan.BufferUsageFlags{ .transfer_src_bit = true },
+                    vulkan.MemoryPropertyFlags{ .host_visible_bit = true, .host_coherent_bit = true },
+                );
+                try srcBuffers.append(allocator, srcIdxBuffer);
+                const dstIdxBuffer = try vk.buf.VkBuffer.create(
+                    vkCtx,
+                    indicesSize,
+                    vulkan.BufferUsageFlags{ .index_buffer_bit = true, .transfer_dst_bit = true },
+                    vulkan.MemoryPropertyFlags{ .device_local_bit = true },
+                );
+
+                const dataIndices = try srcIdxBuffer.map(vkCtx);
+                const gpuIndices: [*]u8 = @ptrCast(@alignCast(dataIndices));
+                const endIdx = meshData.idxOffset + meshData.idxSize;
+                @memcpy(gpuIndices, idxData[meshData.idxOffset..endIdx]);
+                srcIdxBuffer.unMap(vkCtx);
+
+                const vulkanMesh = VulkanMesh{
+                    .buffIdx = dstIdxBuffer,
+                    .buffVtx = dstVtxBuffer,
+                    .id = try allocator.dupe(u8, meshData.id),
+                    .materialId = try allocator.dupe(u8, meshData.materialId),
+                    .numIndices = indicesSize / @sizeOf(u23),
+                };
+                try vulkanMeshes.append(allocator, vulkanMesh);
+
+                recordTransfer(vkCtx, cmdHandle, &srcVtxBuffer, &dstVtxBuffer);
+                recordTransfer(vkCtx, cmdHandle, &srcIdxBuffer, &dstIdxBuffer);
+            }
+
+            const vulkanModel = VulkanModel{ .id = try allocator.dupe(u8, modelData.id), .meshes = vulkanMeshes };
+            try self.modelsMap.put(try allocator.dupe(u8, modelData.id), vulkanModel);
+        }
+
+        try cmdBuff.end(vkCtx);
+        try cmdBuff.submitAndWait(vkCtx, vkQueue);
+
+        for (srcBuffers.items) |vkBuff| {
+            vkBuff.cleanup(vkCtx);
+        }
+
+        log.debug("Loaded {d} model(s)", .{initData.models.len});
+    }
+};
+```
+
+We will be loading data for vertices and indices from files, so we need to get the data by calling the `com.utils.loadFile` functions.
+Since all the meshes of a model share the same data, we need to take into consideration offset and the end of the mesh data in the 
+vertices and indices.
+
+In order to manage materials we will need to create a new struct named `MaterialsCache` which starts like this (it will be defined
+in the same file as `ModelsCache`: `src/eng/modelsCache.zig`):
+
+```zig
+...
+const MaterialBuffRecord = struct {
+    diffuseColor: zm.Vec,
+    hasTexture: u32,
+    textureIdx: u32,
+    padding: [2]u32,
+};
+...
+pub const MaterialsCache = struct {
+    materialsMap: std.ArrayHashMap([]const u8, VulkanMaterial, std.array_hash_map.StringContext, false),
+    materialsBuffer: ?vk.buf.VkBuffer,
+
+    pub fn cleanup(self: *MaterialsCache, allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx) void {
+        var iter = self.materialsMap.iterator();
+        while (iter.next()) |entry| {
+            allocator.free(entry.key_ptr.*);
+            entry.value_ptr.cleanup(allocator);
+        }
+        self.materialsMap.deinit();
+        if (self.materialsBuffer) |buff| {
+            buff.cleanup(vkCtx);
+        }
+    }
+
+    pub fn create(allocator: std.mem.Allocator) MaterialsCache {
+        const materialsMap = std.ArrayHashMap([]const u8, VulkanMaterial, std.array_hash_map.StringContext, false).init(allocator);
+        return .{
+            .materialsMap = materialsMap,
+            .materialsBuffer = null,
+        };
+    }
+    ...
+};
+```
+
+This class, will create a single `VkBuffer` which will store all the materials information for all the models, which in our case
+will be:
+- The diffuse color (for non textured materials), stored as a vector of 4 elements.
+- If the material has a texture associated or not.
+- The texture index associated to the material.
+
+We will need to store the materials in an `ArrayHashMap` since we will need to get he position of the material in the buffer.
+
+New we need a function to load the materials:
+
+```zig
+pub const MaterialsCache = struct {
+    ...
+    pub fn init(
+        self: *MaterialsCache,
+        allocator: std.mem.Allocator,
+        vkCtx: *const vk.ctx.VkCtx,
+        textureCache: *eng.tcach.TextureCache,
+        cmdPool: *vk.cmd.VkCmdPool,
+        vkQueue: vk.queue.VkQueue,
+        initData: *const eng.engine.InitData,
+    ) !void {
+        const nuMaterials = initData.materials.items.len;
+        log.debug("Loading {d} material(s)", .{nuMaterials});
+        const cmdBuff = try vk.cmd.VkCmdBuff.create(vkCtx, cmdPool, true);
+        const cmdHandle = cmdBuff.cmdBuffProxy.handle;
+
+        const buffSize = nuMaterials * @sizeOf(MaterialBuffRecord);
+        const srcBuffer = try vk.buf.VkBuffer.create(
+            vkCtx,
+            buffSize,
+            vulkan.BufferUsageFlags{ .transfer_src_bit = true },
+            vulkan.MemoryPropertyFlags{ .host_visible_bit = true },
+        );
+        defer srcBuffer.cleanup(vkCtx);
+        const dstBuffer = try vk.buf.VkBuffer.create(
+            vkCtx,
+            buffSize,
+            vulkan.BufferUsageFlags{ .storage_buffer_bit = true, .transfer_dst_bit = true },
+            vulkan.MemoryPropertyFlags{},
+        );
+        const data = try srcBuffer.map(vkCtx);
+        defer srcBuffer.unMap(vkCtx);
+        const mappedData: [*]MaterialBuffRecord = @ptrCast(@alignCast(data));
+
+        for (initData.materials.items, 0..) |*materialData, i| {
+            const vulkanMaterial = VulkanMaterial{ .id = try allocator.dupe(u8, materialData.id) };
+            var hasTexture: u32 = 0;
+            var textureIdx: u32 = 0;
+            if (materialData.texturePath.len > 0) {
+                const nullTermPath = try allocator.dupeZ(u8, materialData.texturePath);
+                defer allocator.free(nullTermPath);
+                if (try textureCache.addTextureFromPath(allocator, vkCtx, nullTermPath)) {
+                    if (textureCache.textureMap.getIndex(nullTermPath)) |idx| {
+                        textureIdx = @as(u32, @intCast(idx));
+                        hasTexture = 1;
+                    } else {
+                        std.log.warn("Could not find texture added to the cache [{s}]", .{materialData.texturePath});
+                    }
+                }
+            }
+            const atBuffRecord = MaterialBuffRecord{
+                .diffuseColor = materialData.color,
+                .hasTexture = hasTexture,
+                .textureIdx = textureIdx,
+                .padding = [_]u32{ 0, 0 },
+            };
+            mappedData[i] = atBuffRecord;
+            try self.materialsMap.put(try allocator.dupe(u8, vulkanMaterial.id), vulkanMaterial);
+        }
+
+        try cmdBuff.begin(vkCtx);
+        recordTransfer(vkCtx, cmdHandle, &srcBuffer, &dstBuffer);
+        try cmdBuff.end(vkCtx);
+        try cmdBuff.submitAndWait(vkCtx, vkQueue);
+
+        self.materialsBuffer = dstBuffer;
+        log.debug("Loaded {d} material(s)", .{nuMaterials});
+    }
+};
+```
+
+As in the case of the models, we create a staging buffer and a GPU only accessible buffer for the materials. We iterate over
+the materials populating the buffer. We also populate the texture cache with the textures that we find associated to the materials. 
+Keep in mind that we may use more textures than the ones strictly used by models. You will see that We need to add padding data,
+because due to the layout rules used in shaders, the minimum size of data will be multiples of `vec4`, therefore since we
+initially only need 6 bytes, we need to compensate with two more. At the end of the loop, we just record the transfer command,
+submit it to the queue, and wait for it to be finished. 
+
+## Descriptors
+
+Descriptors represent shader resources such us buffers, images or samplers. We will need to use descriptors in order to access the
+textures from the shaders and also for uniforms (in Vulkan uniforms are just the way to access buffers in the shaders). Descriptors
+are grouped in descriptor sets, whose general structure is defined through descriptor layouts. Descriptors are like handles to access
+resources from shaders, and they are created through a descriptor pool.
+
+Managing descriptors is often a tedious tasks, you need to define, for each pool the number of descriptor sets that it will be able
+to hold for each of the supported types. Each descriptor needs to be associated to a descriptor set layout, which are tightly
+related to how they wll be used in the shaders, etc. In order to facilitate this process, we are going to use the following approach:
+
+- We will create descriptor pools which will support the descriptor sets we are going to use, size to the maximum number
+of elements supported by the driver.
+- If we reach the limit in a specific descriptor pool, we will create just a new pool.
+- We will store descriptor sets by name, so we can easily access them by an identifier.
+
+We will centralize all of above in a struct named `VkDescAllocator` in order to isolate other parts of the code from the complexity
+of managing descriptor sets. It will be include din the `src/eng/vk/vkDescs.zig` so remember to include it in the `mod.zig`
+file: `pub const desc = @import("vkDescs.zig");`.
+
+Let's start first by defining a new struct to handle a descriptor pool named `VkDescPool` (also in `vkDescs.zig`):
+
+```zig
+pub const VkDescPool = struct {
+    descPool: vulkan.DescriptorPool,
+
+    pub fn create(vkDevice: vk.dev.VkDevice, descPoolSizes: []const vulkan.DescriptorPoolSize) !VkDescPool {
+        var maxSets: u32 = 0;
+        for (descPoolSizes) |*descPoolSize| {
+            maxSets += descPoolSize.descriptor_count;
+        }
+        const createInfo = vulkan.DescriptorPoolCreateInfo{
+            .flags = .{ .free_descriptor_set_bit = true },
+            .p_pool_sizes = descPoolSizes.ptr,
+            .pool_size_count = @as(u32, @intCast(descPoolSizes.len)),
+            .max_sets = maxSets,
+        };
+
+        const descPool = try vkDevice.deviceProxy.createDescriptorPool(&createInfo, null);
+        return .{ .descPool = descPool };
+    }
+
+    pub fn cleanup(self: *const VkDescPool, vkDevice: vk.dev.VkDevice) void {
+        vkDevice.deviceProxy.destroyDescriptorPool(self.descPool, null);
+    }
+};
+```
+
+A descriptor pool is just a place holder for descriptor set handles. When it is created, it just allocates different descriptor
+sets according to their types. Vulkan defines several types for the descriptor sets, uniforms, texture samplers, etc. We can
+specify how many descriptors we want to pre-create for each type. Therefore, the `VkDescPool` `create ` function receives, besides
+a reference to the device, an array of `vulkan.DescriptorPoolSize` which specifies how many descriptor sets should be allocated for
+each type. With that information we will fill up `DescriptorPoolCreateInfo` structure that requires the `createDescriptorPool`
+function. One important topic to highlight is that in the `DescriptorPoolCreateInfo` we have set the flag `free_descriptor_set_bit` (`VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT`). This flag will allow us to return descriptor sets to the pool when they are no
+longer used.
+
+
+Prior to continue with more code, let us clarify some concepts. Imagine we have, in GLSL, a definition of the following descriptor
+sets:
+```glsl
+layout(set = 0, binding = 0) uniform A {
+    vec4 data;
+} a;
+layout(set = 0, binding = 1) uniform B {
+    vec4 data;
+} b;
+layout(set = 1, binding = 0) uniform C {
+    vec4 data;
+} c;
+```
+
+In the fragment above we have two descriptor sets. The first one is composed by two uniforms (`a` and `b`), each of them located
+in a different binding point `0` and `1`. The second descriptor set just defines a single uniform (`c`) located at binding `0`.
+Descriptor set layouts are used to define that structure. In fact, we can have several descriptor sets sharing the same layout.
+In the example above we can above two descriptor sets using different buffers associated to the same layout, for example,
+the layout shown for "c". 
+
+We will create a struct to help us create descriptor set layouts:
+
+```zig
+pub const VkDescSetLayout = struct {
+    binding: u32,
+    descSetLayout: vulkan.DescriptorSetLayout,
+    descType: vulkan.DescriptorType,
+
+    pub fn create(vkCtx: *const vk.ctx.VkCtx, binding: u32, descType: vulkan.DescriptorType, stageFlags: vulkan.ShaderStageFlags, count: u32) !VkDescSetLayout {
+        const bindingInfos = [_]vulkan.DescriptorSetLayoutBinding{.{
+            .descriptor_count = count,
+            .binding = binding,
+            .descriptor_type = descType,
+            .stage_flags = stageFlags,
+        }};
+        const createInfo = vulkan.DescriptorSetLayoutCreateInfo{
+            .binding_count = bindingInfos.len,
+            .p_bindings = &bindingInfos,
+        };
+        const descSetLayout = try vkCtx.vkDevice.deviceProxy.createDescriptorSetLayout(&createInfo, null);
+        return .{ .binding = binding, .descSetLayout = descSetLayout, .descType = descType };
+    }
+
+    pub fn cleanup(self: *const VkDescSetLayout, vkCtx: *const vk.ctx.VkCtx) void {
+        vkCtx.vkDevice.deviceProxy.destroyDescriptorSetLayout(self.descSetLayout, null);
+    }
+};
+```
+
+We define thee binding structure, in terms of types and binding points though descriptor set layout. We start by
+defining the binding point (given a descriptor set, each of the descriptors will be assigned to a unique binding number).
+This is done by filling up a `DescriptorSetLayoutCreateInfo` struct.The `binding` parameter shall match the one used in the
+shader for this specific descriptor. In addition to that, we specify the descriptor type and the shader stage where it will
+be used. That information is used to call the  in the `createDescriptorSetLayout` function. The struct is completed by the
+classical `cleanup` function.
+
+Prior to getting deep dive with descriptor sets, let's review texture samplers. Images are not usually accessed directly when used
+as textures. When we access a texture, we usually want to apply some type of filters, we may have mip levels and maybe specify
+some repetition patterns. All that is handled through a sampler. We have already created images and image views, but in order to access
+them in shaders we will need texture samplers. Therefore we will create a new struct named `TextureSampler` (it will be included
+in the `vkTexture.zig` file): 
+
+```zig
+pub const VkTextSamplerInfo = struct {
+    addressMode: vulkan.SamplerAddressMode,
+    borderColor: vulkan.BorderColor,
+};
+
+pub const VkTextSampler = struct {
+    sampler: vulkan.Sampler,
+
+    pub fn create(vkCtx: *const vk.ctx.VkCtx, samplerInfo: VkTextSamplerInfo) !VkTextSampler {
+        const createInfo = vulkan.SamplerCreateInfo{
+            .mag_filter = vulkan.Filter.nearest,
+            .min_filter = vulkan.Filter.nearest,
+            .address_mode_u = samplerInfo.addressMode,
+            .address_mode_v = samplerInfo.addressMode,
+            .address_mode_w = samplerInfo.addressMode,
+            .border_color = samplerInfo.borderColor,
+            .mipmap_mode = vulkan.SamplerMipmapMode.nearest,
+            .max_anisotropy = 0.0,
+            .min_lod = 0.0,
+            .max_lod = 0.0,
+            .mip_lod_bias = 0.0,
+            .compare_enable = vulkan.Bool32.false,
+            .compare_op = vulkan.CompareOp.never,
+            .unnormalized_coordinates = vulkan.Bool32.false,
+            .anisotropy_enable = vulkan.Bool32.false,
+        };
+        const sampler = try vkCtx.vkDevice.deviceProxy.createSampler(&createInfo, null);
+        return .{ .sampler = sampler };
+    }
+
+    pub fn cleanup(self: *const VkTextSampler, vkCtx: *const vk.ctx.VkCtx) void {
+        vkCtx.vkDevice.deviceProxy.destroySampler(self.sampler, null);
+    }
+};
+```
+
+We will first define a helper struct that will encapsulate creation parameters named `VkTextSamplerInfo` which by now it will
+store the address mode and the border color for the texture (more on  this later)-
+
+In order to create a sampler, we need to invoke the `createSampler` function which requires a `VkTextSamplerInfo` structure,
+defined by the following fields:
+
+- `mag_filter` and `min_filter`: control how magnification and magnification filter work while performing a texture lookup.
+In this case, we are using a `vulkan.Filter.nearest` (`VK_FILTER_NEAREST`) filter, which just picks the closest value in the
+lookup. You can use other options such as `vulkan.Filter.linear` (`VK_FILTER_LINEAR`) which  is the value for a linear filter
+(for a 2D texture, it combines for values of four pixels weighted) or `vulkan.Filter.cubic_ext` (`VK_FILTER_CUBIC_EXT`)
+to apply cubic filtering (it uses 16 values for 2D textures).
+- `address_mode_u`, `address_mode_v` and `address_mode_w`: This will control what will be returned for a texture lookup when
+the coordinates lay out of the texture size. The `U`, `V` and `W` refer to the `x`, `y` and `z` axis (for 3D images).
+You can set several options such as `vulkan.SamplerAddressMode.repeat` (`VK_SAMPLER_ADDRESS_MODE_REPEAT`) which means that
+the texture is repeated endlessly over all the axis or `vulkan.SamplerAddressMode.mirrored_repeat`
+(`VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT`) which repeats in a mirrored way or `vulkan.SamplerAddressMode.clamp_to_edge`
+(`VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE`) which just uses the latest edge value.
+- `border_color`: This sets the color for the border that will be used for texture lookups beyond bounds when 
+`vulkan.SamplerAddressMode.clamp_to_edge` (`VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER`) is used in the `address_mode_X` attributes.
+- `mipmap_mode`: This is used to specify the mipmap filter to apply in lookups. We will address that in later chapters.
+- `min_lod`, `max_lod` and `mip_lod_bias`: These parameters are used for mip mapping, so we will review them later on.
+- `compare_enable`: It enables a comparison when performing texture lookups.
+- `compare_op`: It specifies the comparison operation. We will not be using this at this moment.
+- `unnormalized_coordinates`: Texture coordinates cover the [0, 1] range. When this parameter is set to `true` the coordinates will
+cover the ranges [0, width], [0, height].
+- `anisotropy_enable`: It enables / disables anisotropic filtering.

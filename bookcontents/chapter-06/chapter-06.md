@@ -193,7 +193,7 @@ This struct just stores a List of meshes, defined by the `VulkanMesh` struct, wh
 
 The `VulkanMesh` struct (defined also inside the `modelsCache.zig` file) is quite simple:
 
-```java
+```zig
 pub const VulkanMesh = struct {
     buffIdx: vk.buf.VkBuffer,
     buffVtx: vk.buf.VkBuffer,
@@ -356,7 +356,8 @@ pub const ModelsCache = struct {
                 };
                 try vulkanMeshes.append(allocator, vulkanMesh);
 
-                recordTransfer(vkCtx, cmdHandle, &srcVtxBuffer, &dstVtxBuffer, &srcIdxBuffer, &dstIdxBuffer);
+                recordTransfer(vkCtx, cmdHandle, &srcVtxBuffer, &dstVtxBuffer);
+                recordTransfer(vkCtx, cmdHandle, &srcIdxBuffer, &dstIdxBuffer);
             }
 
             const vulkanModel = VulkanModel{ .id = modelData.id, .meshes = vulkanMeshes };
@@ -399,30 +400,19 @@ queue waiting for them to be processed.
 The `recordTransfer` function is defined like this:
 
 ```zig
-pub const ModelsCache = struct {
-    ...
-    fn recordTransfer(
-        vkCtx: *const vk.ctx.VkCtx,
-        cmdHandle: vulkan.CommandBuffer,
-        srcVtxBuff: *const vk.buf.VkBuffer,
-        dstVtxBuff: *const vk.buf.VkBuffer,
-        srcIdxBuff: *const vk.buf.VkBuffer,
-        dstIdxBuff: *const vk.buf.VkBuffer,
-    ) void {
-        const copyVtxRegion = [_]vulkan.BufferCopy{.{
-            .src_offset = 0,
-            .dst_offset = 0,
-            .size = srcVtxBuff.size,
-        }};
-        vkCtx.vkDevice.deviceProxy.cmdCopyBuffer(cmdHandle, srcVtxBuff.buffer, dstVtxBuff.buffer, copyVtxRegion.len, &copyVtxRegion);
-        const copyIdxRegion = [_]vulkan.BufferCopy{.{
-            .src_offset = 0,
-            .dst_offset = 0,
-            .size = srcIdxBuff.size,
-        }};
-        vkCtx.vkDevice.deviceProxy.cmdCopyBuffer(cmdHandle, srcIdxBuff.buffer, dstIdxBuff.buffer, copyIdxRegion.len, &copyIdxRegion);
-    }
-};
+fn recordTransfer(
+    vkCtx: *const vk.ctx.VkCtx,
+    cmdHandle: vulkan.CommandBuffer,
+    srcBuff: *const vk.buf.VkBuffer,
+    dstBuff: *const vk.buf.VkBuffer,
+) void {
+    const copyRegion = [_]vulkan.BufferCopy{.{
+        .src_offset = 0,
+        .dst_offset = 0,
+        .size = srcBuff.size,
+    }};
+    vkCtx.vkDevice.deviceProxy.cmdCopyBuffer(cmdHandle, srcBuff.buffer, dstBuff.buffer, copyRegion.len, &copyRegion);
+}
 ```
 
 It first defines a copy region, by filling up a `BufferCopy` array, which will have the whole size of the staging buffer. Then we record the copy command, by calling the `cmdCopyBuffer` function. We do this for vertices and indices buffers.

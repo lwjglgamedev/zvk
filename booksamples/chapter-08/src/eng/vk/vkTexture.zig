@@ -18,7 +18,6 @@ pub const VkTextSampler = struct {
             .address_mode_w = samplerInfo.addressMode,
             .border_color = samplerInfo.borderColor,
             .mipmap_mode = vulkan.SamplerMipmapMode.nearest,
-            .anisotropy_enable = vulkan.Bool32.false,
             .max_anisotropy = 0.0,
             .min_lod = 0.0,
             .max_lod = 0.0,
@@ -26,6 +25,7 @@ pub const VkTextSampler = struct {
             .compare_enable = vulkan.Bool32.false,
             .compare_op = vulkan.CompareOp.never,
             .unnormalized_coordinates = vulkan.Bool32.false,
+            .anisotropy_enable = vulkan.Bool32.false,
         };
         const sampler = try vkCtx.vkDevice.deviceProxy.createSampler(&createInfo, null);
         return .{ .sampler = sampler };
