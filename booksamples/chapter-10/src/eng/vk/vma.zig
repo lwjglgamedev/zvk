@@ -23,7 +23,7 @@ pub const VkVmaAlloc = struct {
     vmaAlloc: vma.VmaAllocator,
 
     pub fn create(vkInstance: vke.inst.VkInstance, vkPhysDevice: vke.phys.VkPhysDevice, vkDevice: vke.dev.VkDevice) VkVmaAlloc {
-        const vulkan_f = vma.VmaVulkanFunctions{
+        const vulkanFuncs = vma.VmaVulkanFunctions{
             .vkGetInstanceProcAddr = @ptrCast(vkInstance.vkb.dispatch.vkGetInstanceProcAddr),
             .vkGetDeviceProcAddr = @ptrCast(vkInstance.instanceProxy.wrapper.dispatch.vkGetDeviceProcAddr),
         };
@@ -32,7 +32,7 @@ pub const VkVmaAlloc = struct {
             .physicalDevice = @ptrFromInt(@intFromEnum(vkPhysDevice.pdev)),
             .device = @ptrFromInt(@intFromEnum(vkDevice.deviceProxy.handle)),
             .instance = @ptrFromInt(@intFromEnum(vkInstance.instanceProxy.handle)),
-            .pVulkanFunctions = @ptrCast(&vulkan_f),
+            .pVulkanFunctions = @ptrCast(&vulkanFuncs),
             .vulkanApiVersion = @bitCast(vulkan.API_VERSION_1_3),
         };
         var vmaAlloc: vma.VmaAllocator = undefined;

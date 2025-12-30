@@ -15,6 +15,8 @@ pub const TextureInfo = struct {
     format: vulkan.Format,
 };
 
+const EMPTY_PIXELS = [_]u8{ 0, 0, 0, 0 };
+
 pub const TextureCache = struct {
     textureMap: std.ArrayHashMap([]const u8, vk.text.VkTexture, std.array_hash_map.StringContext, false),
 
@@ -87,12 +89,11 @@ pub const TextureCache = struct {
         const numTextures = self.textureMap.count();
         if (numTextures < MAX_TEXTURES) {
             const numPadding = MAX_TEXTURES - numTextures;
-            var data = [_]u8{ 0, 0, 0, 0 };
             for (0..numPadding) |_| {
                 const id = try com.utils.generateUuid(allocator);
                 defer allocator.free(id);
                 const textureInfo = TextureInfo{
-                    .data = &data,
+                    .data = EMPTY_PIXELS[0..],
                     .width = 1,
                     .height = 1,
                     .format = vulkan.Format.r8g8b8a8_srgb,

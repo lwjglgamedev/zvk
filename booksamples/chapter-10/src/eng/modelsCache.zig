@@ -184,7 +184,6 @@ pub const ModelsCache = struct {
 
         var srcBuffers = try std.ArrayList(vk.buf.VkBuffer).initCapacity(allocator, 1);
         defer srcBuffers.deinit(allocator);
-
         try cmdBuff.begin(vkCtx);
 
         for (initData.models) |*modelData| {

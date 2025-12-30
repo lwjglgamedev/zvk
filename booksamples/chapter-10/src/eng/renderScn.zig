@@ -97,8 +97,8 @@ pub const RenderScn = struct {
 
         // Textures
         const samplerInfo = vk.text.VkTextSamplerInfo{
-            .anisotropy = true,
             .addressMode = vulkan.SamplerAddressMode.repeat,
+            .anisotropy = true,
             .borderColor = vulkan.BorderColor.float_opaque_black,
         };
         const textSampler = try vk.text.VkTextSampler.create(vkCtx, samplerInfo);
