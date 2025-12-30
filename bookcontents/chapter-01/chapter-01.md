@@ -494,4 +494,5 @@ window has been resized. It also retrieves mouse state.
 If you run the sample, you will get a nice black window that you can resize, move and close. With that, this chapter comes to its end. In
 the next chapter, we will start viewing the first basic Vulkan concepts.
 
+
 [Next chapter](../chapter-02/chapter-02.md)
