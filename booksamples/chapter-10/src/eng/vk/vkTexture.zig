@@ -82,7 +82,7 @@ pub const VkTexture = struct {
             vkCtx,
             dataSize,
             vulkan.BufferUsageFlags{ .transfer_src_bit = true },
-            @intFromEnum(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSSequentialWriteBit),
+            @intFromEnum(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSequentialWriteBit),
             vk.vma.VmaUsage.VmaUsageAuto,
             vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBitAndCoherent,
         );

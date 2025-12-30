@@ -32,7 +32,7 @@ pub const VkPipeline = struct {
 };
 ```
 
-We need to setup the blending by filing up a `PipelineColorBlendAttachmentState` structure. We need to set up the following attributes:
+We need to setup the blending by filling up a `PipelineColorBlendAttachmentState` structure. We need to set up the following attributes:
 
 - `blend_enable`: We need to enable blending to support transparent objects. By setting this attribute to `true` the colors are mixed when
 rendering.
@@ -62,7 +62,7 @@ figure shows this effect (It has been exaggerated with a non black background to
 <img src="rc09-transparent-artifact.png" title="" alt="Screen Shot" data-align="center">
 
 In order to solve that, we are going to apply an easy fix, we will first draw non transparent objects to force transparent objects to blend
-with non transparent ones. This function still can make some artifacts (if we have may transparent objects that overlap between them), but
+with non transparent ones. This fix still can make some artifacts (if we have may transparent objects that overlap between them), but
 it is simple enough and produces good results. In order to apply that, we need first to have a way to check if an object is transparent or
 not. We will add this support in the `VkTexture` struct. We will add a new attribute named `transparent` that will hold `true` if the
 texture has transparent values. We will set up this attribute in the `create` function by calling a new function named `isTransparent`.
@@ -96,7 +96,7 @@ pub const VkTexture = struct {
 };
 ```
 
-This new function basically, iterates over the image contents, checking if the alpha component has a value different than `255` (one in
+This new function basically, iterates over the image contents, checking if the alpha component has a value different than `255` (`1.0` in
 normalized color components). If so, we consider that the texture has transparencies. With that information, we will add a new field to the
 `VulkanMaterial` struct which states if the material is transparent:
 
@@ -155,7 +155,7 @@ When rendering the models, we will render materials that are transparent in last
 ## Mipmapping
 
 Mipmaps are a sequence of lower scale versions of an original image frequently used in textures. They are used to increase performance,
-higher resolution images are used when the objects are close to the camera an lower resolution ones are used when the object is far away.
+higher resolution images are used when the objects are close to the camera and lower resolution ones are used when the object is far away.
 Each of those versions is power of two smaller than the previous version.
 
 The following image shows a mipmap image (obtained from the [Wikipedia]([File:MipMap Example STS101.jpg - Wikipedia](https://en.wikipedia.org/wiki/File:MipMap_Example_STS101.jpg)), Created by [en:User:Mulad](https://en.wikipedia.org/wiki/User:Mulad) based on [File:ISS from Atlantis - Sts101-714-016.jpg](https://commons.wikimedia.org/wiki/File:ISS_from_Atlantis_-_Sts101-714-016.jpg)).
@@ -163,11 +163,11 @@ The following image shows a mipmap image (obtained from the [Wikipedia]([File:Mi
 <img src="MipMap_Example_STS101.jpg" title="" alt="" data-align="center">
 
 Usually, those mipmaps are pre-generated when creating the game assets using specific texture formats which allow the storage of mipmaps.
-The Khronos group has defined the [KTX](http://github.khronos.org/KTX-Specification/) file format which supports mipmaps and direct image
-compression in the GPU. However, we will not use that format here, we wil see how to generate mipmaps by our own.
+The Khronos Group has defined the [KTX](http://github.khronos.org/KTX-Specification/) file format which supports mipmaps and direct image
+compression in the GPU. However, we will not use that format here, we will see how to generate mipmaps by our own.
 
-Let's go back to the `VkTexture` struct `create` function. This first we are going to do is calculate the number of mipmap levels that
-we need for a specific image:
+Let's go back to the `VkTexture` struct `create` function. The first we are going to do is calculate the number of mipmap levels that we
+need for a specific image:
 
 ```zig
 pub const VkTexture = struct {
@@ -383,8 +383,8 @@ be progressively augmented, using the level constructed in the previous iteratio
 same size as the source image divided by two.
 - `dst_offsets`: It defines the sub-resource to blit to.
 
-To finalize the loop, we transition the image to the `shader_read_only_optimal` (`VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL`) layout
-in order to be able to access that from a shader:
+To complete the loop, we transition the image to the `shader_read_only_optimal` (`VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL`) layout
+in order to be able to access it from a shader:
 
 ```zig
 pub const VkTexture = struct {
@@ -562,9 +562,9 @@ pub const ViewData = struct {
 ```
 
 This struct, in essence, stores the view matrix, which can be modified by the different functions that it provides to change its position,
-to apply rotation or to displace around the scene. It uses the zmath library to calculate up and forward vectors to displace.
+to apply rotation or to move around the scene. It uses the zmath library to calculate up and forward vectors to move.
 
-This struct will be now part of the `Camera` struct:
+This struct will now be part of the `Camera` struct:
 
 ```zig
 pub const Camera = struct {
@@ -645,9 +645,9 @@ pub const RenderScn = struct {
 };
 ```
 
-The code is quite similar to previous version, the difference is that we now create one buffer per frame in flight and associate them with
-is own descriptor set, which will be identified by the `DESC_ID_CAM` constant plus the position in the array of buffers. When rendering we
-will select which descriptor set to bind depending on the frame in flight we are in.
+The code is quite similar to the previous version, the difference is that we now create one buffer per frame in flight and associate them
+with its own descriptor set, which will be identified by the `DESC_ID_CAM` constant plus the position in the array of buffers. When
+rendering we will select which descriptor set to bind depending on the frame in flight we are in.
 
 We need also to modify the render struct to use the view matrices and to render transparent objects in the last place.
 
@@ -684,13 +684,13 @@ pub const RenderScn = struct {
 ```
 
 The `render` function now receives `frameIdx` which will be the frame in flight. The `updateCamera` function needs to be modified to take
-into consideration the mew view matrix and the frame in flight index. When binding the descriptor set we will select the ons associated to
-current frame in flight for the camera descriptor set. The recording of drawing commands for the entities has now been extract to the
-`renderEntities` which last parameters is a flag to control which entities we draw, the ones hat have transparent materials or the ones that
- not.
+into consideration the mew view matrix and the frame in flight index. When binding the descriptor set we will select the one associated to
+current frame in flight for the camera descriptor set. The recording of drawing commands for the entities has now been extracted to the
+`renderEntities` whose last parameters is a flag to control which entities we draw, the ones that have transparent materials or the ones
+that not.
 
-The `renderEntities` code is similar to the one used in previous chapter, we simply just filter entities that match the transparency
-property specified as a function argument.
+The `renderEntities` code is similar to the one used in previous chapter, we just filter entities that match the transparency property
+specified as a function argument.
 
 ```zig
 pub const RenderScn = struct {
@@ -764,7 +764,9 @@ pub const RenderScn = struct {
 };
 ```
 
-The vertex shader (`scn_vtx.glsl`) needs to be updated now that the uniform not only contains the projection matrix but also de view matrix:
+The vertex shader (`scn_vtx.glsl`) needs to be updated now that the uniform not only contains the projection matrix but also the view
+matrix:
+
 ```glsl
 #version 450
 
@@ -789,7 +791,7 @@ void main()
 }
 ```
 
-The `render` function of the `RenderScn` struct now needs to get access to the `currentFrame` so we need to update the `Render` struct:
+The `render` function of the `RenderScn` struct now needs to access to the `currentFrame` so we need to update the `Render` struct:
 
 ```zig
 pub const Render = struct {
@@ -844,7 +846,7 @@ const Game = struct {
 };
 ```
 
-We have modified the `input` to update the camera position with the mouse movement when pressing the right button:
+We have modified the `input` function to update the camera position with the mouse movement when pressing the right button:
 
 ```zig
 const Game = struct {
@@ -893,7 +895,7 @@ const Game = struct {
 };
 ```
 
-With all of these changes you will be able to see the Sponza model. You will be able to move around the scene, and you can check that
+With all of these changes you will be able to see the Sponza model. You will be able to move around the scene, and you can see that
 transparent objects are properly rendered.
 
 <img src="rc09-screen-shot.png" title="" alt="Screen Shot" data-align="center">

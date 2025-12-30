@@ -6,12 +6,12 @@ You can find the complete source code for this chapter [here](../../booksamples/
 
 ## ZMesh and zstbi
 
-In order to load complex mopdesl from disk we will use the [ZMesh](https://github.com/zig-gamedev/zmesh) library. Therefore, you will need
-to add the dependency to the `build-.zig.zon` using `zig fetch git+https://github.com/zig-gamedev/zmesh`.
+In order to load complex mopdels from disk we will use the [ZMesh](https://github.com/zig-gamedev/zmesh) library. Therefore, you will need
+to add the dependency to the `build.zig.zon` using `zig fetch git+https://github.com/zig-gamedev/zmesh`.
 
 We will create a new executable to process 3D models ([GLTF](https://github.com/KhronosGroup/glTF) models in our case). This executable will
-process a 3D model and will generate the required file sto load de model data into Vulkan. Therefore, in the `build.zig` file we will ad the
-following code at the end:
+process a 3D model and will generate the required files to load de model data into Vulkan. Therefore, in the `build.zig` file we will add
+the following code at the end:
 
 ```zig
 pub fn build(b: *std.Build) void {
@@ -74,7 +74,7 @@ pub fn main() !void {
 }
 ```
 
-The function expects to receive as a command line argument the path to the model precede dby the "-m" flag. After that we will get the base
+The function expects to receive as a command line argument the path to the model preceded by the "-m" flag. After that we will get the base
 directory of the model (used to construct other paths later on) and assign the model identifier using the file name. Then we initialize the
 zmesh library and load  the GLTF file by calling the function `parseAndLoadFile`.
 
@@ -248,7 +248,7 @@ pub const MeshData = struct {
 
 Therefore, after we have dumped the data we just transform from `MeshIntData` to `MeshData`, store in the mesh lists and update the vertices
 and indices offsets accordingly. You may have notices that we check if the number of texture coordinates match the number of positions.
-If we have more positions that texture coordinates we just fill upo with zeroes.
+If we have more positions than texture coordinates we just fill up with zeroes.
 
 
 Going back to the `main` function:
@@ -1205,16 +1205,17 @@ pub const VkDescPool = struct {
 };
 ```
 
-A descriptor pool is just a place holder for descriptor set handles. When it is created, it just allocates different descriptor sets
-according to their types. Vulkan defines several types for the descriptor sets, uniforms, texture samplers, etc. We can specify how many
-descriptors we want to pre-create for each type. Therefore, the `VkDescPool` `create ` function receives, besides a reference to the device,
-an array of `vulkan.DescriptorPoolSize` which specifies how many descriptor sets should be allocated for each type. With that information
-we will fill up `DescriptorPoolCreateInfo` structure that requires the `createDescriptorPool` function. One important topic to highlight is
-that in the `DescriptorPoolCreateInfo` we have set the flag `free_descriptor_set_bit` (`VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT`).
-This flag will allow us to return descriptor sets to the pool when they are no longer used.
+A descriptor pool is just a placeholder for descriptor set handles. When it is created, it just allocates different descriptor sets
+according to their types. Vulkan defines several types for the descriptor sets, such as uniforms, texture samplers, etc. We can specify how
+many descriptors we want to pre-create for each type. Therefore, the `VkDescPool` `create ` function receives, besides a reference to the
+device, an array of `vulkan.DescriptorPoolSize` which specifies how many descriptor sets should be allocated for each type. With that
+information we will fill in `DescriptorPoolCreateInfo` structure that requires the `createDescriptorPool` function. One important topic to
+highlight is that in the `DescriptorPoolCreateInfo` we have set the flag `free_descriptor_set_bit`
+(`VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT`). This flag will allow us to return descriptor sets to the pool when they are no
+longer used.
 
 
-Prior to continue with more code, let us clarify some concepts. Imagine we have, in GLSL, a definition of the following descriptor sets:
+Before continuing with more code, let us clarify some concepts. Imagine we have, in GLSL, a definition of the following descriptor sets:
 ```glsl
 layout(set = 0, binding = 0) uniform A {
     vec4 data;
@@ -1230,7 +1231,7 @@ layout(set = 1, binding = 0) uniform C {
 In the fragment above we have two descriptor sets. The first one is composed by two uniforms (`a` and `b`), each of them located in a
 different binding point `0` and `1`. The second descriptor set just defines a single uniform (`c`) located at binding `0`. Descriptor set
 layouts are used to define that structure. In fact, we can have several descriptor sets sharing the same layout. In the example above we can
-above two descriptor sets using different buffers associated to the same layout, for example, the layout shown for "c". 
+see two descriptor sets using different buffers associated to the same layout, for example, the layout shown for "c". 
 
 We will create a struct to help us create descriptor set layouts:
 
@@ -1323,14 +1324,14 @@ options such as `vulkan.Filter.linear` (`VK_FILTER_LINEAR`) which  is the value 
 values of four pixels weighted) or `vulkan.Filter.cubic_ext` (`VK_FILTER_CUBIC_EXT`) to apply cubic filtering (it uses 16 values for
 2D textures).
 - `address_mode_u`, `address_mode_v` and `address_mode_w`: This will control what will be returned for a texture lookup when the coordinates
-lay out of the texture size. The `U`, `V` and `W` refer to the `x`, `y` and `z` axis (for 3D images). You can set several options such as
+lie out of the texture size. The `U`, `V` and `W` refer to the `x`, `y` and `z` axis (for 3D images). You can set several options such as
 `vulkan.SamplerAddressMode.repeat` (`VK_SAMPLER_ADDRESS_MODE_REPEAT`) which means that the texture is repeated endlessly over all the axis
 or `vulkan.SamplerAddressMode.mirrored_repeat` (`VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT`) which repeats in a mirrored way or
 `vulkan.SamplerAddressMode.clamp_to_edge` (`VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE`) which just uses the latest edge value.
 - `border_color`: This sets the color for the border that will be used for texture lookups beyond bounds when 
 `vulkan.SamplerAddressMode.clamp_to_edge` (`VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER`) is used in the `address_mode_X` attributes.
-- `mipmap_mode`: This is used to specify the mipmap filter to apply in lookups. We will address that in later chapters.
-- `min_lod`, `max_lod` and `mip_lod_bias`: These parameters are used for mip mapping, so we will review them in later chpaters.
+- `mipmap_mode`: This is used to specify the mipmap filter to apply in lookups. We will address this in later chapters.
+- `min_lod`, `max_lod` and `mip_lod_bias`: These parameters are used for mip mapping, so we will review them in later chapters.
 - `compare_enable`: It enables a comparison when performing texture lookups.
 - `compare_op`: It specifies the comparison operation. We will not be using this at this moment.
 - `unnormalized_coordinates`: Texture coordinates cover the [0, 1] range. When this parameter is set to `true` the coordinates will cover
@@ -1342,7 +1343,7 @@ complete the struct with the usual `cleanup` and the getter functions. Anisotrop
 sampling from a texture. The struct completes with classical `cleanup` function and a *getter* to access the texture sampler handle.
 
 
-It is turn now to create the a struct to model descriptor sets. The struct, named `VkDesSet`, starts like this:
+It is now time to create the a struct to represent descriptor sets. The struct, named `VkDesSet`, starts like this:
 
 ```zig
 pub const VkDesSet = struct {
@@ -1364,7 +1365,7 @@ pub const VkDesSet = struct {
 };
 ```
 
-In the `create` function we allocate a Vulkan descriptor set. In order to that, we need to invoke the `allocateDescriptorSets` Vulkan
+In the `create` function we allocate a Vulkan descriptor set. In order to do that, we need to invoke the `allocateDescriptorSets` Vulkan
 function which requires a `DescriptorSetAllocateInfo` structure. This structure needs a handle to a descriptor pool and handle to the layout
 which describes the descriptor set.
 
@@ -1402,20 +1403,20 @@ pub const VkDesSet = struct {
 ```
 
 We first create an array of `DescriptorBufferInfo` (we will need one per descriptor set) which defines the buffer
-infomration that will be associated to each descriptor set. It expects the following attributes:
+information that will be associated to each descriptor set. It expects the following attributes:
 - `buffer`: The Vulkan buffer to associate with.
-- `offset`: An offset in bytes for that buffer (we may opt to not bind to the wholw buffer but just a chunk).
+- `offset`: An offset in bytes for that buffer (we may opt to not bind to the whole buffer but just a chunk).
 - `range`: The size in bytes of the chunk of the buffer to be associated to the descriptor set.
 
 After that, we create an array of `WriteDescriptorSet` (we will need one per descriptor set), which expects expects the following
 attributes:
 - `dst_set`: The handle to the descriptor set.
-- `descriptor_count`: he number of descriptors.
-- `dst_binding`: The binding point to which write operation refers to. Remember that a descriptor set cana have many descriptors, each of
+- `descriptor_count`: The number of descriptors.
+- `dst_binding`: The binding point to which write operation refers to. Remember that a descriptor set can have many descriptors, each of
 them in a different binding point.
 - `descriptor_type`: The type of the descriptor (For example `uniform_buffer` (`VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT`) for uniforms).
 - `p_buffer_info`: A pointer to the `DescriptorBufferInfo` structure created before.
-- `p_image_info`: A pointer to the images to be associated to this decsriptor set. We will not use this feature
+- `p_image_info`: A pointer to the images to be associated to this descriptor set. We will not use this feature
 in this function so we just pass an empty array.
 - `p_texel_buffer_view`: Same as above.
 - `dst_array_element`: We will not use this (used for inline uniform blocks).
@@ -1455,7 +1456,7 @@ pub const VkDesSet = struct {
 
 In this case, the process is quite similar, but we use a `DescriptorImageInfo` to associate with an image view instead of a buffer and use
 the `p_image_info` when writing to a descriptor set. In this case, we provide a function to associate to a image view. We need to use a
-`VkTextSampler`, which if you recall will specify how we will access to the image.
+`VkTextSampler`, which if you recall will specify how we will access the image.
 
 Finally, let's add a new function to associate an array of images to a descriptor set:
 
@@ -1500,11 +1501,11 @@ pub const VkDesSet = struct {
 };
 ```
 
-Please note that an array of just requires a single descriptor. As you can see the loop is used just to iterate over the image views to
-create as many `DescriptorImageInfo` instances as images, but we keep a single `WriteDescriptorSet` with a single binding point. We will use
-this to associate an array of textures for the materials.
+Please note that an array of textures just requires a single descriptor. As you can see the loop is used just to iterate over the image
+views to create as many `DescriptorImageInfo` instances as images, but we keep a single `WriteDescriptorSet` with a single binding point.
+We will use this to associate an array of textures for the materials.
 
-Now it is the turn to put everything in place in the `VkDescAllocator` struct which starts like this:
+Now it is the time to put everything in place in the `VkDescAllocator` struct which starts like this:
 
 ```zig
 pub const VkDescAllocator = struct {
@@ -1531,7 +1532,7 @@ pub const VkDescAllocator = struct {
 ```
 
 The `poolInfoList` will store the list of  descriptor pools. Remember that we will create new pools as long as we exhaust existing ones.
-The `descSetMap` will just contain the references of the descriptor sets to the pool used to create it (using the pool position). We
+The `descSetMap` will just contain the references to the descriptor sets to the pool used to create it (using the pool position). We
 initialize the `poolInfoList` with one entry. Let's review how the `PoolInfo` struct looks like:
 
 ```zig
@@ -1580,8 +1581,8 @@ const PoolInfo = struct {
 
 ```
 
-In the `create` function we just get the device limits and define de size for each descriptor type to the maximum number supported. In our
-case, we will supporting uniform buffers (`max_descriptor_set_uniform_buffers`), texture samplers (`combined_image_sampler`) and storage
+In the `create` function we just get the device limits and define the size for each descriptor type to the maximum number supported. In our
+case, we will be supporting uniform buffers (`max_descriptor_set_uniform_buffers`), texture samplers (`combined_image_sampler`) and storage
 buffers (`max_descriptor_set_storage_buffers`).
 
 Let's go back to the `VkDescAllocator` struct and review the function to add a single a descriptor set:
@@ -1657,15 +1658,15 @@ The process is as follows:
 - After that, we iterate over the descriptor set layout descriptor types. Remember that a descriptor set layout can reference several
 descriptor types.
 - For each of the types we get the available descriptors in the current pool.
-- If we do no recognize the descriptor type or we are requesting more descriptors than a single pool can handle (exceeding the physical
+- If we do not recognize the descriptor type or we are requesting more descriptors than a single pool can handle (exceeding the physical
 device limits), we just abort.
 - If we find no pool with available space we will create a new one.
-- If we have finished iterating over tha available descriptor pools and we have not found one with available space, this means
+- If we have finished iterating over the available descriptor pools and we have not found one with available space, this means
 that we need to create another pool.
-- Once we have a pool, either because on of the existing ones have enough spare space or because we have created a new one, we create
+- Once we have a pool, either because one of the existing ones have enough spare space or because we have created a new one, we create
 the descriptor set, and update the available space in the associated pool.
 
-The process can still be improved to reduce fragmentation, But I did not want to complicate the code even more. In any case, you get the
+The process can still be improved to reduce fragmentation, but I did not want to complicate the code even more. In any case, you get the
 idea and can modify it to be more efficient easily.
 
 The rest of the functions of the struct are as follows:
@@ -1727,7 +1728,7 @@ pub const VkCtx = struct {
 ## Completing the changes
 
 We are almost finishing, we just need to put all the pieces together. First, we need to update the `VkPipeline` struct to take descriptor
-set layouts into consideration. We will first update the `VkPipelineCreateInfo` struct to be able to store and an array of descriptor set
+set layouts into consideration. We will first update the `VkPipelineCreateInfo` struct to be able to store an array of descriptor set
 layouts:
 
 ```zig
@@ -1787,9 +1788,9 @@ void main()
 }
 ```
 
-In the vertex shader, we are using a uniform to hold the value of the projection matrix as a uniform. Therefore, we will need a descriptor
-set for this. The push constant just holds the model matrix. By changing this, we do not need to store the projection matrix in the push
-constants for each mesh. It will be set just once.
+In the vertex shader, we are using a uniform to hold the projection matrix as a uniform. Therefore, we will need a descriptor set for this.
+The push constant just holds the model matrix. By changing this, we do not need to store the projection matrix in the push constants for
+each mesh. It will be set just once.
 
 The fragment shader source code (`scn_frg.glsl`) looks like this:
 
@@ -1830,19 +1831,19 @@ void main()
 }
 ```
 
-We first define a constant (`MAX_TEXTURES`) which sets the maximum number of textures that we will support. We will be using n array of
+We first define a constant (`MAX_TEXTURES`) which sets the maximum number of textures that we will support. We will be using an array of
 `sampler2D` uniform to perform texture lookups. This array needs to be sized at compile time. So make sure that you are in sync with this
 constant in `GLSL` code and the one in Zig side. In next chapters we will see how to use specialization constants, which allows us to modify
-constants when loading shader modules, but this should bot be used in these array of uniforms.
+constants when loading shader modules, but this should not be used in these array of uniforms.
 
 Then we define a read only buffer which holds an array of materials, which is a struct that maps material information (diffuse color, if it
 has texture and the associated index). Remember, that due to `std140` layout constraints (the default), we need to take into consideration
 extra padding. This will be a storage buffer, and does not need to be sized.
 
 We will receive the position of the associated material in the buffer through a push constant. With all that information we can get the
-outout color either form the associated texture or the material diffuse color.
+output color either form the associated texture or the material diffuse color.
 
-Now it's the moment to use all these concepts together in the `RenderScn` struct:
+Now it is the time to use all these concepts together in the `RenderScn` struct:
 
 ```zig
 ...
@@ -2012,9 +2013,9 @@ pub fn createHostVisibleBuff(
 After that, we create the push constantas range definition and define the pipeline creation information using the descriptor sets layouts
 in the new `descSetLayouts` attribute to create the pipeline.
 
-We will add a new function named `named`. This function will create a descriptor set for the storage buffer that contains material data, and
-associate to the buffer we created in the `MaterialsCache` struct. We will also create the descriptor set for the array of images with the
-textures loaded in the `TextureCache` function. This function will need to be invoked uring initialization so descriptor sets are ready
+We will add a new function named `init`. This function will create a descriptor set for the storage buffer that contains material data, and
+associate it with the buffer we created in the `MaterialsCache` struct. We will also create the descriptor set for the array of images with
+the textures loaded in the `TextureCache` function. This function will need to be invoked during initialization so descriptor sets are ready
 during render process.
 
 ```zig
@@ -2115,11 +2116,11 @@ pub const RenderScn = struct {
 ```
 
 We need to update the projection matrix buffer by calling the `updateCamera` function. After that we will use the `VkDescAllocator` struct,
-we can fill up a list with the descriptor sets handles retrieving them by their id. In order to use them we need to bind them those
-descriptor sets while rendering by calling the `cmdBindDescriptorSets` Vulkan function. While iterating over the meshes, we get the material
-index and set the push constants accordingly.
+we can fill a list with the descriptor sets handles retrieving them by their id. In order to use them we need to bind those descriptor sets
+while rendering by calling the `cmdBindDescriptorSets` Vulkan function. While iterating over the meshes, we get the material index and set
+the push constants accordingly.
 
-The `setPushConstants` function needs also to be changed to use the new push constants:
+The `setPushConstants` function also needs to be changed to use the new push constants:
 
 ```zig
 pub const RenderScn = struct {
@@ -2171,7 +2172,7 @@ pub const RenderScn = struct {
 };
 ```
 
-The changes required in the `Render` struct are smaller, we basically instantiate the `MaterialsCache` and `TextureCache` strcuct and adapt
+The changes required in the `Render` struct are smaller, we basically instantiate the `MaterialsCache` and `TextureCache` struct and adapt
 some functions to the new parameters added:
 
 ```zig
@@ -2253,7 +2254,7 @@ pub const Render = struct {
 };
 ```
 
-We will need also to update the `Engine` struct to initialize the zstbi libray prior to any texture loading code gets executed. In the
+We will need also to update the `Engine` struct to initialize the zstbi library prior to any texture loading code gets executed. In the
 `create` function we will add the following line prior to the `Render` instance creation: 
 
 ```zig

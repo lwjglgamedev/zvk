@@ -93,7 +93,7 @@ pub const MaterialsCache = struct {
             vkCtx,
             buffSize,
             vulkan.BufferUsageFlags{ .transfer_src_bit = true },
-            @intFromEnum(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSSequentialWriteBit),
+            @intFromEnum(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSequentialWriteBit),
             vk.vma.VmaUsage.VmaUsageAuto,
             vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBitAndCoherent,
         );
@@ -200,7 +200,7 @@ pub const ModelsCache = struct {
                     vkCtx,
                     verticesSize,
                     vulkan.BufferUsageFlags{ .transfer_src_bit = true },
-                    @intFromEnum(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSSequentialWriteBit),
+                    @intFromEnum(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSequentialWriteBit),
                     vk.vma.VmaUsage.VmaUsageAuto,
                     vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBitAndCoherent,
                 );
@@ -225,7 +225,7 @@ pub const ModelsCache = struct {
                     vkCtx,
                     indicesSize,
                     vulkan.BufferUsageFlags{ .transfer_src_bit = true },
-                    @intFromEnum(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSSequentialWriteBit),
+                    @intFromEnum(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSequentialWriteBit),
                     vk.vma.VmaUsage.VmaUsageAuto,
                     vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBitAndCoherent,
                 );

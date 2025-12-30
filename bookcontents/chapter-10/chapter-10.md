@@ -7,13 +7,13 @@ You can find the complete source code for this chapter [here](../../booksamples/
 ## Vulkan Memory Allocator (VMA)
 
 [Vulkan Memory Allocator (VMA)](https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator) is a library that will help us to
-allocate memory in Vulkan in an easier en more efficient way. The advantages that this library provides, as stated in the Github page,
+allocate memory in Vulkan in an easier and more efficient way. The advantages that this library provides, as stated in the Github page,
 are:
 
 - Reduction of boilerplate code.
 - Separation of elements that should be managed together (memory and buffers).
 - Memory type selection is complex and needs to be adapted to different GPUs.
-- Allocation if large chunks of memory is much more efficient than allocating small chunks individually.
+- Allocation of large chunks of memory is much more efficient than allocating small chunks individually.
 
 IMHO, the biggest advantages are the last ones. VMA helps you in selecting the most appropriate type of memory and hides the complexity of
 managing large buffers to accommodate individual allocations while preventing fragmentation. In addition to that, VMA does not prevent you
@@ -65,13 +65,13 @@ You will see we add the usual dependency but we need to:
 #include <vk_mem_alloc.h>
 ```
 
-In this file we state that Vulkan symbols shall bel linked dynamically and we include the `vk_mem_alloc.h` header file that includes VMA
+In this file we state that Vulkan symbols shall be linked dynamically and we include the `vk_mem_alloc.h` header file that includes VMA
 code.
 
 ## Memory allocator
 
 We will create a new struct named `VkVmaAlloc` to handle the initialization of the VMA library. This struct will be defined in a new file:
-`src/eng/vk/vma.zig` (Remember to include it in the `mod.zig` file: `pub const vma = @import("vma.zig");). It is defined like this:
+`src/eng/vk/vma.zig` (Remember to include it in the `mod.zig` file: `pub const vma = @import("vma.zig");`). It is defined like this:
 
 ```zig
 const vke = @import("mod.zig");
@@ -81,7 +81,7 @@ pub const vma = @cImport({
 
 pub const VmaFlags = enum(u32) {
     None = 0,
-    VmaAllocationCreateHostAccessSSequentialWriteBit = vma.VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
+    VmaAllocationCreateHostAccessSequentialWriteBit = vma.VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
     CreateMappedBit = vma.VMA_ALLOCATION_CREATE_MAPPED_BIT,
 };
 
@@ -127,7 +127,7 @@ device and physical device handles and a `VmaVulkanFunctions` structure which pr
 will use. It is very important to properly set the `vulkanApiVersion` to `vulkan.API_VERSION_1_3` (`VK_API_VERSION_1_3`). If you forget to
 use this, since we are using Vulkan 1.3, you will find strange issues when allocating buffers.
 
-In the file we define som convenience `enum`s to prevent the rest of the code to have to get access to VMA.
+In the file we define some convenience `enum`s to prevent the rest of the code to have to get access to VMA.
 
 We will create an instance of the `VkVmaAlloc` in the `VkCtx` struct:
 
@@ -262,10 +262,10 @@ pub const VkBuffer = struct {
 We need to modify the way the buffer resources are freed. Since the buffer and the associated memory are created in a single call, we can
 now free them by just calling the `vmaDestroyBuffer` function. Map and unmap operations also need to call VMA functions, `vmaMapMemory` for
 mapping the memory and `vmaUnmapMemory` for un-mapping. We have added a new method to flush the contents of CPU mapped buffers if we do not
-swant to use the coherent flag to do it automatically for us.
+want to use the coherent flag to do it automatically for us.
 
 
-The code inside the `src/eng/vj/vkImage.zig` file needs to be highly modified, since the allocation mechanisms for images and the associated 
+The code inside the `src/eng/vk/vkImage.zig` file needs to be highly modified, since the allocation mechanisms for images and the associated 
 buffers change a lot when using VMA. We first need to define memory usage flags in the `VkImageData` struct:
 
 ```zig
@@ -279,7 +279,7 @@ pub const VkImageData = struct {
 };
 ```
 
-The `VkImage` attributes need also to be modified. We no longer will ned keep track of the allocated memory but we will need to keep an
+The `VkImage` attributes need also to be modified. We no longer will need keep track of the allocated memory but we will need to keep an
 allocation handle, as in the case of the `VkBuffer` struct.
 
 ```zig
@@ -372,7 +372,7 @@ pub const VkTexture = struct {
             vkCtx,
             dataSize,
             vulkan.BufferUsageFlags{ .transfer_src_bit = true },
-            @intFromEnum(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSSequentialWriteBit),
+            @intFromEnum(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSequentialWriteBit),
             vk.vma.VmaUsage.VmaUsageAuto,
             vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBitAndCoherent,
         );
@@ -383,8 +383,8 @@ pub const VkTexture = struct {
 ```
 
 In this case, since it is a buffer that needs to be accessed by both CPU and GPU, we use the
-`VmaAllocationCreateHostAccessSSequentialWriteBit` (`VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT`) and the
-`MemoryPropertyHostVisibleBitAndCoherent` flags s(`VK_MEMORY_PROPERTY_HOST_COHERENT_BIT`). In addition to that we need to cast the
+`VmaAllocationCreateHostAccessSequentialWriteBit` (`VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT`) and the
+`MemoryPropertyHostVisibleBitAndCoherent` (`VK_MEMORY_PROPERTY_HOST_COHERENT_BIT`) flags. In addition to that we need to cast the
 `VkImage` `image` handle so it can be used by the image view.
 
 This cast needs to be applied whenever we use the image:
@@ -465,7 +465,7 @@ pub const ModelsCache = struct {
                     vkCtx,
                     verticesSize,
                     vulkan.BufferUsageFlags{ .transfer_src_bit = true },
-                    @intFromEnum(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSSequentialWriteBit),
+                    @intFromEnum(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSequentialWriteBit),
                     vk.vma.VmaUsage.VmaUsageAuto,
                     vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBitAndCoherent,
                 );
@@ -483,7 +483,7 @@ pub const ModelsCache = struct {
                     vkCtx,
                     indicesSize,
                     vulkan.BufferUsageFlags{ .transfer_src_bit = true },
-                    @intFromEnum(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSSequentialWriteBit),
+                    @intFromEnum(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSequentialWriteBit),
                     vk.vma.VmaUsage.VmaUsageAuto,
                     vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBitAndCoherent,
                 );
@@ -525,7 +525,7 @@ pub const MaterialsCache = struct {
             vkCtx,
             buffSize,
             vulkan.BufferUsageFlags{ .transfer_src_bit = true },
-            @intFromEnum(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSSequentialWriteBit),
+            @intFromEnum(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSequentialWriteBit),
             vk.vma.VmaUsage.VmaUsageAuto,
             vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBitAndCoherent,
         );
@@ -560,7 +560,7 @@ pub fn createHostVisibleBuff(
         vkCtx,
         size,
         bufferUsage,
-        @intFromEnum(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSSequentialWriteBit),
+        @intFromEnum(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSequentialWriteBit),
         vk.vma.VmaUsage.VmaUsageAuto,
         vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBitAndCoherent,
     );
@@ -578,7 +578,7 @@ pub fn createHostVisibleBuff(
 }
 ```
 
-We need to update also the `RenderScn` struct to accommodate the way wew handel image handles now:
+We need to update also the `RenderScn` struct to accommodate the way wew handle image handles now:
 
 ```zig
 pub const RenderScn = struct {

@@ -16,7 +16,7 @@ pub fn createHostVisibleBuff(
         vkCtx,
         size,
         bufferUsage,
-        @intFromEnum(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSSequentialWriteBit),
+        @intFromEnum(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSequentialWriteBit),
         vk.vma.VmaUsage.VmaUsageAuto,
         vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBitAndCoherent,
     );
