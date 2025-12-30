@@ -1,0 +1,1 @@
+Explain anisotropy off in post processing
