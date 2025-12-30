@@ -5,8 +5,8 @@ attachments we are using only deal with colors, depth values were not handled at
 information, a depth image. In addition to that, we will add support for window resizing. You can find the complete source code for this
 chapter [here](../../booksamples/chapter-07).
 
-We will be using the [zmath](https://github.com/zig-gamedev/zmath) so you will need to include it in the `build.zig.zon` file byu executing:
-`zig fetch --save git+https://github.com/zig-gamedev/zmath`. In addition, you wil need to include it in the `build.zig` file:
+We will be using the [zmath](https://github.com/zig-gamedev/zmath) so you will need to include it in the `build.zig.zon` file by executing:
+`zig fetch --save git+https://github.com/zig-gamedev/zmath`. In addition, you will need to include it in the `build.zig` file:
 
 ```zig
 pub fn build(b: *std.Build) void {
@@ -25,8 +25,8 @@ pub fn build(b: *std.Build) void {
 
 The first thing we must do is create a depth image. In the case of the swap chain, images were already there, we just used an image view to
 access them. This case is different, we need to allocate the images by ourselves. In order to handle that task we will create a new struct
-named `VkImage`. Since image creation parameters can be lengthy, we will create first a struct named `VkImageData`, which will act as a
-build helper struct using a fluent style API. All these code will be located in a new file `src/eng/vk/VkImage.zig`. Remember to  include it
+named `VkImage`. Since image creation parameters can be lengthy, we will first create a struct named `VkImageData`, which will act as a
+build helper struct using a fluent style API. All this code will be located in a new file `src/eng/vk/VkImage.zig`. Remember to  include it
 in the `mod.zig`: `pub const img = @import("vkImage.zig");`.
 
 ```zig
@@ -88,22 +88,23 @@ pub const VkImage = struct {
 };
 ```
 
-It provides a `create` function to instantiate it which first creates a `ImageCreateInfo` structure which attributes are:
+It provides a `create` function to instantiate it which first creates a `ImageCreateInfo` structure whose attributes are:
 
-- `image_type`:  It specifies the dimensions of the image. In our case we will be using regular 2D dimensions, so we set to the value 
-`vulkan.ImageType.@"2d"` (`VK_IMAGE_TYPE_2D`). Three dimensions images `vulkan.ImageType.@"3d"`(`VK_IMAGE_TYPE_3D`) are like a set of slices
-of 2D textures and are used for volumetric effects or for scientific or medical visualizations (like MRIs). One dimension textures are
-defined by the value `vulkan.ImageType.@"1d"` (`VK_IMAGE_TYPE_1D`).
+- `image_type`: It specifies the dimensions of the image. In our case we will be using regular 2D dimensions, so we set to the value 
+`vulkan.ImageType.@"2d"` (`VK_IMAGE_TYPE_2D`). Three-dimensional images `vulkan.ImageType.@"3d"`(`VK_IMAGE_TYPE_3D`) are like a set of
+slices of 2D textures and are used for volumetric effects or for scientific or medical visualizations (like MRIs). One dimension textures
+are defined by the value `vulkan.ImageType.@"1d"` (`VK_IMAGE_TYPE_1D`).
 - `format`: Described above, format of the texel blocks that compose the image.
-- `extent`:  It is the size of the image. In this case, the structure needs to support 3D images, so it includes the depth. For 2D images we
-just set it to `1`. s- `mip_levels`:  Already described in the `create`function's parameters description.
-- `array_layers`:  Images can be an array of layers. This is different than a 3D image. A 3D image contains data that is referred to the
-three axis. An array of layers are a set of 2D images indexed by a layer number. 
+- `extent`: It specifies the size of the image. In this case, the structure needs to support 3D images, so it includes the depth. For 2D
+images we just set it to `1`.
+- `mip_levels`: Already described in the `create`function's parameters description.
+- `array_layers`: Images can be arrays of layers. This is different from a 3D image. A 3D image contains data that is referred to the
+three axis. An array of layers is a set of 2D images indexed by a layer number. 
 - `samples`: Already described in `VkImageData` (`sampleCount`).
 - `usage`: Already described in `VkImageData` .
 - `sharing_mode`: It specifies if this resource will be shared by more than a single queue family at a time (`vulkan.SharingMode.concurrent`
 equivalent to `VK_SHARING_MODE_CONCURRENT`) or not (`vulkan.SharingMode.exclusive` equivalent to `VK_SHARING_MODE_EXCLUSIVE`).
-- `initial_layout`:  This is the initial layout of the image. We just set it to `vulkan.ImageLayout.undefined` (`VK_IMAGE_LAYOUT_UNDEFINED`).
+- `initial_layout`: This is the initial layout of the image. We just set it to `vulkan.ImageLayout.undefined` (`VK_IMAGE_LAYOUT_UNDEFINED`).
 If a transition to another layout is required it will need to be done later on. (This depends on the use case for the image, this is why we
 do not perform the transition here).
 - `tiling`: It specifies the tiling arrangement of the texel blocks in memory. In our case, we chose to use the optimal value, so that the
@@ -123,7 +124,7 @@ pub const VkImage = struct {
 };
 ```
 
-After that we need to allocate the memory associated to that image. As in the case of buffers, that image is just a handle, we need to
+After that we need to allocate the memory associated with that image. As in the case of buffers, that image is just a handle, we need to
 manually allocate the memory that will host the contents for the image by ourselves. The first step is to get the memory requirements by
 calling the `getImageMemoryRequirements` function:
 
@@ -156,7 +157,7 @@ pub const VkImage = struct {
 };
 ```
 
-Again, the code is similar as the one used with the buffers, once we have got the requirements, we set the memory size and select the
+Again, the code is similar to the one used with the buffers, once we have obtained the requirements, we set the memory size and select the
 adequate memory type index (obtained by calling the `findMemoryTypeIndex` from the `VkCtx` structs). After that we can finally allocate the
 memory and bind it to the image:
 
@@ -180,7 +181,7 @@ pub const VkImage = struct {
 };
 ```
 
-The rest of the functions of this struct is the `cleanup` one to free resources.
+The only missing function of this struct is the `cleanup` one to free resources.
 
 ```zig
 pub const VkImage = struct {
@@ -194,9 +195,10 @@ pub const VkImage = struct {
 
 ## Attachment
 
-In order to use the depth image we will also to setup an `VkImageView`. Both the depth `VkImage` and the associated `VkImageView` will
+In order to use the depth image we will also need to setup an `VkImageView`. Both the depth `VkImage` and the associated `VkImageView` will
 constitute an attachment, a depth attachment. Since we will handle both objects together, we will create a new struct, named `Attachment`,
-that will handle their creation and will be handy for next chapters. The definition is quite simple (it is included in the `render.zig` file):
+that will handle their creation and will be handy for next chapters. The definition is quite simple (it is included in the `render.zig`
+file):
 
 ```zig
 pub const Attachment = struct {
@@ -237,7 +239,7 @@ pub const Attachment = struct {
     }
 };
 ```
-We just create and image and the associated image view. Depending on the type of image (color or depth image), we setup the aspect mask
+We just create and image and the associated image view. Depending on the type of image (color or depth image), we set up the aspect mask
 accordingly.
 
 ## Changing vertices structure
@@ -276,13 +278,13 @@ const VtxBuffDesc = struct {
 };
 ```
 
-The number of attributes of each vertex will be now two, one for the position components and another one for the texture coordinates. The
+The number of attributes of each vertex will now be two, one for the position components and another one for the texture coordinates. The
 attribute definition itself is quite similar to the one used for the positions, in this case, the size will be for two floats.
 
 ## Scene
 
 If we are going to represent 3D scenes, we need to project from the 3D world into a 2D space (the screen). We will need to use a perspective
-projection matrix in order to avoid distortions and to represent far away objects smaller than closer ones. We will create a new structs to
+projection matrix in order to avoid distortions and to represent far away objects smaller than closer ones. We will create a new struct to
 model world information ina file named `scene.zig` (located in `src/eng` and that shall be added to
 `mod.zig`: `pub const scn = @import("scene.zig");`). It will include a new struct named `ProjData` that which is defined like this:
 
@@ -328,7 +330,7 @@ pub const ProjData = struct {
 We will create a 4x4 matrix `projMatrix` that will be created as a projection matrix. It requires the following parameters:
 - `fov`: Field of view in radians.
 - `near`: Z coordinate of the near plane.
-- `near`: Z coordinates of the far plane of.
+- `near`: Z coordinates of the far plane.
 - `width`: Width of the render area.
 - `height`: Height of the render area.
 
@@ -346,7 +348,7 @@ pub const Camera = struct {
 };
 ```
 
-This structure will hold later on the view matrix. The parameters of the perspective matrix can be configured in the `cfg.toml` file, so we
+This structure will later hold the view matrix. The parameters of the perspective matrix can be configured in the `cfg.toml` file, so we
 need to update the `Constants` struct:
 
 ```zig
@@ -383,10 +385,10 @@ zFar=50.0
 zNear=1.0
 ```
 
-We are going also to introduce a new concept for the engine that will allow to define game entities and use the same `VkModel` to render
+We are also going to introduce a new concept for the engine that will allow to define game entities and use the same `VkModel` to render
 multiple elements. Instead of directly rendering models, we will have entities which have some properties, such as their scale, position
 and rotation and will be associated to a model. They can model a player, NPCs or scene objects and will be managed by a struct named
-`Entity`. It will be included in a the `src/(eng/entity.zig` (Remember to include it in the `mod.zig` file:
+`Entity`. It will be included in a the `src/eng/entity.zig` (Remember to include it in `mod.zig` file:
 `pub const ent = @import("entity.zig");`) and it is defined like this:
 
 ```zig
@@ -438,8 +440,8 @@ pub const Entity = struct {
 ```
 
 Each `Entity` shall have an identifier which should be unique. It is also linked to the model that will be used to render it through the
-`modelId` attribute. An `Entity` will have also a position, a rotation (modeled using a quaternion) and a scale. With all that information
-we are able to create a model matrix by calling the `update`. The `update` should be called, each time the position, rotation or scale
+`modelId` attribute. An `Entity` will also have a position, a rotation (modeled using a quaternion) and a scale. With all that information
+we are able to create a model matrix by calling the `update`. The `update` should be called each time the position, rotation or scale
 changes.
 
 Now we can setup the required infrastructure to put the `ProjData` and `Entity` structs into work. We will add this to a new struct named
@@ -475,12 +477,12 @@ pub const Scene = struct {
 };
 ```
 
-The `create` function creates an instance of the `Camera` and a `StringHashMap` that will store entity references indexed by its identifier.
-The other functions will be used to add entities and the `cleanup` one.
+The `create` function creates an instance of the `Camera` and a `StringHashMap` that will store entity references indexed by their
+identifiers. The other functions will be used to add entities and the `cleanup` one.
 
 ## Enable depth testing
 
-We need also to modify the pipeline to actually use the depth image for depth testing. Since we may have pipelines that do not use depth
+We also need to modify the pipeline to actually use the depth image for depth testing. Since we may have pipelines that do not use depth
 testing at all, we will indicate if it's required in the `VkPipelineCreateInfo` struct:
 
 ```zig
@@ -493,9 +495,9 @@ pub const VkPipelineCreateInfo = struct {
 };
 ```
 
-You may see also that there's another attribute, named `pushConstants`. We will explain its usage later on. Now, in the `VkPipeline`
+You may also see that there is another attribute, named `pushConstants`. We will explain its usage later on. Now, in the `VkPipeline`
 `create` function we need to enable the depth stencil state if the `depthFormat` attribute from the `VkPipelineCreateInfo`
-struct is not equal to s`vulkan.Format.undefined` (`VK_FORMAT_UNDEFINED`).
+struct is not equal to `vulkan.Format.undefined` (`VK_FORMAT_UNDEFINED`).
 
 ```zig
 pub const VkPipeline = struct {
@@ -548,7 +550,7 @@ We need to instantiate a `VkPipelineCreateInfo` structure which has the followin
 
 - `depth_test_enable`: It controls if depth testing is enabled or not (when rendering it is used to discard fragments which are behind
 already rendered fragments, values which do not fulfill the test operation will be discarded). This is what we need, so we set it to `true`. 
-- `depth_write_enable`: This controls if depth writing to the depth attachment is enabled or not. You could enable depth testing but do not
+- `depth_write_enable`: This controls if depth writing to the depth attachment is enabled or not. You could enable depth testing but not
 want to write depth values, for example if the depth image used as a depth attachment has already been created by another task. This is not
 our case, we want the depth image to be written while rendering, so we set it to `true`.
 - `depth_compare_op`: It defines the operator used for the depth test. In our case, we use the `less_or_equal`
@@ -598,20 +600,20 @@ to pass this varying data to the shaders, including uniforms. However, using uni
 descriptor pools and descriptor sets, which require careful explanation. Nevertheless, Vulkan introduces a new way to pass data to the
 buffers which can be used for small sets of data and which is quite easy to set up. These are the so called push constants.
 
-Push constants are small sets of data that can be set while recording command buffers. They do not require to create an underlying buffer
+Push constants are small sets of data that can be set while recording command buffers. They do not require creating an underlying buffer
 nor they require the descriptors used in uniforms. They are a simple mechanism to push data to the shaders in a supposed fast way. How fast
 they are depends on the hardware. The mechanisms used by the GPU to handle this data are opaque to us, so different vendors choose different
- strategies which at end affects the performance. The maximum amount of data that we can push is very limited: 128 bytes. This is the
+ strategies which in the end affects the performance. The maximum amount of data that we can push is very limited: 128 bytes. This is the
  minimum required by the specification, some GPUs extend that limit, but, in our case, we will work using that limit.
 
-As it has been said before, push constants are intended to pass small amount of data that can change very frequently. As you can see, 128
+As it has been said before, push constants are intended to pass small amounts of data that can change very frequently. As you can see, 128
 bytes is quite small, but we can store there the model matrices for each entity (64 bytes). This will be the regular use case for push
 constants here. But, we also need to pass the projection matrix (another 64 bytes). In later chapters we will pass that information through
-uniforms. However, since we have not coded yet the mechanisms required to support uniforms, we will use the available space of push
+uniforms. However, since we have not yet coded the mechanisms required to support uniforms, we will use the available space of push
 constants to pass also this information. Keep in mind that this is a temporary solution, we will change that in next chapters.
 
 We already modified the `VkPipelineCreateInfo` struct to include push constants (by adding the `pushConstants` attribute). We now need to
-use this information the `VkPipeline` struct:
+use this information in the `VkPipeline` struct:
 
 ```zig
 pub const VkPipeline = struct {
@@ -636,7 +638,7 @@ pub const VkPipeline = struct {
 We have coded all the elements required to support the proper rendering of 3D models and pass transformation matrices to the shaders. We now
 can use them and also support another missing feature: resizing support. Let's start with the changes required in the `Render` struct. We
 will calculate the projection matrix in the `init` function. We will also add support for window resizing. When a window is resized, we need
-to update the projection matrix and to recreate some Vulkan structures.
+to update the projection matrix and recreate some Vulkan structures.
 
 ```zig
 pub const Render = struct {
@@ -730,12 +732,12 @@ pub const Render = struct {
 ```
 
 In the `render` function, we check if the `mustResize` flag has been set to true or if the image acquisition fails. If this happens,
-this will mean that we need to handle window resizing and call the `resize` function. You may notice also that the `RenderScn` struct now
+this will mean that we need to handle window resizing and call the `resize` function. You may also notice that the `RenderScn` struct now
 receives an instance of `EngCtx` also.
 
 The new `resize` function first checks if the window size is equal to zero. This will mean that the window is minimized and makes no sense
-in continuing. After that, it resets the `mustResize` flag and  waits for the device to be idle, calls resize over `VkCtx` instance and
-clean ups the synchronization semaphores and creates new ones. It also updates the projection matrix and calls the `resize` function over
+to continue. After that, it resets the `mustResize` flag and  waits for the device to be idle, calls resize over `VkCtx` instance and
+cleans up the synchronization semaphores and creates new ones. It also updates the projection matrix and calls the `resize` function over
 `RenderScn` struct.
 
 Let's view the changes in the `VkCtx` struct:
@@ -765,7 +767,7 @@ pub const VkCtx = struct {
 }   
 ```
 
-When resizing just we clean up the swap chain and surface and recreate them again.
+When resizing we just clean up the swap chain and surface and recreate them again.
 
 Let's review the changes in the `RenderScn` struct:
 
@@ -792,17 +794,17 @@ pub const RenderScn = struct {
 };
 ```
 
-We need to create a ne attribute named `depthAttachments` which will hold the attachments that will contain depth data (image view and 
+We need to create a new attribute named `depthAttachments` which will hold the attachments that will contain depth data (image view and 
 mage). We will need as many attachments as swap chain images.
 
-We have defined also a new struct to store push constants information: `PushConstantsVtx` which will have an attribute for the model matrix
+We have also defined a new struct to store push constants information: `PushConstantsVtx` which will have an attribute for the model matrix
 associated to an entity (`modelMatrix`) and the projection matrix (`projMatrix`).
 
 In some other tutorials, you will see that they use a single image and image view for the depth data. The argument used to justify this is,
 in some cases, that since the depth images are only used internally, while rendering, there's no need to use separate resources. This
 argument is not correct, render operations in different frames may overlap, so we need to use separate resources or use the proper
-synchronization mechanisms to prevent that. Probably, the samples used in those tutorial work, because they have a different
-synchronizations schema that prevent this form happening, but the argument to justify that is not correct. There's an excellent analysis of
+synchronization mechanisms to prevent that. Probably, the samples used in those tutorials work, because they have a different
+synchronization schema that prevent this from happening, but the argument to justify that is not correct. There's an excellent analysis of
 this in this [Stack overflow](https://stackoverflow.com/questions/62371266/why-is-a-single-depth-buffer-sufficient-for-this-vulkan-swapchain-render-loop) question.
 
 
@@ -836,7 +838,7 @@ pub const RenderScn = struct {
 We create as many depth attachments (as many images and image views) as images are in the swap chain. We use the format `vulkan.Format.d16_unorm`
 (`VK_FORMAT_D16_UNORM`) for the depth values (16-bit unsigned normalized format that has a single 16-bit depth component).
 
-The `create` function needs also to be updated to set the push constants range:
+The `create` function also needs to be updated to set the push constants range:
 
 ```zig
 pub const RenderScn = struct {
@@ -877,7 +879,7 @@ In the push constants ranges, we are saying that we will be using push constants
 `VK_SHADER_STAGE_VERTEX_BIT`), that the range will start at offset `0` in the buffer, and it will have the size of `PushConstantsVtx`
 struct (two 4x4 matrices).
 
-The `cleanup` function needs also to be modified to free the new resources:
+The `cleanup` function also needs to be modified to free the new resources:
 
 ```zig
 pub const RenderScn = struct {
@@ -931,20 +933,20 @@ pub const RenderScn = struct {
 };
 ```
 
-We nee dto create a new `RenderingAttachmentInfo` for the depth attachment. In this case we need to setup the layout to
+We need to create a new `RenderingAttachmentInfo` for the depth attachment. In this case we need to setup the layout to
 `vulkan.ImageLayout.depth_stencil_attachment_optimal` (`VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL`)
-to state that is for depth values. In this case the store operation can be `vulkan.AttachmentStoreOp.dont_care`
+to state it is for depth values. In this case the store operation can be `vulkan.AttachmentStoreOp.dont_care`
 (`VK_ATTACHMENT_STORE_OP_DONT_CARE`) instead of `vulkan.AttachmentStoreOp.store` (`VK_ATTACHMENT_STORE_OP_STORE`) because we do not need to
 store the results, we just need a depth attachment to perform depth tests. We do not need to access those results later on.
 
-We need also to modify the render function first to to take into consideration the depth attachments in the render information, by setting
+We also need to modify the render function first to take into consideration the depth attachments in the render information, by setting
 the `p_depth_attachment` attribute in the `RenderingInfo` structure.
 
 
-After that, we need first to add a new image layout transition, prior to the render to begin,  using a memory barrier for the depth image.
+After that, we first need to add a new image layout transition, prior to the render to begin,  using a memory barrier for the depth image.
 It is quite similar to the one used for swap chain images, but the stages to consider are now: `early_fragment_tests_bit`
 (`VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT`) and `late_fragment_tests_bit` (`VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT`) and the
-access flags shall sbe specifically set for depth attachments: `depth_stencil_attachment_read_bit`
+access flags shall be specifically set for depth attachments: `depth_stencil_attachment_read_bit`
 (`VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT`) and `depth_stencil_attachment_write_bit`
 (`VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT`).
 
@@ -994,10 +996,10 @@ pub const RenderScn = struct {
 };
 ```
 
-Instead of looping through the models, we iterate over the entities, and getting the associated model through the `ModelsCache` instance.
+Instead of looping through the models, we iterate over the entities, and get the associated model through the `ModelsCache` instance.
 For each of the entities, we set, as push constants the model matrix associated to the entity and the projection matrix. It is not very
 efficient to update the projection matrix for each entity, but we will change this later on. The drawing commands are exactly the same, for
-each entity, though its model, we iterate over their meshes in order to render them.
+each entity, through its model, we iterate over their meshes in order to render them.
 
 ```zig
 pub const RenderScn = struct {
@@ -1034,7 +1036,7 @@ pub const RenderScn = struct {
 };
 ```
 
-You may have notices that we do not add another image barrier for the depth attachment once we have finished drawing the meshes. This is
+You may have noticed that we do not add another image barrier for the depth attachment once we have finished drawing the meshes. This is
 because we do not need to present that. Depth attachments will be used to perform depth comparisons and discard fragments that are not
 visible. Therefore, we do not need to perform any layout transition to presentation mode.
 
@@ -1066,8 +1068,8 @@ into the `PushConstantsVtx` struct. Then we call the `cmdPushConstants` function
 `vulkan.ShaderStageFlags` is a combination of flags that states the shader stages that will access this range of push constants. We will use
 this in the vertex buffer so we pass the `vertex_bit` (`VK_SHADER_STAGE_VERTEX_BIT`) flag.
 
-Finally, in the `resize` function, we just clean render info attributes and recreate them again due to the change in size
-of the underlying images.
+Finally, in the `resize` function, we just clean rup the render info attributes and recreate them again due to the change in size of the
+underlying images.
 
 ```zig
 pub const RenderScn = struct {
@@ -1088,7 +1090,7 @@ pub const RenderScn = struct {
 }
 ```
 
-The next step missing now is to modify the `init` function in or `Game` struct:
+The next step missing now is to modify the `init` function in our `Game` struct:
 
 ```zig
 const zm = @import("zm");
@@ -1149,8 +1151,8 @@ const Game = struct {
 };
 ```
 
-We are defining the coordinates of a cube, and setting some random texture coordinates to see some changes in the color. After that, we need
-to create also a new `Entity` instance in order to render the cube. We want the cube to spin, so we use the `update` function, that will be
+We are defining the coordinates of a cube, and setting some random texture coordinates to see some changes in the color. After that, we also
+need to create a new `Entity` instance in order to render the cube. We want the cube to spin, so we use the `update` function, that will be
 invoked periodically to update that angle:
 
 ```zig
@@ -1214,7 +1216,7 @@ void main()
 }
 ```
 
-We will also to update the `EngCtx` and `Engine` structs to use the new `Scene` struct:
+We will also need to update the `EngCtx` and `Engine` structs to use the new `Scene` struct:
 
 ```zig
 pub const EngCtx = struct {

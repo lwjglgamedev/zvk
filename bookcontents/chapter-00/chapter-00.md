@@ -1,6 +1,6 @@
 # Chapter 00 - Introduction
 
-So what is Vulkan? Here's the definition for the Vulkan standard landing page:
+So, what is Vulkan? Here's the definition for the Vulkan standard landing page:
 
 > Vulkan is a new generation graphics and compute API that provides high-efficiency,
 > cross-platform access to modern GPUs used in a wide variety of devices from PCs and consoles to mobile phones and embedded platforms.
@@ -10,7 +10,8 @@ which is an open industry consortium behind many other well-known standards such
 
 ## Why Vulkan?
 
-The first questions to come to mind are why Vulkan? Why adopt another cross-platform graphics API? Why not just stick with OpenGL, which is also cross-platform?
+The first questions to come to mind are why Vulkan? Why adopt another cross-platform graphics API? Why not just stick with OpenGL, which is
+also cross-platform?
 
 [![](https://imgs.xkcd.com/comics/standards.png)](https://xkcd.com/927/)
 
@@ -23,7 +24,7 @@ The first questions to come to mind are why Vulkan? Why adopt another cross-plat
   For example, [concurrency support](https://en.wikipedia.org/wiki/Concurrency_(computer_science)) is part one of the strongest points of Vulkan.
   This dramatically improves the performance of applications that may now be CPU constrained by the single-threaded nature of some other APIs (such us OpenGL).
 
-- It is a lower overhead API, in the sense that the most part of the work shall be explicitly done in the application.
+- It is a lower overhead API, in the sense that most part of the work must be done explicitly done in the application.
   Hence, developers need to be very direct and precisely control every aspect.
   This simplifies the Vulkan drivers which provide a very thin layer on top of the hardware.
 
@@ -42,7 +43,7 @@ and to guarantee proper synchronization between your CPU and graphics card.
 As a result, you will have a more direct view about the GPU working inner details,
 which combined with the knowledge on how your application works can lead to great performance improvements.
 
-The next question that may come to your mind may be, Is it Vulkan the right tool for you?
+The next question that may come to your mind may be, Is Vulkan the right tool for you?
 The answer to this question depends on your skills and interests.
 If you are new to programming or want to obtain a rapid product, Vulkan is not the most adequate solution for you.
 As it has been already said, Vulkan is complex--you will have to invest lots of time understanding all the concepts,
@@ -63,15 +64,15 @@ Besides complexity, other drawbacks of Vulkan may be:
 Therefore, if you are new to programming,
 it is much better to start with some existing game engines such as [Unity](https://unity.com) or [Godot](https://godotengine.org/) or even to start with OpenGL.
 
-## Prerequisites
+## Requirements
 
 This book assumes that you have a good understanding of Zig language, and some previous knowledge of 3D graphics, such as OpenGL. 
 
-Requisites:
+Requirements:
 
 - [Zig](https://ziglang.org/): We will be using 0.15.2 version.
-- The Vulkan [SDK](https://vulkan.lunarg.com/). You will need to install it for your operative system. You will need to setup an environment variable
-named `VULKAN_SDK` which points to the root folder of the SDK.
+- The Vulkan [SDK](https://vulkan.lunarg.com/). You will need to install it for your operating system. You will need to setup an environment
+variable named `VULKAN_SDK` which points to the root folder of the SDK.
 - We will be using Vulkan 1.3 so make sure your GPU supports that version.
 
 > [!WARNING]  
@@ -93,7 +94,6 @@ The following list collects the ones that I've found more useful, and that I've 
 - [Sascha Willems](https://github.com/SaschaWillems/Vulkan) Vulkan samples. This is an awesome collection of C++ samples which cover a huge set of Vulkan features.
 - [Khronos Vulkan samples](https://github.com/KhronosGroup/Vulkan-Samples).
 
-[Next chapter](../chapter-01/chapter-01.md)
 
 ## Renderdoc
 
@@ -102,3 +102,5 @@ the code is quite simple, just select the executable and launch it.
 
 > [!WARNING]  
 > If you are using Linux with Wayland just make sure to have the `SDL_VIDEODRIVER` environment variable to `x11`.
+
+[Next chapter](../chapter-01/chapter-01.md)

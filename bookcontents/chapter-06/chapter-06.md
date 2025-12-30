@@ -12,7 +12,7 @@ If we want to display 3D models, we need first to load all the vertices informat
 indices, etc.). All that information needs to be stored in buffers accessible by the GPU. A buffer in Vulkan is basically a bunch of bytes
 that can be used for whatever we want, from storing vertices to storing data used for computation. As usual, we will create a new struct
 named `VkBuffer` to manage them. (Remember to add a new file named `vkBuffer.zig` to the `mod.zig`:
-`pub const buf = @import("vkBuffer.zig");`). Let's examine the its attributes and the `create` function used to instantiate it:
+`pub const buf = @import("vkBuffer.zig");`). Let's examine its attributes and the `create` function used to instantiate it:
 
 ```zig
 const vulkan = @import("vulkan");
@@ -62,7 +62,7 @@ that the data associated to this buffer should use. In order to create a Vulkan 
 `create` function of the `VulkanBuffer` struct through an argument with the same name.
 - `sharing_mode`: If set to `vulkan.SharingMode.exclusive` (`VK_SHARING_MODE_EXCLUSIVE`), it can only be accessed by a queue family at
 a time. Setting to `vulkan.SharingMode.concurrent` (`VK_SHARING_MODE_CONCURRENT`) allows the buffer contents to be accessed by more
-than one queue family at a time. Concurrent mode incurs on performance penalties, so we will just use exclusive mode.
+than one queue family at a time. Concurrent mode incurs performance penalties, so we will just use exclusive mode.
 
 With that structure we can invoke the `createBuffer` function to create the buffer handle. It is important to remark, that this call
 does not allocate the memory for the buffer, we just create the handle, we will need to manually allocate that memory and associate that
@@ -116,10 +116,10 @@ pub const VkBuffer = struct {
 };
 ```
 
-To complete the struct, we define two functions to map and un-map the memory associated to the buffer so it can be accessed from our
+To complete the struct, we define two functions to map and unmap the memory associated to the buffer so it can be accessed from our
 application (if they have been created with the flag `host_visible_bit` (`VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT`), more on this later on). The
 `map` function just calls the `mapMemory` function which returns a handle that can be used to get a buffer to read / write its contents. The
-`unMap` function just calls the `unmapMemory` to un-map the previously mapped buffer memory:
+`unMap` function just calls the `unmapMemory` to unmap the previously mapped buffer memory:
 
 ```zig
 pub const VkBuffer = struct {
@@ -188,7 +188,7 @@ After that, we will fill up the binding description. The attributes of `VertexIn
 (4 bytes each) and three position components (x, y, z).
 - `inputRate`: It specifies the rate at which vertex attributes are pulled from the underlying buffer. It can have two possible values:
 `vertex` (`VK_VERTEX_INPUT_RATE_VERTEX`): Values will be extracted for each vertex index. That is, when consuming an index we will get
-one element form the buffer. This is the regular case when drawing a mesh, the vertex data is associated to a specific index and will be
+one element from the buffer. This is the regular case when drawing a mesh, the vertex data is associated to a specific index and will be
 consumed accordingly.
 - `instance` (`VK_VERTEX_INPUT_RATE_INSTANCE`): Values will be extracted for each instance index. This will be the case used for instanced
 rendering, where with a single buffer defining the common attributes (mesh definition) we can draw many models with a single draw call.
@@ -202,7 +202,7 @@ and another one for the indices of the triangle coordinates that wll be used to 
 named `VulkanModel` which will hold the information for 3D models. For now, it will hold the buffers for the different meshes that compose
 a 3D model. In next chapters it will be extended to support richer structures. At this moment a model is just a collection of meshes which
 will hold the references to buffers that contain positions data and their indices. This struct will also define the functions to populate
-those structures. This will be defined in a new file named `modelsCache.zig` which you should ad dto the `mod.zig` file like this:
+those structures. This will be defined in a new file named `modelsCache.zig` which you should add to the `mod.zig` file like this:
 `pub const mcach = @import("modelsCache.zig");` under the `src/eng` folder. The `VtxBuffDesc` struct is quite simple:
 
 ```zig
@@ -248,7 +248,7 @@ pub const VulkanMesh = struct {
 It is just a record which contains an identifier, the vertices and indices buffers and the number of indices.
 
 We will see later on how we can load that data into the GPU from raw data. That raw data is encapsulated in two structs named `ModelData`
-and `MeshData` which are defined like this (They will ve defined in the file `modelData.zig` which you should ad dto the `mod.zig` file like
+and `MeshData` which are defined like this (They will be defined in the file `modelData.zig` which you should ad dto the `mod.zig` file like
 this: `pub const mdata = @import("modelData.zig");` under the `src/eng` folder):
 
 ```zig
@@ -478,7 +478,7 @@ copy command, by calling the `cmdCopyBuffer` function. We do this for vertices a
 ## Graphics pipeline overview
 
 A graphics pipeline is a model which describes the steps required to render graphics into a screen. In Vulkan this is modeled using a data
-structure. You can think on a pipeline as a sequence of stages which are traversed by the recorded commands as they are executed. Those
+structure. You can think of a pipeline as a sequence of stages which are traversed by the recorded commands as they are executed. Those
 steps can be classified as fixed and programmable. Fixed steps can only be controlled by setting up some parameters at pipeline creation
 time. Programmable steps are defined by programs called shaders. The following picture depicts Vulkan graphics pipeline.
 
@@ -490,31 +490,31 @@ shading mode. More information in the Vulkan [specification]((https://www.khrono
 - Input Assembler: It is the responsible of assembling vertices to form graphics primitives such as triangles.
 - Vertex shader: In this stage we transform the vertices received as inputs (positions, normals, texture coordinates, etc.). It is a
 programmable stage.
-- Tesselation and geometry shader stages can generate  multiple primitives form a single input primitive or modify them received from
+- Tesselation and geometry shader stages can generate  multiple primitives from a single input primitive or modify them received from
 previous stages.  These stages are also programmable through shaders.
-- Rasterization: This stage transform primitives into fragments (pixels) that can be displayed on a 2D image.
+- Rasterization: This stage transforms primitives into fragments (pixels) that can be displayed on a 2D image.
 - Fragment shader: Processes the fragments from the rasterization stage determining the values that will be written into the frame buffer
 output attachments. This is also a programmable stage which usually outputs the color for each pixel.
 - Blending: Controls how different fragments can be mixed over the same pixel handling aspects such as transparencies and color mixing.
 
 One important topic to understand when working with Vulkan pipelines is that they are almost immutable. Unlike OpenGL, we can't modify at
 run time the properties of a graphics pipeline. Almost any change that we want to make implies the creation of a new pipeline. For example,
-in OpenGL it is common to modify ay runtime certain parameters that control how transparencies are handled (blending) or if the
+in OpenGL it is common to modify at runtime certain parameters that control how transparencies are handled (blending) or if the
 depth-testing is enabled. In OpenGL we can modify those parameters at run time with no restrictions. (The reality is that under the hood,
 our driver is switching between pipelines definitions that meet those settings). In Vulkan, however, we will need to define multiple
 pipelines if we want to change those settings while rendering and switch between them manually. 
 
 ## Shaders
 
-Prior to start defining the pipeline we will write the code for handling shaders. As it has just been said above, shaders allow us to
+Prior to starting to define the pipeline we will write the code for handling shaders. As it has just been said above, shaders allow us to
 control, using code, the pipeline stages that are programmable. If you come from OpenGL, you are used to program the shaders in GLSL
 language, if you come from DirectX you will use HLSL language. In this case, Vulkan uses a different approach and uses a binary format
-called SPIR-V. Both GLSL and HLSL are human readable languages, that imposes extra overhead on the drivers that need to parse those formats
+called SPIR-V. Both GLSL and HLSL are human readable languages, which imposes extra overhead on the drivers that need to parse those formats
 and convert their instructions into something that can be used by the GPU. Another issue with these formats is the different implementation
 behaviors that can arise when different vendors perform different assumptions, since the complexity of the parsers required leave room for
 different interpretations. Vulkan, by using a binary format, reduces the complexity on the drivers, reducing also the time required to load
 them. As a bonus, you can still develop your shaders in your favorite language (GLSL or HLSL) and transform them to SPIR-V using an external
-compiler. In this book, we will use and GLSL and will compile the shaders when building the code in the 'build.zig` file:
+compiler. In this book, we will use GLSL and will compile the shaders when building the code in the `build.zig` file:
 
 ```zig
 const Shader = struct {
@@ -556,9 +556,9 @@ In this chapter we will use to shaders (`scn_vtx.glsl` and `scn_frg-glsl`). We w
 
 The next step is to write the code that supports graphic pipelines creation. Prior to talking about pipelines specifically, we will talk
 about the pipeline cache. As mentioned before, while working with Vulkan, it is very common to have multiple pipelines. Pipelines are
-almost immutable, so any variant on the setup of the different stage requires a new pipeline instance. 
+almost immutable, so any variant on the setup of the different stages requires a new pipeline instance. 
 
-We will encapsulate pipeline creation code in the `vkPipeline.zig` (Remember to include it to the `src/eng/vk/mod.zig` file:
+We will encapsulate pipeline creation code in the `vkPipeline.zig` (Remember to include it in the `src/eng/vk/mod.zig` file:
 `pub const pipe = @import("vkPipeline.zig");`). It starts like this:
 
 ```zig
@@ -609,7 +609,7 @@ The `ShaderModuleInfo` struct will hold shader modules that need to be used by t
 
 - `colorFormat`: The color format to be used when rendering in this pipeline.
 - `modulesInfo`: The list of shader modules.
-- `useBlend`: When tr the pipeline will be configured to support alpha blending.
+- `useBlend`: When the pipeline will be configured to support alpha blending.
 - `vtxBuffDesc`: It will contain the vertex attribute description.
 
 The first thing we do is to create as many `PipelineShaderStageCreateInfo` structures as shader modules we have. For each of them we set the
@@ -633,7 +633,7 @@ pub const VkPipeline = struct {
 };
 ```
 
-The input assembly stage take a set of vertices and produces a set of primitives. The primitives to be produced are defined in the
+The input assembly stage takes a set of vertices and produces a set of primitives. The primitives to be produced are defined in the
 `topology` attribute. In our case, we will generate a list of triangles: `triangle_list` (`VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST`). We could
 generate other types such as points: `point_list` (`VK_PRIMITIVE_TOPOLOGY_POINT_LIST`), lines: `line_list`
 (`VK_PRIMITIVE_TOPOLOGY_LINE_LIST`), triangle strips: `triangle_strip` (`VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP`), etc. For our examples we

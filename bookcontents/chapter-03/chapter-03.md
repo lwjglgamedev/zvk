@@ -1,6 +1,6 @@
 # Chapter 03 - Physical, Logical devices and Surface
 
-In this chapter we will progress in the definition of the Vulkan structures required to render a 3D scene. Specifically, we will setup the
+In this chapter we will progress in the definition of the Vulkan structures required to render a 3D scene. Specifically, we will set up the
 Physical and Logical devices and a Surface.
 
 You can find the complete source code for this chapter [here](../../booksamples/chapter-03).
@@ -10,7 +10,7 @@ You can find the complete source code for this chapter [here](../../booksamples/
 A physical device represents any piece of hardware that provides a complete implementation of the Vulkan interface (usually a physical GPU).
 You can have several Vulkan capable physical devices (you may have more than one GPU), but you will usually just use one (we will not be
 dealing with multi-GPU rendering here). A side note, as we progress through this book, we will define many concepts. In order to help you in
-understanding the  relationship between all of them, we will be filling up a diagram. Here you can find the ones that shows up the elements
+understanding the relationship between all of them, we will be filling up a diagram. Here you can find the ones that show the elements
 described so far.
 
 ![UML Diagram](rc03-yuml-01.svg)
@@ -63,7 +63,7 @@ pub const VkPhysDevice = struct {
 };
 ```
 
-As it has been said before, we may have more than one Vulkan physical devices in our host machine. We first need to ask the Vulkan instance
+As it has been said before, we may have more than one Vulkan physical device in our host machine. We first need to ask the Vulkan instance
 to retrieve the list of supported vulkan devices (by calling the `enumeratePhysicalDevicesAlloc` function). After that we iterate over that
 list trying to get the most suitable one:
 
@@ -119,13 +119,13 @@ check for two things:
 - That the device is capable of presenting images to a screen. This is done by calling the `checkExtensionSupport` function.
 - That the device supports the graphics queue family. This is done by calling the `hasGraphicsQueueFamily` function.
 
-You may be surprised that this is not part of the core API, but think that you may have GPUs that may be used just for computing or that are
+You may be surprised that this is not part of the core API, but think that you may have GPUs that are used just for computing or that are
 not even attached to any display (they may do off-screen rendering). So being this capability optional, we need to be sure that the selected
 device supports it. We will show later on the implementation of those two functions.
 
 If the device fulfills both conditions, we then check if its name matches the preferred device name (if this has been specified). If so, we
 already have our candidate and there's no need to continue so we break the loop. If not, we just add that device to the list of potential
-candidates and continue with the loop. We tend to select discrete GPU devices. that is, non integrated GPUs, so we add them on top of the
+candidates and continue with the loop. We tend to select discrete GPU devices, that is, non integrated GPUs, so we add them on top of the
 list to have most priority.
 
 Once we have finished with the loop, if we have not selected a device yet we just pick the first one from the list. You can add more
@@ -160,7 +160,7 @@ pub const VkPhysDevice = struct {
 };
 ```
 
-It just enumerate the available extensions and checks if it supports the extensions stored in the `reqExtensions` constants, which, by now,
+It just enumerates the available extensions and checks if it supports the extensions stored in the `reqExtensions` constants, which, by now,
 stores the name of the KHHR Swapchain extension.
 
 

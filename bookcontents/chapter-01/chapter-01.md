@@ -3,19 +3,19 @@
 In this chapter, we will set up all the base code required to define a basic rendering loop. This game loop will have these
 responsibilities: constantly render new frames; get user inputs; and update the game or application state. The code presented here is not
 directly related to Vulkan, but rather the starting point before we dive right in. You will see something similar in any other application
-independently of the specific API they use (this is the reason why we will mainly use large chunks of code here, without explaining step of
-step every detail).
+independently of the specific API being used (this is the reason why we will mainly use large chunks of code here, without explaining step
+by step every detail).
 
 You can find the complete source code for this chapter [here](../../booksamples/chapter-01).
 
-When posting source code, we wil use `...` to state that there is code above or below the fragment code in a struct or in a function.
+When posting source code, we will use `...` to state that there is code above or below the fragment code in a struct or in a function.
 
 ## Build
 
-The build file (`build.zig`) file is quite standard. It just builds an executable adding the required dependencies and modules.
+The build file (`build.zig`) is quite standard. It just builds an executable adding the required dependencies and modules.
 We will use the following dependencies:
 
-- [SDL3](https://github.com/Gota7/zig-sdl3) Zig bindings. We will use SDL3 to create windows and handel user input.
+- [SDL3](https://github.com/Gota7/zig-sdl3) Zig bindings. We will use SDL3 to create windows and handle user input.
 In order to add the dependency to the `build.zig.zon` file just execute:
 `zig fetch --save git+https://github.com/Gota7/zig-sdl3#v0.1.5`
 - [TOML](https://github.com/sam701/zig-toml) to be able to parse configuration files.
@@ -33,9 +33,9 @@ In order to add the dependency to the `build.zig.zon` file just execute:
 > - `$VULKAN_SDK/share/vulkan/registry`
 > - `$VULKAN_SDK/x86_64/share/vulkan/registry`
 >
-> Make sure the `vk.xml` file is located there or change the path accordingly. It its required to generate the zig Vulkan bindings.
+> Make sure the `vk.xml` file is located there or change the path accordingly. It is required to generate the zig Vulkan bindings.
 
-You will need also the Vulkan SDK when enabling validation.
+You will also need the Vulkan SDK when enabling validation.
 
 The `build.zig` file is defined like this:
 
@@ -174,14 +174,14 @@ As you can see, in the `main` function, we just start our render/game engine, mo
 `create` function, the name of the window and a reference to the `Game` struct which will implement the application logic. This is
 controlled by the following functions:
 
-- `cleanup`: Which is invoked when the application finished to properly release the acquired resources.
+- `cleanup`: Which is invoked when the application finishes to properly release the acquired resources.
 - `init`: Invoked upon application startup to create the required resources (meshes, textures, etc.).
-- `input`: Which is invoked periodically so that the application can update its stated reacting to user input.
-- `update`: Which is invoked periodically so that the application can update its state.
+- `input`: called periodically so that the application can update its stated reacting to user input.
+- `update`: called periodically so that the application can update its state.
 
 ## Engine
 
-Engine code us located under `src/eng` and all the submodules are defined in the `mod.zig` file:
+Engine code is located under `src/eng` and all the submodules are defined in the `mod.zig` file:
 
 ```zig
 pub const engine = @import("eng.zig");
@@ -276,16 +276,16 @@ pub fn Engine(comptime GameLogic: type) type {
 }
 ```
 
-The `EngCtx`servers as a context holder for the main elements of the engine, the allocator, the engine constants (we will come back to this
+The `EngCtx` serves as a context holder for the main elements of the engine, the allocator, the engine constants (we will come back to this
 later on), and the main window. The `Engine` type needs to be instantiated through the `create` function which just loads the constants and
 creates the window. It provides a `cleanup` function which just frees the allocated resources. The `run` function is where the game loop is
 implemented. We basically control the elapsed time since the last loop block to check if enough seconds have passed to update the state. If
 so, we've calculated the elapsed time since the last update and invoke the `update` function from the `GameLogic` reference. We invoke the
 `input` from the `GameLogic` instance and the `render` function in each turn of the loop. Later on, we will be able to limit the frame rate
-using vsync, or leave it uncapped. bu now it will just run at full speed.
+using vsync, or leave it uncapped. By now it will just run at full speed.
 
-You may have noticed that we use a struct named `Constants`, which in this case establishes the updates per second. This is a struct which
-reads a property file that will allow us to configure several parameters of the engine at runtime. It is defined in the `com` module
+You may have noticed that we use a struct named `Constants`, which in this case establishes the updates per second (UPS). This is a struct
+which reads a property file that will allow us to configure several parameters of the engine at runtime. It is defined in the `com` module
 (named for common), which requires a new `mod.zig` file:
 
 ```zig
@@ -323,7 +323,7 @@ pub const Constants = struct {
 };
 ```
 
-The code is pretty straight forward. We just use TOML to parse `res/cfg/cfg.toml` file to load the value of the updates per second
+The code is pretty straightforward. We just use TOML to parse `res/cfg/cfg.toml` file to load the value of the updates per second
 configuration parameter.
 
 Right now the `cfg.toml` is defined like this:
@@ -432,10 +432,10 @@ pub const Wnd = struct {
 };
 ```
 
-The code it's self-explanatory, we basically initialize SDL, and when in Linux set `SDL_VIDEO_PREFER_WAYLAND` to prioritize Wayland backend.
+The code is self-explanatory, we basically initialize SDL, and when in Linux set `SDL_VIDEO_PREFER_WAYLAND` to prioritize Wayland backend.
 After that, we get the usable bounds for the new window on the primary monitor. We set the window to be resizable and a flag stating that it
-will be used for Vulkan. The `MouseState` struct will be used later on to dump mouse state (state of the buttons, position of the mouse and
-the displacement from previous position modelled by `deltaX` and `deltaY` attributes).
+will be used for Vulkan. The `MouseState` struct will be used later on to store mouse state (state of the buttons, position of the mouse and
+the displacement from previous position modeled by `deltaX` and `deltaY` attributes).
 
 The rest of the functions are defined like this:
 

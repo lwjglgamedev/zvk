@@ -8,11 +8,11 @@ You can find the complete source code for this chapter [here](../../booksamples/
 ## Swap chain
 
 If you recall from previous chapters, rendering to the screen is an optional feature in Vulkan. The capability to present rendering results
-to a surface is provided by the swap chain. A swap chain is basically an array of images that can be use as the destination of render
+to a surface is provided by the swap chain. A swap chain is basically an array of images that can be used as the destination of render
 operations and that can be presented on a surface.
 
 As you may already have guessed, swap chain creation will be encapsulated in a struct named `VkSwapChain` (Remember to update the `mod.zig`
-file to include it: `pub const swap = @import("vkSwapChain.zig");`). This the diagram updated.
+file to include it: `pub const swap = @import("vkSwapChain.zig");`). Here is the diagram updated.
 
 ![UML Diagram](rc04-yuml-01.svg)
 
@@ -142,7 +142,7 @@ application, this will set to `1`.
 In our case we will be rendering these images to the surface, so we will use the `color_attachment_bit` flag (equivalent to `VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT` ). That is,
 we will be outputting colors. There are other usages such as the ones used for depth buffers or for transferring operations.
 - `image_sharing_mode`: This controls how the images can be accessed from queues. Remember that in Vulkan we will record the render
-operations to be executed in `CommandBuffer`''s  that will be queued. Those commands will be de-queued for being executed asynchronously.
+operations to be executed in `CommandBuffer`s  that will be queued. Those commands will be de-queued for being executed asynchronously.
 There are two possible modes:
   - Concurrent: Multiple queue families can access the images concurrently.  
   - Exclusive: Only one queue family can access the images at a time. This is the most performant mode.
@@ -166,7 +166,8 @@ Presentation modes need to be explained in detail. Vulkan defines the following 
 - `VK_PRESENT_MODE_IMMEDIATE_KHR`: The generated images are transferred immediate to the screen without waiting for a vertical blanking
 period. This may produce tearing in some cases.
 - `VK_PRESENT_MODE_FIFO_KHR`: Images are presented when a vertical blanking occurs. Images ready to be presented are internally queued using
-a FIFO schema (First Int First Out), which means that new images are appended to the end of the queue. This is the only mode that is guaranteed to be supported. If the queue is full, the application blocks. Tearing is not observed in this case.
+a FIFO schema (First In First Out), which means that new images are appended to the end of the queue. This is the only mode that is
+guaranteed to be supported. If the queue is full, the application blocks. Tearing is not observed in this case.
 - `VK_PRESENT_MODE_FIFO_RELAXED_KHR`: Similar to the previous mode. In the case that the queue fills up, the application waits, but the
 queued images during this waiting period are presented without waiting for the vertical blanking. This may produce tearing in some cases.
 - `VK_PRESENT_MODE_MAILBOX_KHR`: Similar to the `VK_PRESENT_MODE_IMMEDIATE_KHR` mode, but in the case that the queue is full, the last image
@@ -237,7 +238,7 @@ pub const VkSwapChain = struct {
 The first thing we do is retrieve the minimum and maximum number of images that our surface supports. The rest of the code is basically to
 try to stick with the requested value if it's within the maximum-minimum range.
 
-Now it is the turn to shoe the definition of the `calcExtent` function:
+Now it is the turn to show the definition of the `calcExtent` function:
 
 ```zig
 pub const VkSwapChain = struct {
@@ -278,18 +279,18 @@ element is called Image View and basically it states how the image will be acces
 the concepts involved in handling images in Vulkan. In order to have an image that can be accessed by shaders in Vulkan we need:
 
 - A `VkBuffer` which contains the raw data of the image, its contents. A `VkBuffer` is just a linear array of data.
-- A `VkImage` which basically defines the metadata associated to the `VkImage`, yo the raw data. That is, the image format, its dimensions,
+- A `VkImage` which basically defines the metadata associated to the `VkBuffer`, to the raw data. That is, the image format, its dimensions,
 etc.
 - A `VkImageView`, which specifies how we are going to use an image, which parts of that image can be accessed, which format are we going to
 use, etc. We could have several views over the same `VkImage` instance to restrict the range or event to use different formats while using
 it, making automatic conversions to the `VkImage` format. As its name says, it is just a view over the image.
 
 As it has been said before, the images for our swap chain have already been created, we just need to create the associated image views. In
-next chapters we will need to create images for textures and, their associated buffers, but right now, we just need image views. 
+the next chapters we will need to create images for textures and, their associated buffers, but right now, we just need image views. 
 
 ![UML Diagram](rc04-yuml-02.svg)
 
-The definition of the `createImageViews` at function is as follows:
+The definition of the `createImageViews` function is as follows:
 
 ```zig
 pub const VkSwapChain = struct {
@@ -326,7 +327,8 @@ retrieve the images.
 
 Now we iterate over the images to create new `VkImageView` instances. The `VkImageView` struct encapsulates the creation and disposal of
 Vulkan image views (Remember to update the `mod.zig` file to include it: `pub const imv = @import("vkImageView.zig");`). Since the
-parameters to properly set up image viewscan be quite lengthy, it defines a helper struct named `VkImageViewData` to assist in the creation.
+parameters to properly set up image views can be quite lengthy, it defines a helper struct named `VkImageViewData` to assist in the
+creation.
 
 ```zig
 const vk = @import("mod.zig");
@@ -487,6 +489,6 @@ vsync=true
 ...
 ```
 
-Ant that is all by now, we are still getting a plain white window, but soon we will be able to render something.
+And that is all for now, we are still getting a plain white window, but soon we will be able to render something.
 
 [Next chapter](../chapter-05/chapter-05.md)

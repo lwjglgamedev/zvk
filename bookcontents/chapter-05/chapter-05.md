@@ -9,9 +9,9 @@ You can find the complete source code for this chapter [here](../../booksamples/
 ## Command Buffers
 
 When we talked about queues we already mentioned that in Vulkan, work is submitted by recording commands (stored in a command buffer), and
-submitting them to a queue. It is time now to implement the support for these elements. Command buffers new to be instantiated through a
-command pool. Therefore, let's encapsulate Command pool creation in a struct named `VkCmdPool`. It's definition is quite simple (its defined
-in the file `srv/eng/vkVkCmd.zig` remember to include it in the `mod.zig` file: `pub const cmd = @import("vkCmd.zig");`):
+submitting them to a queue. It is time now to implement the support for these elements. Command buffers need to be instantiated through a
+command pool. Therefore, let's encapsulate Command pool creation in a struct named `VkCmdPool`. Its definition is quite simple (it's defined
+in the file `src/eng/vkVkCmd.zig` remember to include it in the `mod.zig` file: `pub const cmd = @import("vkCmd.zig");`):
 
 ```zig
 const std = @import("std");
@@ -46,12 +46,9 @@ case, you need to reset them. In order to do so, you need to explicitly create t
 `flags` parameter with the `VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT` value (`reset_command_buffer_bit` flag). This will allow
 commands to be reset individually.
 
-The rest of the functions of the struct, as usual, are a `cleanup` function to release resources and a `reset` function, which basically
-recycles all the resources associated to the command buffers associated to a command pool. We will use this v to put all allocated command
-buffers in initial state instead of resetting them individually.
-
-Now that are able to create command pools, let's review the struct that will allow us to instantiate command buffers, which as you can
-image it's named `VkCmdBuff` (defined in the same file as `VkCmdPool`). It starts like this:
+The rest of the functions of the struct are, as usual, a `cleanup` function to release resources. Now that are able to create command
+pools, let's review the struct that will allow us to instantiate command buffers, which as you can imagine it's named `VkCmdBuff`
+(defined in the same file as `VkCmdPool`). It starts like this:
 
 ```zig
 pub const VkCmdBuff = struct {
@@ -302,11 +299,11 @@ finished. The issue here is that this will be an asynchronous call that can be p
 - In Frame `#0`:
     - We acquire the first swap chain image (with an index equal to `0`).
     - We submit the work using `semsRenderComplete[0]`.
-    - We present the swap chain image (that is, call the `queuePresentKHR` function using `semsRenderComplete[0]` sempahore).
+    - We present the swap chain image (that is, call the `queuePresentKHR` function using `semsRenderComplete[0]` semaphore).
 - In Frame `#1`:
     - We acquire the next swap chain image (with an index equal to `1`).
     - We submit the work using `semsRenderComplete[1]`.
-    - We present the swap chain image (that is, call the `queuePresentKHR` function using `semsRenderComplete[1]` sempahore).
+    - We present the swap chain image (that is, call the `queuePresentKHR` function using `semsRenderComplete[1]` semaphore).
     - Everything is ok up to this point.
 - In Frame `#2`:
     - We acquire the next swap chain image (with an index equal to `2`).
@@ -314,13 +311,13 @@ finished. The issue here is that this will be an asynchronous call that can be p
     - The issue here is that presentation for Frame `#0` may not have finished, and thus `semsRenderComplete[0]` may still be in use. We may
     have a synchronization issue here.
 
-But, shouldn't fences help us prevent us from this issue? The answer is now, fences will be used when submitting work to a queue. Therefore,
+But, shouldn't fences help us prevent us from this issue? The answer is no, fences will be used when submitting work to a queue. Therefore,
 if we wait for a fence, we will be sure that previous work associated to the same frame in flight index will have finished. The issue is
-with presentation, when presenting the swap chain image we just only pass a semaphore to wait to be signaled when the render work is
-finished, but we cannot signal when the presentation will be finished. Therefore, fence wait does not know anything about presentation
+with presentation, when presenting the swap chain image we just pass a semaphore to wait to be signaled when the render work is
+finished, but we cannot signal when the presentation will be finished. Therefore, fence wait does not know anything about the presentation
 state, The solution for this is to have as many render complete semaphores as swap  chain images. The rest of synchronization elements and
-per-frame elements just need to be sized to the maximum number of flight, because they are concerned to just render activities, presentation
- is not involved at all.
+per-frame elements just need to be sized to the maximum number of frames in flight, because they are concerned to just render activities,
+presentation is not involved at all.
 
 Let's go now to the `Render` struct and see the new attributes that we will need (showing the changes in the `create` and the `cleanup`
 functions):
@@ -500,9 +497,9 @@ The `render` loop performs the following actions:
 - We then resets the command pool and set the command buffer in recording mode. Remember that we will not be resetting the command
 buffers but the pool. After this step we could start recording "A commands".
 - In our case, since we do not have "A commands" yet", we just acquire next swap chain image. We will see the implementation later on, but
-this function returns the index of the image acquired (it may not be just the next image index). The `semsPresComplete` array is the
-semaphore used to synchronize image acquisition when the image is acquired, this semaphore will be signaled. Any operation depending on this
-image to be acquired, can use this semaphore as a blocking mechanism.
+this function returns the index of the image acquired (it may not be just the next image index). The `semsPresComplete` array contains the
+semaphores used to synchronize image acquisition when the image is acquired, this semaphore will be signaled. Any operation depending on
+this image to be acquired, can use this semaphore as a blocking mechanism.
 - If the `acquire` does return an error, this will mean that the operation failed. This could be because the window has been resized. By
 now, we just  finish recording and return.
 - Then we can record "B commands" which we will do by calling `renderScn.render`
@@ -721,7 +718,7 @@ pub const RenderScn = struct {
 ```
 
 The `create` function will be used to instantiate the `RenderScn` struct. You will see that there are many unused parameters. Do not worry
-about them, we will use them in next chapters. The `cleanup` function is also empty by now. The interesting part is in the `render`
+about them, we will use them in the next chapters. The `cleanup` function is also empty by now. The interesting part is in the `render`
 function.
 
 In this function you may see that we create an instance of the `RenderingAttachmentInfo` struct which is defined by the following
@@ -733,7 +730,7 @@ image at any given time. Is like the "mode" into which an image is in in order t
 - `load_op`: Specifies what will happen to the contents of this attachment when the render starts. In our case we want to clear the
 contents so we use the `vulkan.AttachmentLoadOp.clear` value (equivalent to `VK_ATTACHMENT_LOAD_OP_CLEAR` value). Other possible values are
 `vulkan.AttachmentLoadOp.load` (equivalent to `VK_ATTACHMENT_LOAD_OP_LOAD`) to preserve the contents of the attachment (from a previous
-pass) or `vulkan.AttachmentLoadOp.dont_care` (equivalent to`VK_ATTACHMENT_LOAD_OP_DONT_CARE`) if we just simply don't care (for example, we
+pass) or `vulkan.AttachmentLoadOp.dont_care` (equivalent to`VK_ATTACHMENT_LOAD_OP_DONT_CARE`) if we just simply do not care (for example, we
 may be sure that we are going to fill up again the attachment contents and we do not want to waste time in clearing it).
 - `store_op`: Which specify what we will do the contents of the attachment once we have finished rendering. In this case we use
 `vulkan.AttachmentStoreOp.store` (equivalent to`VK_ATTACHMENT_STORE_OP_STORE`) which states that the contents of the attachment will be
@@ -751,7 +748,7 @@ chain image in the form of `VkRenderingInfo` instances, which is defined by the 
 - `color_attachment_count`: The number of color attachments to be used (from the list passed in the `)p_color_attachments`).
 - `p_color_attachments`: The list of color attachments (we may have other types of attachments for example to render depth). In our case it
 will be the attachments created previously.
-- `view_mask`: It is bitmask which controls which views are active while rendering. We will not be using this so we will set ti to `0`. 
+- `view_mask`: It is bitmask which controls which views are active while rendering. We will not be using this so we will set it to `0`. 
 
 Now it is turn to go back to the `Render` struct to revisit pending functions to be described. Let's start with `renderInit`:
 
@@ -787,9 +784,9 @@ pub const Render = struct {
 };
 ```
 
-this code executes sets up an image barrier for the current swap chain image to be used to render to. This is a new synchronization element
+this code sets up an image barrier for the current swap chain image to be used to render to. This is a new synchronization element
 that we will use to set up the image view in the proper layout. When using render passes (old Vulkan approach), some of these transitions
-were done automatically when starting the render pass. With dynamic render we need to explicitly transition al the images. It may seem a
+were done automatically when starting the render pass. With dynamic render we need to explicitly transition all the images. It may seem a
 little bit verbose, but, in my opinion, it helps to properly understand what is happening under the hood. Dynamic rendering also removes
 some verbosity associated to render passes, so at the end, I think it is worth the effort of explicitly transition image layouts.
 
@@ -817,19 +814,19 @@ and with access masks we define the purpose (for what, to read to write, etc.).
 Let's analyze the first image memory barrier:
 - We set the `old_layout` to `vulkan.ImageLayout.undefined` (`VK_IMAGE_LAYOUT_UNDEFINED`), which basically says, we do not care about
 previous layout state and set `new_layout` to `vulkan.ImageLayout.color_attachment_optimal` (`VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL`)
-which is is the state we want to perform rendering operations.
+which is the state we want to perform rendering operations.
 - We set `src_stage_mask` mask to `color_attachment_output_bit` (`VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT`) which basically states
 that all previously submitted commands need to have finished that state in the pipeline.
 - We set `src_access_mask` empty (equivalent to `VK_ACCESS_2_NONE`), because we do not care an initial layout we do not need to set any
 special restriction on source access.
 - We set `dst_stage_mask` to `color_attachment_output_bit` (`VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT`) because we will be accessing
-this image when outputting color. Any command that we submit later on dos not need to be affected until it reaches this stage.
+this image when outputting color. Any command that we submit later on does not need to be affected until it reaches this stage.
 - We set `dst_access_mask` to `color_attachment_write_bit` (`VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT`) because we want to control write
 operations, which will only happen in combination with `dstStage`.
 - We use  the `color_bit` flag (`VK_IMAGE_ASPECT_COLOR_BIT`) as `aspect_mask` since we are dealing with color information now. We will not
-be using mip levels or array layers of images so we just them to default values.
+be using mipmap levels or array layers of images so we just set them to default values.
 
-It is the turn now for the `renderFinish` function:
+It is now the turn for the `renderFinish` function:
 
 ```zig
 pub const Render = struct {
@@ -875,13 +872,13 @@ stage.
 - We set `src_access_mask` to `color_attachment_write_bit` (`VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT`), because we need to wait to any
 operation which writes to the image.
 - We set `dst_stage_mask` to `bottom_of_pipe_bit` (`VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT`) to represent the end of the pipeline and we use
-to state that no subsequent GPU operations depend on it.
+it to state that no subsequent GPU operations depend on it.
 - We set `dst_access_mask` to an empty value (equivalent to `VK_PIPELINE_STAGE_2_NONE`) since , again, no subsequent GPU operations depend
 on it.
 - We use  the `color_bit` flag (`VK_IMAGE_ASPECT_COLOR_BIT`) as `aspect_mask` since we are dealing with color information now. We will not
 be using mip levels or array layers of images so we just them to default values.
 
-Synchronization is a complex topic. If you want to have goog understanding of it this
+Synchronization is a complex topic. If you want to have good understanding of it this
 [video](https://youtu.be/GiKbGWI4M-Y?si=lNfBCfV4w6V7GsD5) is the best one you can find. I definitely recommend you to watch it.
 
 We have finished by now! With all that code we are no able to see a wonderful empty  screen with the clear color specified like this:
@@ -889,8 +886,8 @@ We have finished by now! With all that code we are no able to see a wonderful em
 ![Clear Screen](rc05-clear_screen.png)
 
 This chapter is a little bit long, but I think is important to present all these concepts together. Now you are really starting to
-understand why Vulkan is called an explicit API.  The good news is that, in my opinion, the elements presented here are the harder to get.
-Although we still need to define some important topics, such as pipelines or data buffers, I think they will be easier to understand once
-you have made your head around this.
+understand why Vulkan is called an explicit API.  The good news is that, in my opinion, the elements presented here are the more difficult
+to understand. Although we still need to define some important topics, such as pipelines or data buffers, I think they will be easier to
+understand once you have made your head around this.
 
 [Next chapter](../chapter-06/chapter-06.md)
