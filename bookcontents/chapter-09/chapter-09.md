@@ -1,15 +1,15 @@
 # Chapter 09 - Visual improvements and camera support
 
-This is transition chapter. We will add small improvements and present some new concepts to prepare more relevant changes in the next chapters
-(therefore, it will be a shorter chapter). We will improve the visuals by adding support for transparent objects and mipmaps. We will also add
-support for a camera to move inside the 3D scene.
+This is transition chapter. We will add small improvements and present some new concepts to prepare more relevant changes in the next
+chapters (therefore, it will be a shorter chapter). We will improve the visuals by adding support for transparent objects and mipmaps. We
+will also add support for a camera to move inside the 3D scene.
 
 You can find the complete source code for this chapter [here](../../booksamples/chapter-09).
 
 ## Transparent objects
 
-We need to add support to draw transparent objects so the pipeline must use the blending feature. The code for is already present
-in the `VkPipeline` struct, but let's revisit and review carefully the parameters:
+We need to add support to draw transparent objects so the pipeline must use the blending feature. The code for is already present in the
+`VkPipeline` struct, but let's revisit and review carefully the parameters:
 
 ```zig
 pub const VkPipeline = struct {
@@ -34,22 +34,38 @@ pub const VkPipeline = struct {
 
 We need to setup the blending by filing up a `PipelineColorBlendAttachmentState` structure. We need to set up the following attributes:
 
-- `blend_enable`: We need to enable blending to support transparent objects. By setting this attribute to `true` the colors are mixed when rendering.
-- `color_blend_op`: Defines the blending operation for the RGB components. In this case, we are adding source and destination colors, so the resulting color components will be calculated according to this formula: `R = Rs0 × Sr + Rd × Dr`, `G = Gs0 × Sg + Gd × Dg` and `B = Bs0 × Sb + Bd × Db`. As you can see, source and destination colors are added modulated by some factors (`Sx` for source colors and `Dx` for destination colors). Source color is the new color to be mixed, and destination color is the one already present in the color attachment.
-- `alpha_blend_op`: Defines the blending operation for the alpha components. In this case we are also adding source and destination colors: `As0 × Sa + Ad × Da`. As you can see, again, source and destination colors are added modulated by some factors (`Sa` for source and `Da` for destination). 
-- `src_color_blend_factor`: This controls the blend factor to be used for the RGB source factors (`Sr`, `Sg` and `Sb`). In our case we are using the `src_alpha`(`VK_BLEND_FACTOR_SRC_ALPHA`) value, which sets those factors to the alpha value of the source color.
-- `dst_color_blend_factor`: This controls the blend factor to be used for the RGB source factors (`Dr`, `Dg` and `Db`). In our case we are using the `one_minus_src_alpha` (`VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA`) value, which sets those factors to one minus the alpha value of the destination color.
-- `src_alpha_blend_factor`: This controls the blend factor to be used for the alpha source component (`Sa`). In our case, we set it to the value `src_alpha` (`VK_BLEND_FACTOR_ONE`), that is, it will have a one.
-- `dst_alpha_blend_factor`: This controls the blend factor to be used for the alpha destination component (`Da`). In our case, we set it to the value `zero` (`VK_BLEND_FACTOR_ZERO`), that is, it will have a zero, ignoring the alpha value of the destination color.
+- `blend_enable`: We need to enable blending to support transparent objects. By setting this attribute to `true` the colors are mixed when
+rendering.
+- `color_blend_op`: Defines the blending operation for the RGB components. In this case, we are adding source and destination colors, so the
+resulting color components will be calculated according to this formula: `R = Rs0 × Sr + Rd × Dr`, `G = Gs0 × Sg + Gd × Dg` and
+`B = Bs0 × Sb + Bd × Db`. As you can see, source and destination colors are added modulated by some factors (`Sx` for source colors and
+`Dx` for destination colors). Source color is the new color to be mixed, and destination color is the one already present in the color
+attachment.
+- `alpha_blend_op`: Defines the blending operation for the alpha components. In this case we are also adding source and destination colors:
+`As0 × Sa + Ad × Da`. As you can see, again, source and destination colors are added modulated by some factors (`Sa` for source and `Da` for
+ destination). 
+- `src_color_blend_factor`: This controls the blend factor to be used for the RGB source factors (`Sr`, `Sg` and `Sb`). In our case we are
+using the `src_alpha`(`VK_BLEND_FACTOR_SRC_ALPHA`) value, which sets those factors to the alpha value of the source color.
+- `dst_color_blend_factor`: This controls the blend factor to be used for the RGB source factors (`Dr`, `Dg` and `Db`). In our case we are
+using the `one_minus_src_alpha` (`VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA`) value, which sets those factors to one minus the alpha value of the
+destination color.
+- `src_alpha_blend_factor`: This controls the blend factor to be used for the alpha source component (`Sa`). In our case, we set it to the
+value `src_alpha` (`VK_BLEND_FACTOR_ONE`), that is, it will have a one.
+- `dst_alpha_blend_factor`: This controls the blend factor to be used for the alpha destination component (`Da`). In our case, we set it to
+the value `zero` (`VK_BLEND_FACTOR_ZERO`), that is, it will have a zero, ignoring the alpha value of the destination color.
 
-However, if you rendered a scene with just these changes, you may experience strange artifacts. Depending on the order that objects are rendering,
-you may have a transparent object, closer to the camera that gets rendered first than objects that are behind. This will make that the transparent object gets blended with the background, because the distant objects will be discarded in the depth test. The next figure shows this effect (It has been exaggerated
-with a non black background to see the effect).
+However, if you rendered a scene with just these changes, you may experience strange artifacts. Depending on the order that objects are
+rendering, you may have a transparent object, closer to the camera that gets rendered first than objects that are behind. This will make
+that the transparent object gets blended with the background, because the distant objects will be discarded in the depth test. The next
+figure shows this effect (It has been exaggerated with a non black background to see the effect).
 
 <img src="rc09-transparent-artifact.png" title="" alt="Screen Shot" data-align="center">
 
-In order to solve that, we are going to apply an easy fix, we will first draw non transparent objects to force transparent objects to blend with non transparent ones. This method still can make some artifacts (if we have may transparent objects that overlap between them), but it is simple enough and produces good results. In order to apply that, we need first to have a way to check if an object is transparent or not. We will add this support in the `VkTexture` struct. We will add a new attribute named `transparent` that will hold `true` if the texture has transparent values. We will set up this attribute in the 
-`create` function by calling a new function named `isTransparent`.
+In order to solve that, we are going to apply an easy fix, we will first draw non transparent objects to force transparent objects to blend
+with non transparent ones. This function still can make some artifacts (if we have may transparent objects that overlap between them), but
+it is simple enough and produces good results. In order to apply that, we need first to have a way to check if an object is transparent or
+not. We will add this support in the `VkTexture` struct. We will add a new attribute named `transparent` that will hold `true` if the
+texture has transparent values. We will set up this attribute in the `create` function by calling a new function named `isTransparent`.
 
 ```zig
 pub const VkTexture = struct {
@@ -80,8 +96,9 @@ pub const VkTexture = struct {
 };
 ```
 
-This new function basically, iterates over the image contents, checking if the alpha component has a value different than `255` (one in normalized color components). If so, we consider that the texture has transparencies. With that information, we will add a new field to the `VulkanMaterial` class which states
-if the material is transparent:
+This new function basically, iterates over the image contents, checking if the alpha component has a value different than `255` (one in
+normalized color components). If so, we consider that the texture has transparencies. With that information, we will add a new field to the
+`VulkanMaterial` struct which states if the material is transparent:
 
 ```zig
 pub const VulkanMaterial = struct {
@@ -188,11 +205,11 @@ pub const VkTexture = struct {
 };
 ```
 
-Since the number of images get scaled down by the power of two, we use the logarithm in base `2` to calculate the number of levels
-using the minimum value of the width, height of the image. We will be generating reduced versions of the original image iteratively,
-using the last scaled image as the source for the next one. This is the reason why you will see that we are using another usage flag
-for the `VkImageData`. We are setting the `transfer_src_bit` (`VK_IMAGE_USAGE_TRANSFER_SRC_BIT`) flag, since we will be using the image
-itself as a source to generate the different levels.
+Since the number of images get scaled down by the power of two, we use the logarithm in base `2` to calculate the number of levels using the
+minimum value of the width, height of the image. We will be generating reduced versions of the original image iteratively, using the last
+scaled image as the source for the next one. This is the reason why you will see that we are using another usage flag for the `VkImageData`.
+We are setting the `transfer_src_bit` (`VK_IMAGE_USAGE_TRANSFER_SRC_BIT`) flag, since we will be using the image itself as a source to
+generate the different levels.
 
 The next step is to modify the `recordTransition` function:
 
@@ -247,7 +264,8 @@ pub const VkTexture = struct {
 }
 ```
 
-We create a barrier to control the transition layouts, at this moment we just associate it to the image and the resource range. After this, we define the loop that will be generating the different levels:
+We create a barrier to control the transition layouts, at this moment we just associate it to the image and the resource range. After this,
+we define the loop that will be generating the different levels:
 
 ```zig
 pub const VkTexture = struct {
@@ -273,7 +291,9 @@ pub const VkTexture = struct {
 ```
 
 We set the barrier parameters to wait for the image to transition from `transfer_dst_optimal`(`VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL`)
-to `transfer_src_optimal` (`VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL`) in order to read from it. Remember that first we transitioned the image to the `transfer_dst_optimal` (`VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL`), we need now to read from that image to generate the different levels.
+to `transfer_src_optimal` (`VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL`) in order to read from it. Remember that first we transitioned the image
+to the `transfer_dst_optimal` (`VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL`), we need now to read from that image to generate the different
+levels.
 
 
 ```zig
@@ -340,8 +360,8 @@ pub const VkTexture = struct {
 };
 ```
 
-As we mentioned before, we are using the `cmdBlitImage` function to create the mip levels. This function copies regions of a source
-image into a destination image and is able to perform format conversions. The parameters are:
+As we mentioned before, we are using the `cmdBlitImage` function to create the mip levels. This function copies regions of a source image
+into a destination image and is able to perform format conversions. The parameters are:
 
 - The command buffer where will be recording this operation.
 - The source image.
@@ -353,9 +373,14 @@ image into a destination image and is able to perform format conversions. The pa
 Prior to invoking the `cmdBlitImage` function we need to define the regions by defining a `ImageBlit` array.
 This structure defines the following parameters:
 
-- `src_offsets`: This parameter defines the boundaries to be used in the blit operation for the source image. In our case, in the first iteration is the width and height of the image. In the next executions of the loop it will be progressively divided by two. It shall contain two elements.
-- `src_subresource`: It defines the sub-resource to blit from. In the first iteration it will be the base level, the level `0`. Then it will be progressively augmented, using the level constructed in the previous iteration as the source for the current one. in its `src_subresource` the sub-resource to blit from into the sub-resource defined by the `dstSubresource
-- `dst_offsets`: This parameter defines the boundaries to be used in the blit operation for the destination image. As you can see is the same size as the source image divided by two.
+- `src_offsets`: This parameter defines the boundaries to be used in the blit operation for the source image. In our case, in the first
+iteration is the width and height of the image. In the next executions of the loop it will be progressively divided by two. It shall contain
+two elements.
+- `src_subresource`: It defines the sub-resource to blit from. In the first iteration it will be the base level, the level `0`. Then it will
+be progressively augmented, using the level constructed in the previous iteration as the source for the current one. in its
+`src_subresource` the sub-resource to blit from into the sub-resource defined by the `dstSubresource`.
+- `dst_offsets`: This parameter defines the boundaries to be used in the blit operation for the destination image. As you can see is the
+same size as the source image divided by two.
 - `dst_offsets`: It defines the sub-resource to blit to.
 
 To finalize the loop, we transition the image to the `shader_read_only_optimal` (`VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL`) layout
@@ -426,16 +451,16 @@ pub const VkTexture = struct {
 };
 ```
 
-One question that you may have now, is that, if now each texture can have different mip map levels, should we have
-specific texture samplers per image. If you remember, when creating the samplers, we used the `SamplerCreateInfo` struct
-which had the following attribute: `max_lod`. This should have the number of mip map levels. Should we have separate
-texture samplers per texture? Not really, we set the `max_lod` attribute to `LOD_CLAMP_NONE` (`VK_LOD_CLAMP_NONE`).
-This flag basically says that we can use all the available levels. Therefore, no need to create separate samplers.
+One question that you may have now, is that, if now each texture can have different mip map levels, should we have specific texture samplers
+per image. If you remember, when creating the samplers, we used the `SamplerCreateInfo` struct which had the following attribute: `max_lod`.
+This should have the number of mip map levels. Should we have separate texture samplers per texture? Not really, we set the `max_lod`
+attribute to `LOD_CLAMP_NONE` (`VK_LOD_CLAMP_NONE`). This flag basically says that we can use all the available levels. Therefore, no need
+to create separate samplers.
 
 ## Camera
 
-We will create a new class named `ViewData` to support moving around the scene. It will be included in the
-`src/eng/scene.zig` file and its is quite simple:
+We will create a new struct named `ViewData` to support moving around the scene. It will be included in the `src/eng/scene.zig` file and
+its is quite simple:
 
 ```zig
 pub const ViewData = struct {
@@ -536,7 +561,7 @@ pub const ViewData = struct {
 };
 ```
 
-This struct, in essence, stores the view matrix, which can be modified by the different methods that it provides to change its position,
+This struct, in essence, stores the view matrix, which can be modified by the different functions that it provides to change its position,
 to apply rotation or to displace around the scene. It uses the zmath library to calculate up and forward vectors to displace.
 
 This struct will be now part of the `Camera` struct:
@@ -557,9 +582,9 @@ We will see later on how to use it while recording the render commands.
 
 ## Completing the changes
 
-Now it is time to modify the `ScnRender` class. We will need a buffer per frame in flight to store camera matrices. Unlike the projection matrix,
-the contents of the view matrix will change from frame to frame so to avoid modifying the data while we render, we need this array. Therefore,
-the `buffCamera` buffer will be now an array of buffers and will be renamed to `buffsCamera`:
+Now it is time to modify the `ScnRender` struct. We will need a buffer per frame in flight to store camera matrices. Unlike the projection
+matrix, the contents of the view matrix will change from frame to frame so to avoid modifying the data while we render, we need this array.
+Therefore, the `buffCamera` buffer will be now an array of buffers and will be renamed to `buffsCamera`:
 
 ```zig
 pub const RenderScn = struct {
@@ -594,8 +619,8 @@ pub const RenderScn = struct {
 };
 ```
 
-In addition to that, when creating the pipeline we need to setup the `useBlend` attribute to `true` to enable
-transparencies. The `createCamBuffers` function is defined as follows:
+In addition to that, when creating the pipeline we need to setup the `useBlend` attribute to `true` to enable transparencies. The
+`createCamBuffers` function is defined as follows:
 
 ```zig
 pub const RenderScn = struct {
@@ -620,11 +645,11 @@ pub const RenderScn = struct {
 };
 ```
 
-The code is quite similar to previous version, the difference is that we now create one buffer per frame in flight and
-associate them with is own descriptor set, which will be identified by the `DESC_ID_CAM` constant plus the position in 
-the array of buffers. When rendering we will select which descriptor set to bind depending on the frame in flight we are in.
+The code is quite similar to previous version, the difference is that we now create one buffer per frame in flight and associate them with
+is own descriptor set, which will be identified by the `DESC_ID_CAM` constant plus the position in the array of buffers. When rendering we
+will select which descriptor set to bind depending on the frame in flight we are in.
 
-We need also to modify the render class to use the view matrices and to render transparent objects in the last place.
+We need also to modify the render struct to use the view matrices and to render transparent objects in the last place.
 
 ```zig
 pub const RenderScn = struct {
@@ -658,11 +683,11 @@ pub const RenderScn = struct {
 };
 ```
 
-The `render` function now receives `frameIdx` which will be the frame in flight. The `updateCamera` function needs to be modified
-to take into consideration the mew view matrix and the frame in flight index. When binding the descriptor set we will select
-the ons associated to current frame in flight for the camera descriptor set. The recording of drawing commands for the entities
-has now been extract to the `renderEntities` which last parameters is a flag to control which entities we draw, the ones hat have
-transparent materials or the ones that not.
+The `render` function now receives `frameIdx` which will be the frame in flight. The `updateCamera` function needs to be modified to take
+into consideration the mew view matrix and the frame in flight index. When binding the descriptor set we will select the ons associated to
+current frame in flight for the camera descriptor set. The recording of drawing commands for the entities has now been extract to the
+`renderEntities` which last parameters is a flag to control which entities we draw, the ones hat have transparent materials or the ones that
+ not.
 
 The `renderEntities` code is similar to the one used in previous chapter, we simply just filter entities that match the transparency
 property specified as a function argument.
@@ -739,8 +764,7 @@ pub const RenderScn = struct {
 };
 ```
 
-The vertex shader (`scn_vtx.glsl`) needs to be updated now that the uniform not only contains the projection matrix but
-also de view matrix:
+The vertex shader (`scn_vtx.glsl`) needs to be updated now that the uniform not only contains the projection matrix but also de view matrix:
 ```glsl
 #version 450
 
@@ -765,7 +789,7 @@ void main()
 }
 ```
 
-The `render` function of the `RenderScn` class now needs to get access to the `currentFrame` so we need to update the `Render` struct:
+The `render` function of the `RenderScn` struct now needs to get access to the `currentFrame` so we need to update the `Render` struct:
 
 ```zig
 pub const Render = struct {
@@ -787,7 +811,8 @@ pub const Render = struct {
 };
 ```
 
-The last step is to change the `Game` struct to use the camera and a new model. In this case we will be using the famous Sponza model (we are using the models from [GitHub - KhronosGroup/glTF-Sample-Models: glTF Sample Models](https://github.com/KhronosGroup/glTF-Sample-Models)).
+The last step is to change the `Game` struct to use the camera and a new model. In this case we will be using the famous Sponza model
+(we are using the models from [GitHub - KhronosGroup/glTF-Sample-Models: glTF Sample Models](https://github.com/KhronosGroup/glTF-Sample-Models)).
 
 ```zig
 const Game = struct {
@@ -854,7 +879,7 @@ const Game = struct {
 };
 ```
 
-The `update` method is empty now:
+The `update` function is empty now:
 
 ```zig
 const Game = struct {
@@ -868,7 +893,8 @@ const Game = struct {
 };
 ```
 
-With all of these changes you will be able to see the Sponza model. You will be able to move around the scene, and you can check that transparent objects are properly rendered.
+With all of these changes you will be able to see the Sponza model. You will be able to move around the scene, and you can check that
+transparent objects are properly rendered.
 
 <img src="rc09-screen-shot.png" title="" alt="Screen Shot" data-align="center">
 

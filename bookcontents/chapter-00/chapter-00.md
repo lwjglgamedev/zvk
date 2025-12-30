@@ -62,13 +62,6 @@ Besides complexity, other drawbacks of Vulkan may be:
 
 Therefore, if you are new to programming,
 it is much better to start with some existing game engines such as [Unity](https://unity.com) or [Godot](https://godotengine.org/) or even to start with OpenGL.
-You can check my other book about OpenGL using LWJGL [here](https://ahbejarano.gitbook.io/lwjglgamedev/).
-
-And the final question, why code in Java?
-Vulkan is a C based API, so usage of C/C++ is the ideal approach.
-I do not want to enter into a language war, but in my opinion, Java provides a good balance between easy of use, readability and maintainability.
-Having said that, I must admit that integration with native code in Java is quite verbose,
-and using libraries that require lots of pointers to `struct`'s, such as Vulkan, will require a bit of extra work.
 
 ## Prerequisites
 

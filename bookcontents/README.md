@@ -8,7 +8,7 @@ The book is structured in the following chapters:
 - [Chapter 03](chapter-03/chapter-03.md): We continue with the definition of more basic Vulkan concepts such as the physical and Logical devices, surfaces and queues.
 - [Chapter 04](chapter-04/chapter-04.md): The key mechanism to present images to the screen is presented: the Swap chain.
 - [Chapter 05](chapter-05/chapter-05.md): In this chapter we will setup the basic structures for rendering (render information, command buffers and the synchronization mechanisms). 
-- [Chapter 06](chapter-06/chapter-06.md): In this chapter we define the classes required to define the vertices, use the graphics pipeline and create shaders. We will draw our first shape to the screen (a triangle).
+- [Chapter 06](chapter-06/chapter-06.md): In this chapter we define the structs required to define the vertices, use the graphics pipeline and create shaders. We will draw our first shape to the screen (a triangle).
 - [Chapter 07](chapter-07/chapter-07.md): In this chapter we go 3D by implementing depth testing and add windows resizing support.
 - [Chapter 08](chapter-08/chapter-08.md): In this chapter we add support for loading complex 3D models and textures.
 - [Chapter 09](chapter-09/chapter-09.md): We will automatically generate mipmaps, add support for transparent objects, add a camera to move around the scene and use dynamic uniform objects.

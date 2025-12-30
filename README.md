@@ -1,7 +1,7 @@
 # Vulkan graphics programming in Zig
 
 > [!NOTE]
-> WORK IN PROGRESS. Only limited some samples are available by now. Text will be added incrementally.
+> WORK IN PROGRESS. First chapters available
 
 
 This [online book](bookcontents/) will introduce the main concepts required to write graphics games or any other applications using [Vulkan](https://www.khronos.org/vulkan/) in [Zig](https://ziglang.org).

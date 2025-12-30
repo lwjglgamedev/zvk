@@ -1,23 +1,20 @@
 # Chapter 02 - Vulkan Instance
 
-In this chapter, we will be having our first taste of Vulkan, we will start by creating a Vulkan instance.
-This is the very first thing that will be created when dealing with Vulkan.
-Basically, a Vulkan instance is where all the application state is glued together.
-In Vulkan, there is no global state--all that information is organized around a Vulkan instance.
+In this chapter, we will be having our first taste of Vulkan, we will start by creating a Vulkan instance. This is the very first thing
+that will be created when dealing with Vulkan. Basically, a Vulkan instance is where all the application state is glued together. In Vulkan,
+there is no global state--all that information is organized around a Vulkan instance.
 
 You can find the complete source code for this chapter [here](../../booksamples/chapter-02).
 
 ## Instance first steps
 
-Usually you will have a single Vulkan instance for each application, but the spec allows you to have more.
-A potential use case for having more than one is if you are using a legacy library that already uses Vulkan
-(maybe even different version) and do you not want that to interfere with your code.
-You could then set up a separate instance just for your code.
-We will start from scratch in this book and, therefore, we will use just a single instance.
+Usually you will have a single Vulkan instance for each application, but the spec allows you to have more. A potential use case for having
+more than one is if you are using a legacy library that already uses Vulkan (maybe even different version) and do you not want that to
+interfere with your code. You could then set up a separate instance just for your code. We will start from scratch in this book and,
+therefore, we will use just a single instance.
 
-Most of the Vulkan-related code will be placed under the module `vk` (in the `src/eng/vk` folder).
-In this case, we will create a new struct named `VkInstance` to wrap all the initialization code.
-So let's start by coding the `create` function, which starts like this:
+Most of the Vulkan-related code will be placed under the module `vk` (in the `src/eng/vk` folder). In this case, we will create a new
+struct named `VkInstance` to wrap all the initialization code. So let's start by coding the `create` function, which starts like this:
 
 ```zig
 const builtin = @import("builtin");
@@ -44,9 +41,8 @@ pub const VkInstance = struct {
 };
 ```
 
-First we get the address of the function pointer required by Vulkan to bootstrap all other Vulkan functions. It is like
-the entry point that will allow us to access all the functions. We will need this to load the Vulkan base wrapper. Let's continue
-with the code:
+First we get the address of the function pointer required by Vulkan to bootstrap all other Vulkan functions. It is like the entry point
+that will allow us to access all the functions. We will need this to load the Vulkan base wrapper. Let's continue with the code:
 
 ```zig
 pub const VkInstance = struct {
@@ -73,9 +69,8 @@ zig Vulkan bindings we are using). We need to define the following attributes:
 - `application_version`: The version of our application.
 - `p_engine_name`: The engine name (as a null-terminated string).
 - `engine_version`: The engine version.
-- `api_version`: The version of the Vulkan API.
-  This value should be the highest value of the Vulkan version that his application should use encoded according to what is stated in Vulkan specification
-  (major, minor and patch version). In this case we are using version `1.3.0`.
+- `api_version`: The version of the Vulkan API. This value should be the highest value of the Vulkan version that his application should use
+encoded according to what is stated in Vulkan specification (major, minor and patch version). In this case we are using version `1.3.0`.
 
 ## Layers
 
@@ -92,8 +87,8 @@ This can be turned off when our application is ready for delivery.
 
 > [!NOTE]
 > to use validation layers, you will need to install [Vulkan SDK](https://www.lunarg.com/vulkan-sdk/) for your platform,
-> please consult the specific instructions for your platform. In fact, if you install Vulkan SDK you can use Vulkan Configurator to configure any validation layer
-> you want without modifying source code.
+> please consult the specific instructions for your platform. In fact, if you install Vulkan SDK you can use Vulkan Configurator
+> to configure any validation layer you want without modifying source code.
 
 Our `create` functions receives a boolean parameter indication is validations should be enabled or not.
 If validation is requested, we will use the `VK_LAYER_KHRONOS_validation` layer. 
@@ -141,8 +136,8 @@ pub const VkInstance = struct {
 };
 ```
 
-First we get the name of SDL extensions that we will need to use when creating the instance. This will allow Vulkan to use the SDL
-window. If we are using MacOs we need also to enable portability extension.
+First we get the name of SDL extensions that we will need to use when creating the instance. This will allow Vulkan to use the SDL window.
+If we are using MacOs we need also to enable portability extension.
 
 ## Creating the instance
 
@@ -189,8 +184,8 @@ pub const VkInstance = struct {
 
 ## Completing the code
 
-We will crate a new struct, named `VkCtx` which will group most relevant Vulkan context classes together. By now, it will only have a reference to the
-`VkInstance` struct:
+We will crate a new struct, named `VkCtx` which will group most relevant Vulkan context structs together. By now, it will only have a
+reference to the `VkInstance` struct:
 
 ```zig
 const std = @import("std");
@@ -216,8 +211,8 @@ pub const VkCtx = struct {
     }
 };
 ```
-Finally, we can will use the Instance `VkCtx` class in our `Render` struct, in the `create` function. We will need to call the `VkCtx` `cleanup`
-function also:
+Finally, we can will use the Instance `VkCtx` struct in our `Render` struct, in the `create` function. We will need to call the `VkCtx`
+`cleanup` function also:
 
 ```zig
 pub const Render = struct {
@@ -275,10 +270,10 @@ pub fn Engine(comptime GameLogic: type) type {
 };
 ```
 
-And that's all! As you can see, we have to write lots of code just to set up the Vulkan instance. You can see now why Vulkan is considered an explicit API.
-A whole chapter passed, and we can't even clear the screen. So, contain your expectations, since in the next chapters we will continue writing lots of
-code required to set up everything.
-It will take some time to draw something, so please be patient. The good news is that when everything is set up, adding incremental features to draw more
-complex models or to support advanced techniques should require less amount of code. And if we do it correctly, we get a good understanding of Vulkan.
+And that's all! As you can see, we have to write lots of code just to set up the Vulkan instance. You can see now why Vulkan is considered
+an explicit API. A whole chapter passed, and we can't even clear the screen. So, contain your expectations, since in the next chapters we
+will continue writing lots of code required to set up everything. It will take some time to draw something, so please be patient. The good
+news is that when everything is set up, adding incremental features to draw more complex models or to support advanced techniques should
+require less amount of code. And if we do it correctly, we get a good understanding of Vulkan.
 
 [Next chapter](../chapter-03/chapter-03.md)

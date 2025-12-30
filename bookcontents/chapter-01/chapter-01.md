@@ -1,14 +1,14 @@
 # Chapter 01 - Setting Up The Basics
 
-In this chapter, we will set up all the base code required to define a basic rendering loop.
-This game loop will have these responsibilities: constantly render new frames; get user inputs; and update the game or application state.
-The code presented here is not directly related to Vulkan, but rather the starting point before we dive right in.
-You will see something similar in any other application independently of the specific API they use
-(this is the reason why we will mainly use large chunks of code here, without explaining step of step every detail).
+In this chapter, we will set up all the base code required to define a basic rendering loop. This game loop will have these
+responsibilities: constantly render new frames; get user inputs; and update the game or application state. The code presented here is not
+directly related to Vulkan, but rather the starting point before we dive right in. You will see something similar in any other application
+independently of the specific API they use (this is the reason why we will mainly use large chunks of code here, without explaining step of
+step every detail).
 
 You can find the complete source code for this chapter [here](../../booksamples/chapter-01).
 
-When posting source code, we wil use `...` to state that there is code above or below the fragment code in a class or in a method.
+When posting source code, we wil use `...` to state that there is code above or below the fragment code in a struct or in a function.
 
 ## Build
 
@@ -27,8 +27,8 @@ In order to add the dependency to the `build.zig.zon` file just execute:
 
 > [!WARNING]  
 > In order for Vulkan to work you will need the [Vulkan SDK](https://vulkan.lunarg.com/sdk/home). Just download the proper package for your
-> operative system. Once installed, you will need to set up an environment variable named `VULKAN_SDK` which points to the root folder of the Vulkan SDK.
-> The build file assumes that there is a `vk.xml` file in the Vulkan SDK. It will look for it in the following folders:
+> operative system. Once installed, you will need to set up an environment variable named `VULKAN_SDK` which points to the root folder of
+> the Vulkan SDK. The build file assumes that there is a `vk.xml` file in the Vulkan SDK. It will look for it in the following folders:
 >
 > - `$VULKAN_SDK/share/vulkan/registry`
 > - `$VULKAN_SDK/x86_64/share/vulkan/registry`
@@ -170,9 +170,9 @@ const Game = struct {
 };
 ```
 
-As you can see, in the `main` function, we just start our render/game engine, modeled by the `Engine` struct.
-This struct requires, in its `create` function, the name of the window and a reference to the `Game` struct which will implement the application logic.
-This is controlled by the following functions:
+As you can see, in the `main` function, we just start our render/game engine, modeled by the `Engine` struct. This struct requires, in its
+`create` function, the name of the window and a reference to the `Game` struct which will implement the application logic. This is
+controlled by the following functions:
 
 - `cleanup`: Which is invoked when the application finished to properly release the acquired resources.
 - `init`: Invoked upon application startup to create the required resources (meshes, textures, etc.).
@@ -276,17 +276,17 @@ pub fn Engine(comptime GameLogic: type) type {
 }
 ```
 
-The `EngCtx`servers as a context holder for the main elements of the engine, the allocator, the engine constants (we will come back to this later on),
-and the main window. The `Engine` type needs to be instantiated through the `create` function which just loads the constants and creates the window. It
-provides a `cleanup` function which just frees the allocated resources. The `run` function is where the game loop is implemented.
-We basically control the elapsed time since the last loop block to check if enough seconds have passed to update the state. If so,
-we've calculated the elapsed time since the last update and invoke the `update` function from the `GameLogic` reference.
-We invoke the `input` from the `GameLogic` instance and the `render` method in each turn of the loop.
-Later on, we will be able to limit the frame rate using vsync, or leave it uncapped. bu now it will just run at full speed.
+The `EngCtx`servers as a context holder for the main elements of the engine, the allocator, the engine constants (we will come back to this
+later on), and the main window. The `Engine` type needs to be instantiated through the `create` function which just loads the constants and
+creates the window. It provides a `cleanup` function which just frees the allocated resources. The `run` function is where the game loop is
+implemented. We basically control the elapsed time since the last loop block to check if enough seconds have passed to update the state. If
+so, we've calculated the elapsed time since the last update and invoke the `update` function from the `GameLogic` reference. We invoke the
+`input` from the `GameLogic` instance and the `render` function in each turn of the loop. Later on, we will be able to limit the frame rate
+using vsync, or leave it uncapped. bu now it will just run at full speed.
 
-You may have noticed that we use a struct named `Constants`, which in this case establishes the updates per second.
-This is a struct which reads a property file that will allow us to configure several parameters of the engine at runtime. It is defined in the `com`
-module (named for common), which requires a new `mod.zig` file:
+You may have noticed that we use a struct named `Constants`, which in this case establishes the updates per second. This is a struct which
+reads a property file that will allow us to configure several parameters of the engine at runtime. It is defined in the `com` module
+(named for common), which requires a new `mod.zig` file:
 
 ```zig
 pub const common = @import("common.zig");
@@ -323,7 +323,8 @@ pub const Constants = struct {
 };
 ```
 
-The code is pretty straight forward. We just use TOML to parse `res/cfg/cfg.toml` file to load the value of the updates per second cofniguration parameter.
+The code is pretty straight forward. We just use TOML to parse `res/cfg/cfg.toml` file to load the value of the updates per second
+configuration parameter.
 
 Right now the `cfg.toml` is defined like this:
 
@@ -356,9 +357,9 @@ pub const Render = struct {
 
 ## Window
 
-Now it's the turn for our `Wnd` structure which mainly deals with window creation and input management.
-Alongside that, this class is the first one which shows the first tiny bits of Vulkan.
-Let's start by examining its main attributes and `create` function used to instantiate it.
+Now it's the turn for our `Wnd` structure which mainly deals with window creation and input management. Alongside that, this struct is the
+first one which shows the first tiny bits of Vulkan. Let's start by examining its main attributes and `create` function used to instantiate
+it.
 
 
 ```zig
@@ -431,10 +432,10 @@ pub const Wnd = struct {
 };
 ```
 
-The code it's self-explanatory, we basically initialize SDL, and when in Linux set `SDL_VIDEO_PREFER_WAYLAND` to prioritize Wayland backend. After
-that we get the usable bounds for the new window on the primary monitor. We set the window to be resizable and a flag stating that it will be used for Vulkan.
-The `MouseState` struct will be used later on to dump mouse state (state of the buttons, position of the mouse and the displacement from previous position
-modelled by `deltaX` and `deltaY` attributes).
+The code it's self-explanatory, we basically initialize SDL, and when in Linux set `SDL_VIDEO_PREFER_WAYLAND` to prioritize Wayland backend.
+After that, we get the usable bounds for the new window on the primary monitor. We set the window to be resizable and a flag stating that it
+will be used for Vulkan. The `MouseState` struct will be used later on to dump mouse state (state of the buttons, position of the mouse and
+the displacement from previous position modelled by `deltaX` and `deltaY` attributes).
 
 The rest of the functions are defined like this:
 
@@ -490,8 +491,7 @@ processing and basically checks if the window should be closed, if the mouse has
 window has been resized. It also retrieves mouse state.
 
 
-If you run the sample, you will get a nice black window that you can resize, move and close.
-With that, this chapter comes to its end.
-In the next chapter, we will start viewing the first basic Vulkan concepts.
+If you run the sample, you will get a nice black window that you can resize, move and close. With that, this chapter comes to its end. In
+the next chapter, we will start viewing the first basic Vulkan concepts.
 
 [Next chapter](../chapter-02/chapter-02.md)
