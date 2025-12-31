@@ -220,7 +220,7 @@ pub const Render = struct {
         }
         const imageIndex = res.ok;
 
-        self.renderInit(vkCmdBuff);
+        self.renderMainInit(vkCmdBuff);
         try self.renderScn.render(
             &self.vkCtx,
             engCtx,
@@ -231,7 +231,7 @@ pub const Render = struct {
             imageIndex,
             self.currentFrame,
         );
-        self.renderFinish(vkCmdBuff);
+        self.renderMainFinish(vkCmdBuff);
 
         self.renderInitPost(vkCmdBuff, imageIndex);
         try self.renderPost.render(&self.vkCtx, engCtx, vkCmdBuff, imageIndex);
@@ -246,7 +246,7 @@ pub const Render = struct {
         self.currentFrame = (self.currentFrame + 1) % com.common.FRAMES_IN_FLIGHT;
     }
 
-    fn renderFinish(self: *Render, vkCmd: vk.cmd.VkCmdBuff) void {
+    fn renderMainFinish(self: *Render, vkCmd: vk.cmd.VkCmdBuff) void {
         const initBarriers = [_]vulkan.ImageMemoryBarrier2{.{
             .old_layout = vulkan.ImageLayout.color_attachment_optimal,
             .new_layout = vulkan.ImageLayout.shader_read_only_optimal,
@@ -272,7 +272,7 @@ pub const Render = struct {
         self.vkCtx.vkDevice.deviceProxy.cmdPipelineBarrier2(vkCmd.cmdBuffProxy.handle, &initDepInfo);
     }
 
-    fn renderInit(self: *Render, vkCmd: vk.cmd.VkCmdBuff) void {
+    fn renderMainInit(self: *Render, vkCmd: vk.cmd.VkCmdBuff) void {
         const initBarriers = [_]vulkan.ImageMemoryBarrier2{.{
             .old_layout = vulkan.ImageLayout.undefined,
             .new_layout = vulkan.ImageLayout.color_attachment_optimal,

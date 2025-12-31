@@ -474,11 +474,11 @@ pub const Render = struct {
         }
         const imageIndex = res.ok;
 
-        self.renderInit(vkCmdBuff, imageIndex);
+        self.renderMainInit(vkCmdBuff, imageIndex);
 
         try self.renderScn.render(&self.vkCtx, vkCmdBuff, imageIndex);
 
-        self.renderFinish(vkCmdBuff, imageIndex);
+        self.renderMainFinish(vkCmdBuff, imageIndex);
 
         try vkCmdBuff.end(&self.vkCtx);
 
@@ -506,7 +506,8 @@ now, we just  finish recording and return.
 - After that we can stop the recording and submit the work to the graphics queue.
 - Finally, we just present the image and increase current frame in the range [0-VkUtils.MAX_IN_FLIGHT].
 
-We will see later on the implementation of `renderInit` and `renderFinish` functions. Let's review the definition of the `submit` function:
+We will see later on the implementation of `renderMainInit` and `renderMainFinish` functions. Let's review the definition of the `submit`
+function:
 
 ```zig
 pub const Render = struct {
@@ -750,12 +751,12 @@ chain image in the form of `VkRenderingInfo` instances, which is defined by the 
 will be the attachments created previously.
 - `view_mask`: It is bitmask which controls which views are active while rendering. We will not be using this so we will set it to `0`. 
 
-Now it is turn to go back to the `Render` struct to revisit pending functions to be described. Let's start with `renderInit`:
+Now it is turn to go back to the `Render` struct to revisit pending functions to be described. Let's start with `renderMainInit`:
 
 ```zig
 pub const Render = struct {
     ...
-    fn renderInit(self: *Render, vkCmd: vk.cmd.VkCmdBuff, imageIndex: u32) void {
+    fn renderMainInit(self: *Render, vkCmd: vk.cmd.VkCmdBuff, imageIndex: u32) void {
         const initBarriers = [_]vulkan.ImageMemoryBarrier2{.{
             .old_layout = vulkan.ImageLayout.undefined,
             .new_layout = vulkan.ImageLayout.color_attachment_optimal,
@@ -826,12 +827,12 @@ operations, which will only happen in combination with `dstStage`.
 - We use  the `color_bit` flag (`VK_IMAGE_ASPECT_COLOR_BIT`) as `aspect_mask` since we are dealing with color information now. We will not
 be using mipmap levels or array layers of images so we just set them to default values.
 
-It is now the turn for the `renderFinish` function:
+It is now the turn for the `renderMainFinish` function:
 
 ```zig
 pub const Render = struct {
     ...
-    fn renderFinish(self: *Render, vkCmd: vk.cmd.VkCmdBuff, imageIndex: u32) void {
+    fn renderMainFinish(self: *Render, vkCmd: vk.cmd.VkCmdBuff, imageIndex: u32) void {
         const endBarriers = [_]vulkan.ImageMemoryBarrier2{.{
             .old_layout = vulkan.ImageLayout.color_attachment_optimal,
             .new_layout = vulkan.ImageLayout.present_src_khr,

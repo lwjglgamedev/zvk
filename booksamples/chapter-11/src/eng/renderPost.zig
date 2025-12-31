@@ -126,10 +126,10 @@ pub const RenderPost = struct {
             .size = @sizeOf(u32),
         };
         return vulkan.SpecializationInfo{
-            .data_size = @sizeOf(u32),
             .p_map_entries = mapEntries.ptr,
             .map_entry_count = @as(u32, @intCast(mapEntries.len)),
             .p_data = fxaa,
+            .data_size = @sizeOf(u32),
         };
     }
 
