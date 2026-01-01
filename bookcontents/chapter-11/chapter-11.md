@@ -530,6 +530,22 @@ void main() {
 We use the specialization constant flag that enables / disables FXAA filtering. As you can see the `inputTexture` descriptor set is the
 result of the scene rendering stage. FXAA implementation has been obtained from [here](https://mini.gmshaders.com/p/gm-shaders-mini-fxaa).
 
+The shaders need to be compiled in the `build.zig` file:
+
+```zig
+pub fn build(b: *std.Build) void {
+    ...
+    // Shaders
+    const shaders = [_]Shader{
+        .{ .path = "res/shaders/scn_vtx.glsl", .stage = "vertex" },
+        .{ .path = "res/shaders/scn_frg.glsl", .stage = "fragment" },
+        .{ .path = "res/shaders/post_vtx.glsl", .stage = "vertex" },
+        .{ .path = "res/shaders/post_frg.glsl", .stage = "fragment" },
+    };
+    ...
+}
+```
+
 ## Changes in Render
 
 We will review now the changes in the `Render` struct. We first need to create an output attachment to be used as an output by the
