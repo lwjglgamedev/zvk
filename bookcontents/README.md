@@ -14,4 +14,4 @@ The book is structured in the following chapters:
 - [Chapter 09](chapter-09/chapter-09.md): We will automatically generate mipmaps, add support for transparent objects, add a camera to move around the scene and use dynamic uniform objects.
 - [Chapter 10](chapter-10/chapter-10.md): Vulkan Memory Allocator.
 - [Chapter 11](chapter-11/chapter-11.md): Post processing.
-- [Chapter 12](chapter-11/chapter-12.md): Render of GUI elements through ImGui.
+- [Chapter 12](chapter-12/chapter-12.md): Render of GUI elements through ImGui.
