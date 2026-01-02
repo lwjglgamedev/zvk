@@ -56,14 +56,14 @@ pub const RenderGui = struct {
     idxBuffers: []vk.buf.VkBuffer,
     vkPipeline: vk.pipe.VkPipeline,
 
-    pub fn create(allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx, attColor: *const eng.rend.Attachment) !RenderGui {
+    pub fn create(allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx) !RenderGui {
         // Init GUI
-        try initGUI(allocator, attColor);
+        try initGUI(allocator, vkCtx);
 
         // Textures
         const samplerInfo = vk.text.VkTextSamplerInfo{
             .addressMode = vulkan.SamplerAddressMode.repeat,
-            .anisotropy = true,
+            .anisotropy = false,
             .borderColor = vulkan.BorderColor.float_opaque_black,
         };
         const textSampler = try vk.text.VkTextSampler.create(vkCtx, samplerInfo);
@@ -104,7 +104,7 @@ pub const RenderGui = struct {
 
         // Pipeline
         const vkPipelineCreateInfo = vk.pipe.VkPipelineCreateInfo{
-            .colorFormat = eng.rend.COLOR_ATTACHMENT_FORMAT,
+            .colorFormat = vkCtx.vkSwapChain.surfaceFormat.format,
             .descSetLayouts = descSetLayouts[0..],
             .pushConstants = pushConstants[0..],
             .modulesInfo = modulesInfo,
@@ -165,11 +165,12 @@ pub const RenderGui = struct {
         zgui.deinit();
     }
 
-    fn initGUI(allocator: std.mem.Allocator, attColor: *const eng.rend.Attachment) !void {
+    fn initGUI(allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx) !void {
+        const extent = vkCtx.vkSwapChain.extent;
         zgui.init(allocator);
         zgui.io.setIniFilename(null);
         zgui.io.setBackendFlags(.{ .renderer_has_textures = true });
-        zgui.io.setDisplaySize(@as(f32, @floatFromInt(attColor.vkImage.width)), @as(f32, @floatFromInt(attColor.vkImage.height)));
+        zgui.io.setDisplaySize(@as(f32, @floatFromInt(extent.width)), @as(f32, @floatFromInt(extent.height)));
     }
 
     pub fn render(
@@ -177,12 +178,12 @@ pub const RenderGui = struct {
         vkCtx: *vk.ctx.VkCtx,
         engCtx: *const eng.engine.EngCtx,
         vkCmd: vk.cmd.VkCmdBuff,
-        attColor: *const eng.rend.Attachment,
         vkCmdPool: *vk.cmd.VkCmdPool,
         vkQueue: vk.queue.VkQueue,
-        currentFrame: u32,
+        imageIndex: u32,
+        frameIdx: u32,
     ) !void {
-        if (!try self.updateBuffers(vkCtx, currentFrame)) {
+        if (!try self.updateBuffers(vkCtx, frameIdx)) {
             return;
         }
 
@@ -193,7 +194,7 @@ pub const RenderGui = struct {
         try self.updateGuiTextures(allocator, vkCtx, vkCmdPool, vkQueue);
 
         const renderAttInfo = vulkan.RenderingAttachmentInfo{
-            .image_view = attColor.vkImageView.view,
+            .image_view = vkCtx.vkSwapChain.imageViews[imageIndex].view,
             .image_layout = vulkan.ImageLayout.color_attachment_optimal,
             .load_op = vulkan.AttachmentLoadOp.load,
             .store_op = vulkan.AttachmentStoreOp.store,
@@ -217,9 +218,9 @@ pub const RenderGui = struct {
 
         const viewPort = [_]vulkan.Viewport{.{
             .x = 0,
-            .y = @as(f32, @floatFromInt(attColor.vkImage.height)),
-            .width = @as(f32, @floatFromInt(attColor.vkImage.width)),
-            .height = -1.0 * @as(f32, @floatFromInt(attColor.vkImage.height)),
+            .y = @as(f32, @floatFromInt(extent.height)),
+            .width = @as(f32, @floatFromInt(extent.width)),
+            .height = -1.0 * @as(f32, @floatFromInt(extent.height)),
             .min_depth = 0,
             .max_depth = 1,
         }};
@@ -232,8 +233,8 @@ pub const RenderGui = struct {
             return;
         }
         const offset = [_]vulkan.DeviceSize{0};
-        device.cmdBindIndexBuffer(cmdHandle, self.idxBuffers[currentFrame].buffer, 0, vulkan.IndexType.uint16);
-        device.cmdBindVertexBuffers(cmdHandle, 0, 1, @ptrCast(&self.vtxBuffers[currentFrame].buffer), &offset);
+        device.cmdBindIndexBuffer(cmdHandle, self.idxBuffers[frameIdx].buffer, 0, vulkan.IndexType.uint16);
+        device.cmdBindVertexBuffers(cmdHandle, 0, 1, @ptrCast(&self.vtxBuffers[frameIdx].buffer), &offset);
 
         const vkDescAllocator = vkCtx.vkDescAllocator;
         var descSets: [1]vulkan.DescriptorSet = undefined;
@@ -301,15 +302,16 @@ pub const RenderGui = struct {
         );
     }
 
-    pub fn resize(self: *RenderGui, attColor: *const eng.rend.Attachment) !void {
+    pub fn resize(self: *RenderGui, vkCtx: *const vk.ctx.VkCtx) !void {
         _ = self;
+        const extent = vkCtx.vkSwapChain.extent;
         zgui.io.setDisplaySize(
-            @as(f32, @floatFromInt(attColor.vkImage.width)),
-            @as(f32, @floatFromInt(attColor.vkImage.height)),
+            @as(f32, @floatFromInt(extent.width)),
+            @as(f32, @floatFromInt(extent.height)),
         );
     }
 
-    fn updateBuffers(self: *RenderGui, vkCtx: *const vk.ctx.VkCtx, currentFrame: u32) !bool {
+    fn updateBuffers(self: *RenderGui, vkCtx: *const vk.ctx.VkCtx, frameIdx: u32) !bool {
         const drawData = zgui.getDrawData();
         if (@intFromPtr(drawData) == 0) {
             return false;
@@ -321,10 +323,10 @@ pub const RenderGui = struct {
             return false;
         }
 
-        const vtxBuffer = self.vtxBuffers[currentFrame];
+        const vtxBuffer = self.vtxBuffers[frameIdx];
         if (vtxBuffer.size < vtxBuffSize) {
             vtxBuffer.cleanup(vkCtx);
-            self.vtxBuffers[currentFrame] = try vk.buf.VkBuffer.create(
+            self.vtxBuffers[frameIdx] = try vk.buf.VkBuffer.create(
                 vkCtx,
                 vtxBuffSize,
                 .{ .vertex_buffer_bit = true },
@@ -334,10 +336,10 @@ pub const RenderGui = struct {
             );
         }
 
-        const idxBuffer = self.idxBuffers[currentFrame];
+        const idxBuffer = self.idxBuffers[frameIdx];
         if (idxBuffer.size < idxBuffSize) {
             idxBuffer.cleanup(vkCtx);
-            self.idxBuffers[currentFrame] = try vk.buf.VkBuffer.create(
+            self.idxBuffers[frameIdx] = try vk.buf.VkBuffer.create(
                 vkCtx,
                 idxBuffSize,
                 .{ .index_buffer_bit = true },

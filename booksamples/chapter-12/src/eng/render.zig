@@ -143,7 +143,7 @@ pub const Render = struct {
         const modelsCache = eng.mcach.ModelsCache.create(allocator);
         const textureCache = eng.tcach.TextureCache.create(allocator);
 
-        const renderGui = try eng.rgui.RenderGui.create(allocator, &vkCtx, &attColor);
+        const renderGui = try eng.rgui.RenderGui.create(allocator, &vkCtx);
         const renderPost = try eng.rpst.RenderPost.create(allocator, &vkCtx, constants, &attColor);
         const renderScn = try eng.rscn.RenderScn.create(allocator, &vkCtx);
 
@@ -234,19 +234,27 @@ pub const Render = struct {
             imageIndex,
             self.currentFrame,
         );
+        self.renderMainFinish(vkCmdBuff);
+
+        self.renderInitPost(
+            vkCmdBuff,
+            imageIndex,
+        );
+        try self.renderPost.render(
+            &self.vkCtx,
+            engCtx,
+            vkCmdBuff,
+            imageIndex,
+        );
         try self.renderGui.render(
             &self.vkCtx,
             engCtx,
             vkCmdBuff,
-            &self.attColor,
             &self.cmdPools[0],
             self.queueGraphics,
+            imageIndex,
             self.currentFrame,
         );
-        self.renderMainFinish(vkCmdBuff);
-
-        self.renderInitPost(vkCmdBuff, imageIndex);
-        try self.renderPost.render(&self.vkCtx, engCtx, vkCmdBuff, imageIndex);
         self.renderFinishPost(vkCmdBuff, imageIndex);
 
         try vkCmdBuff.end(&self.vkCtx);
@@ -410,7 +418,7 @@ pub const Render = struct {
 
         try self.renderScn.resize(&self.vkCtx, engCtx);
         try self.renderPost.resize(&self.vkCtx, &self.attColor);
-        try self.renderGui.resize(&self.attColor);
+        try self.renderGui.resize(&self.vkCtx);
     }
 
     fn submit(self: *Render, vkCmdBuff: *const vk.cmd.VkCmdBuff, imageIndex: u32) !void {

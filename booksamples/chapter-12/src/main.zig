@@ -33,8 +33,26 @@ const Game = struct {
         };
     }
 
-    pub fn input(self: *Game, engCtx: *eng.engine.EngCtx, deltaSec: f32) void {
+    fn handleGui(self: *Game, engCtx: *eng.engine.EngCtx) bool {
         _ = self;
+
+        const mouseState = engCtx.wnd.mouseState;
+        zgui.io.addMousePositionEvent(mouseState.x, mouseState.y);
+        //zgui.io.addMouseButtonEvent(zgui.MouseButton.left, mouseState.flags.left);
+        //zgui.io.addMouseButtonEvent(zgui.MouseButton.middle, mouseState.flags.middle);
+        //zgui.io.addMouseButtonEvent(zgui.MouseButton.right, mouseState.flags.right);
+        zgui.newFrame();
+        var show = true;
+        zgui.showDemoWindow(&show);
+        zgui.render();
+
+        return zgui.io.getWantCaptureKeyboard() or zgui.io.getWantCaptureMouse();
+    }
+
+    pub fn input(self: *Game, engCtx: *eng.engine.EngCtx, deltaSec: f32) void {
+        if (self.handleGui(engCtx)) {
+            return;
+        }
         const inc: f32 = 10;
         var viewData = &engCtx.scene.camera.viewData;
         if (engCtx.wnd.isKeyPressed(sdl3.Scancode.w)) {
@@ -58,11 +76,6 @@ const Game = struct {
             const mouseInc: f32 = 0.1;
             viewData.addRotation(std.math.degreesToRadians(-mouseState.deltaY * mouseInc), std.math.degreesToRadians(-mouseState.deltaX * mouseInc));
         }
-
-        zgui.newFrame();
-        var show = true;
-        zgui.showDemoWindow(&show);
-        zgui.render();
     }
 
     pub fn update(self: *Game, engCtx: *eng.engine.EngCtx, deltaSec: f32) void {
