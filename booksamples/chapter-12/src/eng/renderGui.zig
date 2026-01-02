@@ -43,13 +43,11 @@ const GuiVtxBuffDesc = struct {
     color: u32,
 };
 
-const TXT_ID_GUI_FONTS = "TXT_ID_GUI_IMGUI_FONTS";
-const DESC_ID_TEXT_PFX = "GUI_DESC_ID_TEXT_PFX_";
+const TXT_ID_GUI = "TXT_ID_GUI";
 const DESC_ID_TEXT_SAMPLER = "GUI_DESC_ID_TEXT_SAMPLER";
 const DEFAULT_VTX_BUFF_SIZE: usize = 1024;
 const DEFAULT_IDX_BUFF_SIZE: usize = 2024;
 
-// TODO: Handle resizing
 pub const RenderGui = struct {
     descLayoutFrg: vk.desc.VkDescSetLayout,
     guiTextureCache: eng.tcach.TextureCache,
@@ -58,9 +56,9 @@ pub const RenderGui = struct {
     idxBuffers: []vk.buf.VkBuffer,
     vkPipeline: vk.pipe.VkPipeline,
 
-    pub fn create(allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx, attColor: *const eng.rend.Attachment, textureCache: *eng.tcach.TextureCache) !RenderGui {
+    pub fn create(allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx, attColor: *const eng.rend.Attachment) !RenderGui {
         // Init GUI
-        try initGUI(allocator, vkCtx, attColor, textureCache);
+        try initGUI(allocator, attColor);
 
         // Textures
         const samplerInfo = vk.text.VkTextSamplerInfo{
@@ -167,27 +165,11 @@ pub const RenderGui = struct {
         zgui.deinit();
     }
 
-    // TODO: Check if this is needed
-    pub fn init(self: *RenderGui, allocator: std.mem.Allocator, vkCtx: *vk.ctx.VkCtx, textureCache: *const eng.tcach.TextureCache) !void {
-        _ = textureCache;
-        _ = self;
-        _ = allocator;
-        _ = vkCtx;
-    }
-
-    fn initGUI(allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx, attColor: *const eng.rend.Attachment, textureCache: *eng.tcach.TextureCache) !void {
+    fn initGUI(allocator: std.mem.Allocator, attColor: *const eng.rend.Attachment) !void {
         zgui.init(allocator);
-
         zgui.io.setIniFilename(null);
-
-        zgui.io.setDisplaySize(@as(f32, @floatFromInt(attColor.vkImage.width)), @as(f32, @floatFromInt(attColor.vkImage.height)));
         zgui.io.setBackendFlags(.{ .renderer_has_textures = true });
-
-        const fontCfg = zgui.FontConfig.init();
-        _ = zgui.io.addFontDefault(fontCfg);
-
-        _ = vkCtx;
-        _ = textureCache;
+        zgui.io.setDisplaySize(@as(f32, @floatFromInt(attColor.vkImage.width)), @as(f32, @floatFromInt(attColor.vkImage.height)));
     }
 
     pub fn render(
@@ -425,7 +407,7 @@ pub const RenderGui = struct {
 
         for (textList.items) |textData| {
             const numPixels = textData.width * textData.height * textData.bytes_per_pixel;
-            const id = try std.fmt.allocPrint(allocator, "{s}{d}", .{ "GUI_TEXTURE_", textData.tex_id });
+            const id = try std.fmt.allocPrint(allocator, "{s}{d}", .{ TXT_ID_GUI, textData.tex_id });
             defer allocator.free(id);
             const textureInfo = eng.tcach.TextureInfo{
                 .id = id,
