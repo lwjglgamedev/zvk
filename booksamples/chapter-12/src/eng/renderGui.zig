@@ -33,7 +33,7 @@ const GuiVtxBuffDesc = struct {
         .{
             .binding = 0,
             .location = 2,
-            .format = .r32g32b32a32_sfloat,
+            .format = .r8g8b8a8_unorm,
             .offset = @offsetOf(GuiVtxBuffDesc, "color"),
         },
     };
