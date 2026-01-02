@@ -57,7 +57,6 @@ pub const MaterialsCache = struct {
     pub fn cleanup(self: *MaterialsCache, allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx) void {
         var iter = self.materialsMap.iterator();
         while (iter.next()) |entry| {
-            allocator.free(entry.key_ptr.*);
             entry.value_ptr.cleanup(allocator);
         }
         self.materialsMap.deinit();
@@ -83,15 +82,28 @@ pub const MaterialsCache = struct {
         vkQueue: vk.queue.VkQueue,
         initData: *const eng.engine.InitData,
     ) !void {
-        const nuMaterials = initData.materials.items.len;
-        if (nuMaterials == 0) {
-            return;
+        // Create a copy an add default material at first position
+        var materialsList = try std.ArrayList(*eng.mdata.MaterialData).initCapacity(
+            allocator,
+            initData.materials.items.len + 1,
+        );
+        defer materialsList.deinit(allocator);
+        var defaultMaterial = eng.mdata.MaterialData{
+            .color = [_]f32{ 1, 1, 1, 1 },
+            .id = "DEFAULT_MATERIAL_ID",
+            .texturePath = "",
+        };
+        try materialsList.append(allocator, &defaultMaterial);
+        for (initData.materials.items) |*materialData| {
+            try materialsList.append(allocator, materialData);
         }
-        log.debug("Loading {d} material(s)", .{nuMaterials});
+
+        const numMaterials = materialsList.items.len;
+        log.debug("Loading {d} material(s)", .{numMaterials});
         const cmdBuff = try vk.cmd.VkCmdBuff.create(vkCtx, cmdPool, true);
         const cmdHandle = cmdBuff.cmdBuffProxy.handle;
 
-        const buffSize = nuMaterials * @sizeOf(MaterialBuffRecord);
+        const buffSize = numMaterials * @sizeOf(MaterialBuffRecord);
         const srcBuffer = try vk.buf.VkBuffer.create(
             vkCtx,
             buffSize,
@@ -113,9 +125,10 @@ pub const MaterialsCache = struct {
         defer srcBuffer.unMap(vkCtx);
         const mappedData: [*]MaterialBuffRecord = @ptrCast(@alignCast(data));
 
-        for (initData.materials.items, 0..) |*materialData, i| {
+        for (materialsList.items, 0..) |materialData, i| {
+            const materialId = try allocator.dupe(u8, materialData.id);
             var vulkanMaterial = VulkanMaterial{
-                .id = try allocator.dupe(u8, materialData.id),
+                .id = materialId,
                 .transparent = false,
             };
             var hasTexture: u32 = 0;
@@ -129,7 +142,7 @@ pub const MaterialsCache = struct {
                         hasTexture = 1;
                         vulkanMaterial.transparent = textureCache.textureMap.get(nullTermPath).?.transparent;
                     } else {
-                        std.log.warn("Could not find texture added to the cache [{s}]", .{materialData.texturePath});
+                        log.warn("Could not find texture added to the cache [{s}]", .{materialData.texturePath});
                     }
                 }
             }
@@ -140,7 +153,7 @@ pub const MaterialsCache = struct {
                 .padding = [_]u32{ 0, 0 },
             };
             mappedData[i] = atBuffRecord;
-            try self.materialsMap.put(try allocator.dupe(u8, vulkanMaterial.id), vulkanMaterial);
+            try self.materialsMap.put(materialId, vulkanMaterial);
         }
 
         try cmdBuff.begin(vkCtx);
@@ -149,7 +162,7 @@ pub const MaterialsCache = struct {
         try cmdBuff.submitAndWait(vkCtx, vkQueue);
 
         self.materialsBuffer = dstBuffer;
-        log.debug("Loaded {d} material(s)", .{nuMaterials});
+        log.debug("Loaded {d} material(s)", .{numMaterials});
     }
 };
 

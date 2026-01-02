@@ -1050,7 +1050,6 @@ pub const MaterialsCache = struct {
     pub fn cleanup(self: *MaterialsCache, allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx) void {
         var iter = self.materialsMap.iterator();
         while (iter.next()) |entry| {
-            allocator.free(entry.key_ptr.*);
             entry.value_ptr.cleanup(allocator);
         }
         self.materialsMap.deinit();
@@ -1076,8 +1075,7 @@ This struct, will create a single `VkBuffer` which will store all the materials 
 - The texture index associated to the material.
 
 We will need to store the materials in an `ArrayHashMap` since we will need to get he position of the material in the buffer.
-
-New we need a function to load the materials:
+Now we need a function to load the materials:
 
 ```zig
 pub const MaterialsCache = struct {
@@ -1091,12 +1089,28 @@ pub const MaterialsCache = struct {
         vkQueue: vk.queue.VkQueue,
         initData: *const eng.engine.InitData,
     ) !void {
-        const nuMaterials = initData.materials.items.len;
-        log.debug("Loading {d} material(s)", .{nuMaterials});
+        // Create a copy an add default material at first position
+        var materialsList = try std.ArrayList(*eng.mdata.MaterialData).initCapacity(
+            allocator,
+            initData.materials.items.len + 1,
+        );
+        defer materialsList.deinit(allocator);
+        var defaultMaterial = eng.mdata.MaterialData{
+            .color = [_]f32{ 1, 1, 1, 1 },
+            .id = "DEFAULT_MATERIAL_ID",
+            .texturePath = "",
+        };
+        try materialsList.append(allocator, &defaultMaterial);
+        for (initData.materials.items) |*materialData| {
+            try materialsList.append(allocator, materialData);
+        }
+
+        const numMaterials = materialsList.items.len;
+        log.debug("Loading {d} material(s)", .{numMaterials});
         const cmdBuff = try vk.cmd.VkCmdBuff.create(vkCtx, cmdPool, true);
         const cmdHandle = cmdBuff.cmdBuffProxy.handle;
 
-        const buffSize = nuMaterials * @sizeOf(MaterialBuffRecord);
+        const buffSize = numMaterials * @sizeOf(MaterialBuffRecord);
         const srcBuffer = try vk.buf.VkBuffer.create(
             vkCtx,
             buffSize,
@@ -1114,8 +1128,9 @@ pub const MaterialsCache = struct {
         defer srcBuffer.unMap(vkCtx);
         const mappedData: [*]MaterialBuffRecord = @ptrCast(@alignCast(data));
 
-        for (initData.materials.items, 0..) |*materialData, i| {
-            const vulkanMaterial = VulkanMaterial{ .id = try allocator.dupe(u8, materialData.id) };
+        for (materialsList.items, 0..) |materialData, i| {
+            const materialId = try allocator.dupe(u8, materialData.id);
+            const vulkanMaterial = VulkanMaterial{ .id = materialId };
             var hasTexture: u32 = 0;
             var textureIdx: u32 = 0;
             if (materialData.texturePath.len > 0) {
@@ -1126,7 +1141,7 @@ pub const MaterialsCache = struct {
                         textureIdx = @as(u32, @intCast(idx));
                         hasTexture = 1;
                     } else {
-                        std.log.warn("Could not find texture added to the cache [{s}]", .{materialData.texturePath});
+                        log.warn("Could not find texture added to the cache [{s}]", .{materialData.texturePath});
                     }
                 }
             }
@@ -1137,7 +1152,7 @@ pub const MaterialsCache = struct {
                 .padding = [_]u32{ 0, 0 },
             };
             mappedData[i] = atBuffRecord;
-            try self.materialsMap.put(try allocator.dupe(u8, vulkanMaterial.id), vulkanMaterial);
+            try self.materialsMap.put(materialId, vulkanMaterial);
         }
 
         try cmdBuff.begin(vkCtx);
@@ -1146,16 +1161,19 @@ pub const MaterialsCache = struct {
         try cmdBuff.submitAndWait(vkCtx, vkQueue);
 
         self.materialsBuffer = dstBuffer;
-        log.debug("Loaded {d} material(s)", .{nuMaterials});
+        log.debug("Loaded {d} material(s)", .{numMaterials});
     }
 };
 ```
 
-As in the case of the models, we create a staging buffer and a GPU only accessible buffer for the materials. We iterate over the materials
-populating the buffer. We also populate the texture cache with the textures that we find associated to the materials. Keep in mind that we
-may use more textures than the ones strictly used by models. You will see that We need to add padding data, because due to the layout rules
-used in shaders, the minimum size of data will be multiples of `vec4`, therefore since we initially only need 6 bytes, we need to compensate
-with two more. At the end of the loop, we just record the transfer command, submit it to the queue, and wait for it to be finished. 
+We will alwyas have a default material, to fall back to when rendering if the associated material is not found. Therefore, we create a
+default material, and create a list which stores references of the provided materials and this new default one which be located at position
+`0'. As in the case of the models, we create a staging buffer and a GPU only accessible buffer for the materials. We iterate over the
+materials populating the buffer. We also populate the texture cache with the textures that we find associated to the materials. Keep in mind
+that we may use more textures than the ones strictly used by models. You will see that We need to add padding data, because due to the
+layout rules used in shaders, the minimum size of data will be multiples of `vec4`, therefore since we initially only need 6 bytes, we need
+to compensate with two more. At the end of the loop, we just record the transfer command, submit it to the queue, and wait for it to be
+finished. 
 
 ## Descriptors
 

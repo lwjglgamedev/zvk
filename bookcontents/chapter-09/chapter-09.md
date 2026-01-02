@@ -123,9 +123,10 @@ pub const MaterialsCache = struct {
         initData: *const eng.engine.InitData,
     ) !void {
         ...
-        for (initData.materials.items, 0..) |*materialData, i| {
+        for (materialsList.items, 0..) |materialData, i| {
+            const materialId = try allocator.dupe(u8, materialData.id);
             var vulkanMaterial = VulkanMaterial{
-                .id = try allocator.dupe(u8, materialData.id),
+                .id = materialId,
                 .transparent = false,
             };
             var hasTexture: u32 = 0;
@@ -139,7 +140,7 @@ pub const MaterialsCache = struct {
                         hasTexture = 1;
                         vulkanMaterial.transparent = textureCache.textureMap.get(nullTermPath).?.transparent;
                     } else {
-                        std.log.warn("Could not find texture added to the cache [{s}]", .{materialData.texturePath});
+                        log.warn("Could not find texture added to the cache [{s}]", .{materialData.texturePath});
                     }
                 }
             }
