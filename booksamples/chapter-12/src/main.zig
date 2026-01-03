@@ -25,12 +25,25 @@ const Game = struct {
 
     pub fn init(self: *Game, engCtx: *eng.engine.EngCtx, arenaAlloc: std.mem.Allocator) !eng.engine.InitData {
         _ = self;
-        _ = engCtx;
 
-        return .{
-            .models = try arenaAlloc.alloc(eng.mdata.ModelData, 0),
-            .materials = try std.ArrayList(eng.mdata.MaterialData).initCapacity(arenaAlloc, 0),
-        };
+        const sponzaModel = try eng.mdata.loadModel(arenaAlloc, "res/models/sponza/Sponza.json");
+        const models = try arenaAlloc.alloc(eng.mdata.ModelData, 1);
+        models[0] = sponzaModel;
+
+        const sponzaEntity = try eng.ent.Entity.create(engCtx.allocator, ENTITY_ID, sponzaModel.id);
+        sponzaEntity.setPos(0.0, 0.0, -4.0);
+        sponzaEntity.scale = 0.01;
+        sponzaEntity.update();
+        try engCtx.scene.addEntity(sponzaEntity);
+
+        var materials = try std.ArrayList(eng.mdata.MaterialData).initCapacity(arenaAlloc, 1);
+        const sponzaMaterials = try eng.mdata.loadMaterials(arenaAlloc, "res/models/sponza/Sponza-mat.json");
+        try materials.appendSlice(arenaAlloc, sponzaMaterials.items);
+
+        var viewData = &engCtx.scene.camera.viewData;
+        viewData.pos = zm.Vec{ 0.0, 3.0, -4.0, 0.0 };
+        viewData.addRotation(std.math.degreesToRadians(0), std.math.degreesToRadians(90));
+        return .{ .models = models, .materials = materials };
     }
 
     fn handleGui(self: *Game, engCtx: *eng.engine.EngCtx) bool {
@@ -38,9 +51,9 @@ const Game = struct {
 
         const mouseState = engCtx.wnd.mouseState;
         zgui.io.addMousePositionEvent(mouseState.x, mouseState.y);
-        //zgui.io.addMouseButtonEvent(zgui.MouseButton.left, mouseState.flags.left);
-        //zgui.io.addMouseButtonEvent(zgui.MouseButton.middle, mouseState.flags.middle);
-        //zgui.io.addMouseButtonEvent(zgui.MouseButton.right, mouseState.flags.right);
+        zgui.io.addMouseButtonEvent(zgui.MouseButton.left, mouseState.flags.left);
+        zgui.io.addMouseButtonEvent(zgui.MouseButton.middle, mouseState.flags.middle);
+        zgui.io.addMouseButtonEvent(zgui.MouseButton.right, mouseState.flags.right);
         zgui.newFrame();
         var show = true;
         zgui.showDemoWindow(&show);

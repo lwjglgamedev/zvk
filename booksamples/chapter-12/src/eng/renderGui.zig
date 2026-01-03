@@ -393,45 +393,51 @@ pub const RenderGui = struct {
         if (@intFromPtr(drawData) == 0) {
             return;
         }
-        var textList = try std.ArrayList(*zgui.TextureData).initCapacity(allocator, 1);
-        defer textList.deinit(allocator);
 
+        var numTextures: u32 = 0;
         const numCmds = @as(usize, @intCast(drawData.cmd_lists_count));
         for (0..numCmds) |i| {
             const cmd_list = drawData.cmd_lists.items[i];
             for (cmd_list.getCmdBuffer()) |cmd| {
-                if (cmd.texture_ref.tex_data.?.status != zgui.TextureStatus.ok) {
-                    try textList.append(allocator, cmd.texture_ref.tex_data.?);
-                    cmd.texture_ref.tex_data.?.status = zgui.TextureStatus.ok;
+                const textData = cmd.texture_ref.tex_data.?;
+                if (textData.status != zgui.TextureStatus.want_updates and textData.status != zgui.TextureStatus.want_create) {
+                    continue;
                 }
+                numTextures += 1;
+                const numPixels = textData.width * textData.height * textData.bytes_per_pixel;
+                const id = try std.fmt.allocPrint(allocator, "{s}{d}", .{ TXT_ID_GUI, textData.tex_id });
+                defer allocator.free(id);
+                const textureData = textData.pixels[0..@as(usize, @intCast(numPixels))];
+                if (textData.status == zgui.TextureStatus.want_updates) {
+                    var texture = self.guiTextureCache.getTextureRef(id);
+                    try texture.update(vkCtx, &textureData);
+                } else {
+                    const textureInfo = eng.tcach.TextureInfo{
+                        .id = id,
+                        .data = textureData,
+                        .height = @as(u32, @intCast(textData.height)),
+                        .width = @as(u32, @intCast(textData.width)),
+                        .format = vulkan.Format.r8g8b8a8_srgb,
+                    };
+                    try self.guiTextureCache.addTexture(allocator, vkCtx, &textureInfo);
+                    const idDesc = try std.fmt.allocPrint(allocator, "{s}{d}", .{ DESC_ID_TEXT_SAMPLER, textData.tex_id });
+                    defer allocator.free(idDesc);
+                    const descSet = try vkCtx.vkDescAllocator.addDescSet(
+                        allocator,
+                        vkCtx.vkPhysDevice,
+                        vkCtx.vkDevice,
+                        idDesc,
+                        self.descLayoutFrg,
+                    );
+                    const texture = self.guiTextureCache.getTexture(textureInfo.id);
+                    descSet.setImage(vkCtx.vkDevice, texture.vkImageView, self.textSampler, 0);
+                }
+
+                textData.status = zgui.TextureStatus.ok;
             }
         }
 
-        for (textList.items) |textData| {
-            const numPixels = textData.width * textData.height * textData.bytes_per_pixel;
-            const id = try std.fmt.allocPrint(allocator, "{s}{d}", .{ TXT_ID_GUI, textData.tex_id });
-            defer allocator.free(id);
-            const textureInfo = eng.tcach.TextureInfo{
-                .id = id,
-                .data = textData.pixels[0..@as(usize, @intCast(numPixels))],
-                .height = @as(u32, @intCast(textData.height)),
-                .width = @as(u32, @intCast(textData.width)),
-                .format = vulkan.Format.r8g8b8a8_srgb,
-            };
-            try self.guiTextureCache.addTexture(allocator, vkCtx, &textureInfo);
-            const idDesc = try std.fmt.allocPrint(allocator, "{s}{d}", .{ DESC_ID_TEXT_SAMPLER, textData.tex_id });
-            defer allocator.free(idDesc);
-            const descSet = try vkCtx.vkDescAllocator.addDescSet(
-                allocator,
-                vkCtx.vkPhysDevice,
-                vkCtx.vkDevice,
-                idDesc,
-                self.descLayoutFrg,
-            );
-            const texture = self.guiTextureCache.getTexture(textureInfo.id);
-            descSet.setImage(vkCtx.vkDevice, texture.vkImageView, self.textSampler, 0);
-        }
-        if (textList.items.len > 0) {
+        if (numTextures > 0) {
             try self.guiTextureCache.recordTextures(allocator, vkCtx, vkCmdPool, vkQueue);
         }
     }

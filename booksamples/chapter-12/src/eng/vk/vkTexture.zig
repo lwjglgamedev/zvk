@@ -326,4 +326,20 @@ pub const VkTexture = struct {
         self.recordMipMap(vkCtx, cmdHandle);
         self.recorded = true;
     }
+
+    pub fn update(self: *VkTexture, vkCtx: *const vk.ctx.VkCtx, data: *const []u8) !void {
+        const dataSize = data.len;
+        const vkStageBuffer = try vk.buf.VkBuffer.create(
+            vkCtx,
+            dataSize,
+            vulkan.BufferUsageFlags{ .transfer_src_bit = true },
+            @intFromEnum(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSequentialWriteBit),
+            vk.vma.VmaUsage.VmaUsageAuto,
+            vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBitAndCoherent,
+        );
+        try vk.buf.copyDataToBuffer(vkCtx, &vkStageBuffer, data);
+        self.cleanupStgBuffer(vkCtx);
+        self.vkStageBuffer = vkStageBuffer;
+        self.recorded = false;
+    }
 };

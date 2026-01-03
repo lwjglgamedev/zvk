@@ -84,6 +84,14 @@ pub const TextureCache = struct {
         return texture;
     }
 
+    pub fn getTextureRef(self: *const TextureCache, id: []const u8) *vk.text.VkTexture {
+        const texture = self.textureMap.getPtr(id) orelse {
+            @panic("Could not find texture");
+        };
+
+        return texture;
+    }
+
     pub fn recordTextures(self: *TextureCache, allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx, vkCmdPool: *vk.cmd.VkCmdPool, vkQueue: vk.queue.VkQueue) !void {
         log.debug("Recording textures", .{});
         const numTextures = self.textureMap.count();
