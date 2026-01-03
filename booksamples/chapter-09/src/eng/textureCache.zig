@@ -114,6 +114,10 @@ pub const TextureCache = struct {
         try cmd.end(vkCtx);
         try cmd.submitAndWait(vkCtx, vkQueue);
 
+        while (it.next()) |entry| {
+            entry.value_ptr.*.cleanupStgBuffer(vkCtx);
+        }
+
         log.debug("Recorded textures", .{});
     }
 };

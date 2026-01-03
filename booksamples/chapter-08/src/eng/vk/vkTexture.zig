@@ -51,6 +51,7 @@ pub const VkTexture = struct {
     vkStageBuffer: ?vk.buf.VkBuffer,
     width: u32,
     height: u32,
+    recorded: bool = false,
 
     pub fn create(vkCtx: *const vk.ctx.VkCtx, vkTextureInfo: *const VkTextureInfo) !VkTexture {
         const flags = vulkan.ImageUsageFlags{
@@ -87,14 +88,22 @@ pub const VkTexture = struct {
     }
 
     pub fn cleanup(self: *VkTexture, vkCtx: *const vk.ctx.VkCtx) void {
-        if (self.vkStageBuffer) |sb| {
-            sb.cleanup(vkCtx);
-        }
+        self.cleanupStgBuffer(vkCtx);
         self.vkImageView.cleanup(vkCtx.vkDevice);
         self.vkImage.cleanup(vkCtx);
     }
 
-    pub fn recordTransition(self: *const VkTexture, vkCtx: *const vk.ctx.VkCtx, cmdHandle: vulkan.CommandBuffer) void {
+    pub fn cleanupStgBuffer(self: *VkTexture, vkCtx: *const vk.ctx.VkCtx) void {
+        if (self.vkStageBuffer) |sb| {
+            sb.cleanup(vkCtx);
+        }
+        self.vkStageBuffer = null;
+    }
+
+    pub fn recordTransition(self: *VkTexture, vkCtx: *const vk.ctx.VkCtx, cmdHandle: vulkan.CommandBuffer) void {
+        if (self.recorded) {
+            return;
+        }
         // Record transition to dst optimal
         const device = vkCtx.vkDevice.deviceProxy;
         const initBarriers = [_]vulkan.ImageMemoryBarrier2{.{
@@ -176,5 +185,6 @@ pub const VkTexture = struct {
             .p_image_memory_barriers = &endBarriers,
         };
         device.cmdPipelineBarrier2(cmdHandle, &endDepInfo);
+        self.recorded = true;
     }
 };

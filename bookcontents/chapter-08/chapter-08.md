@@ -499,6 +499,7 @@ pub const VkTexture = struct {
     vkStageBuffer: ?vk.buf.VkBuffer,
     width: u32,
     height: u32,
+    recorded: bool = false,
 
     pub fn create(vkCtx: *const vk.ctx.VkCtx, vkTextureInfo: *const VkTextureInfo) !VkTexture {
         const flags = vulkan.ImageUsageFlags{
@@ -539,12 +540,14 @@ pub const VkTexture = struct {
 
 The `create` function will create new instances of `VkTexture` structs and will receive, in addition of the Vulkan the context, an instance
 of the `vkTextureInfo` struct that will hold all the required data. It creates first an image and image view and then a staging buffer
-which is CPU accessible to copy image contents. It is interesting to review the usage flags we are using in in this case:
+which is CPU accessible to copy image contents.It is interesting to review the usage flags we are using in in this case:
 
 - `transfer_dst_bit` (`VK_IMAGE_USAGE_TRANSFER_DST_BIT`): The image can be used as a destination of a transfer command.
 We need this, because in our case, we will copy from a staging buffer to the image.
 - `sampled_bit` (`VK_IMAGE_USAGE_SAMPLED_BIT`): The image can be used to occupy a descriptor set (more on this later).
 In our case, the image needs to be used by a sampler in a fragment shader, so we need to set this flag.
+
+The `recorded` attribute will control ig a texture has been recorded (transitioned to ist final layout) or not.
 
 At the end of the `create` function we just copy the image data to the staging buffer associated to the image by calling a function
 that is located in the `vkBuffer.zig`:
@@ -560,17 +563,23 @@ pub fn copyDataToBuffer(vkCtx: *const vk.ctx.VkCtx, vkBuffer: *const VkBuffer, d
 }
 ```
 
-The `VkTexture` struct defines a `cleanup` function to free the resources:
+The `VkTexture` struct defines a `cleanup` function to free the resources and a specific `cleanupStgBuffer` to clean the staging
+buffer (this should be called when the texture transition recording has been finished):
 
 ```zig
 pub const VkTexture = struct {
     ...
     pub fn cleanup(self: *VkTexture, vkCtx: *const vk.ctx.VkCtx) void {
+        self.cleanupStgBuffer(vkCtx);
+        self.vkImageView.cleanup(vkCtx.vkDevice);
+        self.vkImage.cleanup(vkCtx);
+    }
+
+    pub fn cleanupStgBuffer(self: *VkTexture, vkCtx: *const vk.ctx.VkCtx) void {
         if (self.vkStageBuffer) |sb| {
             sb.cleanup(vkCtx);
         }
-        self.vkImageView.cleanup(vkCtx.vkDevice);
-        self.vkImage.cleanup(vkCtx);
+        self.vkStageBuffer = null;
     }
     ...
 };
@@ -588,7 +597,10 @@ function called `recordTransition`, which is defined like this:
 ```zig
 pub const VkTexture = struct {
     ...
-    pub fn recordTransition(self: *const VkTexture, vkCtx: *const vk.ctx.VkCtx, cmdHandle: vulkan.CommandBuffer) void {
+    pub fn recordTransition(self: *VkTexture, vkCtx: *const vk.ctx.VkCtx, cmdHandle: vulkan.CommandBuffer) void {
+        if (self.recorded) {
+            return;
+        }
         // Record transition to dst optimal
         const device = vkCtx.vkDevice.deviceProxy;
         const initBarriers = [_]vulkan.ImageMemoryBarrier2{.{
@@ -670,6 +682,7 @@ pub const VkTexture = struct {
             .p_image_memory_barriers = &endBarriers,
         };
         device.cmdPipelineBarrier2(cmdHandle, &endDepInfo);
+        self.recorded = true;        
     }
 };
 ```
@@ -841,6 +854,10 @@ pub const TextureCache = struct {
         try cmd.end(vkCtx);
         try cmd.submitAndWait(vkCtx, vkQueue);
 
+        while (it.next()) |entry| {
+            entry.value_ptr.*.cleanupStgBuffer(vkCtx);
+        }
+
         log.debug("Recorded textures", .{});
     }
     ...
@@ -852,7 +869,8 @@ default texture (just one pixel). The reason behind this code is that we will be
 arrays, the size needs to be set upfront and it expects to have valid images (empty slots will not work). We will see later on how this
 works. After that we just create a command buffer, iterate over the textures calling `recordTextureTransition` and submit the work and wait
 it to be completed. Using arrays of textures is also the reason  why we need to keeping track of the position of each texture is important.
-This is why we use the `ArrayHashMap` struct which basically keeps insertion order.
+This is why we use the `ArrayHashMap` struct which basically keeps insertion order. After we have finished recording texture transitions
+and the work has been completed, we can free the staging buffers of all the textures.
 
 In order to generate the identifiers of the "dummy" textures we will create an UUID identifiers so we guarantee that they ar unique. The
 function `generateUuid` (defined in the `src/eng/com/utils.zig` file) is defined like this:

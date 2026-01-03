@@ -220,6 +220,7 @@ pub const VkTexture = struct {
     pub fn recordTransition(self: *const VkTexture, vkCtx: *const vk.ctx.VkCtx, cmdHandle: vulkan.CommandBuffer) void {
         ...
         self.recordMipMap(vkCtx, cmdHandle);
+        self.recorded = true;
     }
 }
 ```

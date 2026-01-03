@@ -54,6 +54,7 @@ pub const VkTexture = struct {
     height: u32,
     mipLevels: u32,
     transparent: bool,
+    recorded: bool = false,
 
     pub fn create(vkCtx: *const vk.ctx.VkCtx, vkTextureInfo: *const VkTextureInfo) !VkTexture {
         const minDimension = @min(vkTextureInfo.width, vkTextureInfo.height);
@@ -100,11 +101,16 @@ pub const VkTexture = struct {
     }
 
     pub fn cleanup(self: *VkTexture, vkCtx: *const vk.ctx.VkCtx) void {
+        self.cleanupStgBuffer(vkCtx);
+        self.vkImageView.cleanup(vkCtx.vkDevice);
+        self.vkImage.cleanup(vkCtx);
+    }
+
+    pub fn cleanupStgBuffer(self: *VkTexture, vkCtx: *const vk.ctx.VkCtx) void {
         if (self.vkStageBuffer) |sb| {
             sb.cleanup(vkCtx);
         }
-        self.vkImageView.cleanup(vkCtx.vkDevice);
-        self.vkImage.cleanup(vkCtx);
+        self.vkStageBuffer = null;
     }
 
     fn isTransparent(data: *const []const u8) bool {
@@ -255,7 +261,10 @@ pub const VkTexture = struct {
         device.cmdPipelineBarrier2(cmdHandle, &endDepInfo);
     }
 
-    pub fn recordTransition(self: *const VkTexture, vkCtx: *const vk.ctx.VkCtx, cmdHandle: vulkan.CommandBuffer) void {
+    pub fn recordTransition(self: *VkTexture, vkCtx: *const vk.ctx.VkCtx, cmdHandle: vulkan.CommandBuffer) void {
+        if (self.recorded) {
+            return;
+        }
         // Record transition to dst optimal
         const device = vkCtx.vkDevice.deviceProxy;
         const image: vulkan.Image = @enumFromInt(@intFromPtr(self.vkImage.image));
@@ -315,5 +324,6 @@ pub const VkTexture = struct {
         );
 
         self.recordMipMap(vkCtx, cmdHandle);
+        self.recorded = true;
     }
 };
