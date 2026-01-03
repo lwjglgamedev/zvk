@@ -1,5 +1,6 @@
 const std = @import("std");
 const sdl3 = @import("sdl3");
+const zgui = @import("zgui");
 
 const log = std.log.scoped(.wnd);
 
@@ -50,6 +51,8 @@ pub const Wnd = struct {
 
         log.debug("Created window", .{});
 
+        try sdl3.keyboard.startTextInput(window);
+
         return .{
             .window = window,
             .closed = false,
@@ -93,6 +96,18 @@ pub const Wnd = struct {
                     self.mouseState.deltaX += event.mouse_motion.x_rel;
                     self.mouseState.deltaY += event.mouse_motion.y_rel;
                 },
+                .mouse_wheel => {
+                    processMouseWheel(event.mouse_wheel.scroll_x, event.mouse_wheel.scroll_y);
+                },
+                .key_down => {
+                    processKey(event.key_down.key.?, event.key_down.down);
+                },
+                .key_up => {
+                    processKey(event.key_up.key.?, event.key_up.down);
+                },
+                .text_input => {
+                    processTextInput(event.text_input.text);
+                },
                 .window_resized => {
                     self.resized = true;
                 },
@@ -104,5 +119,138 @@ pub const Wnd = struct {
         self.mouseState.flags = mouseState[0];
         self.mouseState.x = mouseState[1];
         self.mouseState.y = mouseState[2];
+    }
+
+    fn processMouseWheel(x: f32, y: f32) void {
+        if (zgui.io.getWantCaptureMouse()) {
+            zgui.io.addMouseWheelEvent(x, y);
+        }
+    }
+
+    fn processTextInput(text: [:0]const u8) void {
+        zgui.io.addInputCharactersUTF8(text);
+    }
+
+    fn processKey(keyCode: sdl3.keycode.Keycode, keyDown: bool) void {
+        if (!zgui.io.getWantCaptureKeyboard()) {
+            return;
+        }
+
+        const result = toZgui(keyCode);
+
+        if (result) |key| {
+            zgui.io.addKeyEvent(key, keyDown);
+        }
+    }
+
+    fn toZgui(keyCode: sdl3.keycode.Keycode) ?zgui.Key {
+        return switch (keyCode) {
+            .escape => zgui.Key.escape,
+            .backspace => zgui.Key.back_space,
+            .tab => zgui.Key.tab,
+            .return_key => zgui.Key.enter,
+
+            .right => zgui.Key.right_arrow,
+            .left => zgui.Key.left_arrow,
+            .down => zgui.Key.down_arrow,
+            .up => zgui.Key.up_arrow,
+
+            .func1 => zgui.Key.f1,
+            .func2 => zgui.Key.f2,
+            .func3 => zgui.Key.f3,
+            .func4 => zgui.Key.f4,
+            .func5 => zgui.Key.f5,
+            .func6 => zgui.Key.f6,
+            .func7 => zgui.Key.f7,
+            .func8 => zgui.Key.f8,
+            .func9 => zgui.Key.f9,
+            .func10 => zgui.Key.f10,
+            .func11 => zgui.Key.f11,
+            .func12 => zgui.Key.f12,
+
+            .left_ctrl => zgui.Key.left_ctrl,
+            .right_ctrl => zgui.Key.right_ctrl,
+            .left_shift => zgui.Key.left_shift,
+            .right_shift => zgui.Key.right_shift,
+            .left_alt => zgui.Key.left_alt,
+            .right_alt => zgui.Key.right_alt,
+
+            .a => zgui.Key.a,
+            .b => zgui.Key.b,
+            .c => zgui.Key.c,
+            .d => zgui.Key.d,
+            .e => zgui.Key.e,
+            .f => zgui.Key.f,
+            .g => zgui.Key.g,
+            .h => zgui.Key.h,
+            .i => zgui.Key.i,
+            .j => zgui.Key.j,
+            .k => zgui.Key.k,
+            .l => zgui.Key.l,
+            .m => zgui.Key.m,
+            .n => zgui.Key.n,
+            .o => zgui.Key.o,
+            .p => zgui.Key.p,
+            .q => zgui.Key.q,
+            .r => zgui.Key.r,
+            .s => zgui.Key.s,
+            .t => zgui.Key.t,
+            .u => zgui.Key.u,
+            .v => zgui.Key.v,
+            .w => zgui.Key.w,
+            .x => zgui.Key.x,
+            .y => zgui.Key.y,
+            .z => zgui.Key.z,
+
+            .zero => zgui.Key.zero,
+            .one => zgui.Key.one,
+            .two => zgui.Key.two,
+            .three => zgui.Key.three,
+            .four => zgui.Key.four,
+            .five => zgui.Key.five,
+            .six => zgui.Key.six,
+            .seven => zgui.Key.seven,
+            .eight => zgui.Key.eight,
+            .nine => zgui.Key.nine,
+
+            .space => zgui.Key.space,
+            .apostrophe => zgui.Key.apostrophe,
+            .comma => zgui.Key.comma,
+            .period => zgui.Key.period,
+            .slash => zgui.Key.slash,
+            .semicolon => zgui.Key.semicolon,
+            .backslash => zgui.Key.back_slash,
+            .equals => zgui.Key.equal,
+            .minus => zgui.Key.minus,
+            .grave => zgui.Key.grave_accent,
+            .left_bracket => zgui.Key.left_bracket,
+            .right_bracket => zgui.Key.right_bracket,
+
+            .kp_0 => zgui.Key.keypad_0,
+            .kp_1 => zgui.Key.keypad_1,
+            .kp_2 => zgui.Key.keypad_2,
+            .kp_3 => zgui.Key.keypad_3,
+            .kp_4 => zgui.Key.keypad_4,
+            .kp_5 => zgui.Key.keypad_5,
+            .kp_6 => zgui.Key.keypad_6,
+            .kp_7 => zgui.Key.keypad_7,
+            .kp_8 => zgui.Key.keypad_8,
+            .kp_9 => zgui.Key.keypad_9,
+            .kp_plus => zgui.Key.keypad_add,
+            .kp_minus => zgui.Key.keypad_subtract,
+            .kp_multiply => zgui.Key.keypad_multiply,
+            .kp_divide => zgui.Key.keypad_divide,
+            .kp_decimal => zgui.Key.keypad_decimal,
+            .kp_enter => zgui.Key.keypad_enter,
+
+            .delete => zgui.Key.delete,
+            .insert => zgui.Key.insert,
+            .home => zgui.Key.home,
+            .end => zgui.Key.end,
+            .page_up => zgui.Key.page_up,
+            .page_down => zgui.Key.page_down,
+
+            else => zgui.Key.space,
+        };
     }
 };
