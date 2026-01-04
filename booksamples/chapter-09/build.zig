@@ -97,7 +97,9 @@ pub fn build(b: *std.Build) void {
     eng.addImport("vulkan", vulkan);
     eng.addImport("zmath", zmath);
     eng.addImport("zstbi", zstbi);
+
     exe.root_module.addImport("eng", eng);
+    exe.root_module.addImport("zstbi", zstbi);
 
     // Shaders
     const shaders = [_]Shader{

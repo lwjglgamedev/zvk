@@ -4,6 +4,7 @@ const std = @import("std");
 const vk = @import("vk");
 const vulkan = @import("vulkan");
 const zgui = @import("zgui");
+const zstbi = @import("zstbi");
 
 const PushConstants = struct {
     scaleX: f32 = 1.0,
@@ -45,6 +46,7 @@ const GuiVtxBuffDesc = struct {
 
 const TXT_ID_GUI = "TXT_ID_GUI";
 const DESC_ID_TEXT_SAMPLER = "GUI_DESC_ID_TEXT_SAMPLER";
+const DESC_ID_TEXT_PFX = "GUI_DESC_ID_TEXT_PFX_";
 const DEFAULT_VTX_BUFF_SIZE: usize = 1024;
 const DEFAULT_IDX_BUFF_SIZE: usize = 2024;
 
@@ -130,7 +132,7 @@ pub const RenderGui = struct {
             );
             idxBuffers[i] = try vk.buf.VkBuffer.create(
                 vkCtx,
-                DEFAULT_VTX_BUFF_SIZE,
+                DEFAULT_IDX_BUFF_SIZE,
                 .{ .index_buffer_bit = true },
                 @intFromEnum(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSequentialWriteBit),
                 vk.vma.VmaUsage.VmaUsageAuto,
@@ -236,7 +238,6 @@ pub const RenderGui = struct {
         device.cmdBindIndexBuffer(cmdHandle, self.idxBuffers[frameIdx].buffer, 0, vulkan.IndexType.uint16);
         device.cmdBindVertexBuffers(cmdHandle, 0, 1, @ptrCast(&self.vtxBuffers[frameIdx].buffer), &offset);
 
-        const vkDescAllocator = vkCtx.vkDescAllocator;
         var descSets: [1]vulkan.DescriptorSet = undefined;
 
         var offsetIdx: u32 = 0;
@@ -255,9 +256,9 @@ pub const RenderGui = struct {
                 }};
                 device.cmdSetScissor(cmdHandle, 0, scissor.len, &scissor);
 
-                const idDesc = try std.fmt.allocPrint(allocator, "{s}{d}", .{ DESC_ID_TEXT_SAMPLER, cmd.texture_ref.tex_id });
-                defer allocator.free(idDesc);
-                descSets[0] = vkDescAllocator.getDescSet(idDesc).?.descSet;
+                const descSetInt = @intFromPtr(cmd.texture_ref.tex_data.?.backend_user_data.?);
+                const descSet: vulkan.DescriptorSet = @enumFromInt(descSetInt);
+                descSets[0] = descSet;
 
                 device.cmdBindDescriptorSets(
                     cmdHandle,
@@ -429,6 +430,7 @@ pub const RenderGui = struct {
                         idDesc,
                         self.descLayoutFrg,
                     );
+                    textData.backend_user_data = @ptrFromInt(@intFromEnum(descSet.descSet));
                     const texture = self.guiTextureCache.getTexture(textureInfo.id);
                     descSet.setImage(vkCtx.vkDevice, texture.vkImageView, self.textSampler, 0);
                 }
@@ -438,7 +440,38 @@ pub const RenderGui = struct {
         }
 
         if (numTextures > 0) {
-            try self.guiTextureCache.recordTextures(allocator, vkCtx, vkCmdPool, vkQueue);
+            try self.guiTextureCache.recordTextures(vkCtx, vkCmdPool, vkQueue);
         }
     }
 };
+
+pub fn createTextureData(texId: u32, textureImage: *const zstbi.Image) zgui.TextureData {
+    return zgui.TextureData{
+        .unique_id = @intCast(texId),
+        .backend_user_data = null,
+        .bytes_per_pixel = 4,
+        .pixels = textureImage.data.ptr,
+        .format = .rgba32,
+        .width = @intCast(textureImage.width),
+        .height = @intCast(textureImage.height),
+        .status = .want_create,
+        .tex_id = @enumFromInt(texId),
+        .used_rect = .{
+            .x = 0,
+            .y = 0,
+            .w = @intCast(textureImage.width),
+            .h = @intCast(textureImage.height),
+        },
+        .update_Rect = .{
+            .x = 0,
+            .y = 0,
+            .w = @intCast(textureImage.width),
+            .h = @intCast(textureImage.height),
+        },
+        .updates = undefined,
+        .unused_Frames = 0,
+        .ref_count = 0,
+        .use_colors = true,
+        .want_destroy_next_frame = false,
+    };
+}

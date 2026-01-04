@@ -112,8 +112,10 @@ pub fn build(b: *std.Build) void {
     eng.addImport("zmath", zmath);
     eng.addImport("zstbi", zstbi);
     eng.linkLibrary(zguiDep.artifact("imgui"));
+
     exe.root_module.addImport("eng", eng);
     exe.root_module.addImport("zgui", zgui);
+    exe.root_module.addImport("zstbi", zstbi);
 
     // Shaders
     const shaders = [_]Shader{

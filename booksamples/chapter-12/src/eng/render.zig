@@ -197,7 +197,23 @@ pub const Render = struct {
         );
         try self.materialsCache.init(allocator, &self.vkCtx, &self.textureCache, &self.cmdPools[0], self.queueGraphics, initData);
 
-        try self.textureCache.recordTextures(allocator, &self.vkCtx, &self.cmdPools[0], self.queueGraphics);
+        const numTextures = self.textureCache.textureMap.count();
+        if (numTextures < eng.tcach.MAX_TEXTURES) {
+            const numPadding = eng.tcach.MAX_TEXTURES - numTextures;
+            for (0..numPadding) |_| {
+                const id = try com.utils.generateUuid(allocator);
+                defer allocator.free(id);
+                const textureInfo = eng.tcach.TextureInfo{
+                    .data = eng.tcach.EMPTY_PIXELS[0..],
+                    .width = 1,
+                    .height = 1,
+                    .format = vulkan.Format.r8g8b8a8_srgb,
+                    .id = id,
+                };
+                try self.textureCache.addTexture(allocator, &self.vkCtx, &textureInfo);
+            }
+        }
+        try self.textureCache.recordTextures(&self.vkCtx, &self.cmdPools[0], self.queueGraphics);
 
         try self.modelsCache.init(allocator, &self.vkCtx, &self.cmdPools[0], self.queueGraphics, initData);
 

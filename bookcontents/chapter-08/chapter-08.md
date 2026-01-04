@@ -36,7 +36,7 @@ The code for that executable will be located in the `src/eng/modelGen.zig` file.
 Since we will also need to load textures, we will use the [Zstbi](https://github.com/zig-gamedev/zstbi) library. Therefore, you will need to
 add the dependency to the `build-.zig.zon` using `zig fetch --save git+https://github.com/zig-gamedev/zstbi`.
 
-In the `build.zig` file we need to define the zstbi dependency and add it to the `eng` module:
+In the `build.zig` file we need to define the zstbi dependency and add it to the `eng` and the root modules:
 
 ```zig
 pub fn build(b: *std.Build) void {
@@ -46,6 +46,8 @@ pub fn build(b: *std.Build) void {
     const zstbi = zstbiDep.module("root");
     ...
     eng.addImport("zstbi", zstbi);
+    ...
+    exe.root_module.addImport("zstbi", zstbi);
     ...
 }
 ```
@@ -722,7 +724,7 @@ pub const TextureInfo = struct {
     format: vulkan.Format,
 };
 
-const EMPTY_PIXELS = [_]u8{ 0, 0, 0, 0 };
+pub const EMPTY_PIXELS = [_]u8{ 0, 0, 0, 0 };
 
 pub const TextureCache = struct {
     textureMap: std.ArrayHashMap([]const u8, vk.text.VkTexture, std.array_hash_map.StringContext, false),
@@ -824,24 +826,9 @@ It is defined like this:
 ```zig
 pub const TextureCache = struct {
     ...
-    pub fn recordTextures(self: *TextureCache, allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx, vkCmdPool: *vk.cmd.VkCmdPool, vkQueue: vk.queue.VkQueue) !void {
-        log.debug("Recording textures", .{});
+    pub fn recordTextures(self: *TextureCache, vkCtx: *const vk.ctx.VkCtx, vkCmdPool: *vk.cmd.VkCmdPool, vkQueue: vk.queue.VkQueue) !void {
         const numTextures = self.textureMap.count();
-        if (numTextures < MAX_TEXTURES) {
-            const numPadding = MAX_TEXTURES - numTextures;
-            for (0..numPadding) |_| {
-                const id = try com.utils.generateUuid(allocator);
-                defer allocator.free(id);
-                const textureInfo = TextureInfo{
-                    .data = EMPTY_PIXELS[0..],
-                    .width = 1,
-                    .height = 1,
-                    .format = vulkan.Format.r8g8b8a8_srgb,
-                    .id = id,
-                };
-                try self.addTexture(allocator, vkCtx, &textureInfo);
-            }
-        }
+        log.debug("Recording [{d}] texture(s)", .{numTextures});
         const cmd = try vk.cmd.VkCmdBuff.create(vkCtx, vkCmdPool, true);
         defer cmd.cleanup(vkCtx, vkCmdPool);
 
@@ -857,17 +844,13 @@ pub const TextureCache = struct {
         while (it.next()) |entry| {
             entry.value_ptr.*.cleanupStgBuffer(vkCtx);
         }
-
-        log.debug("Recorded textures", .{});
+        log.debug("Recorded [{d}] texture(s)", .{numTextures});
     }
     ...
 };
 ```
 
-We first check if we have reached the maximum number of textures. If we do not have reached that size, we will add empty slots with a
-default texture (just one pixel). The reason behind this code is that we will be using arrays of textures in the shaders. When using those
-arrays, the size needs to be set upfront and it expects to have valid images (empty slots will not work). We will see later on how this
-works. After that we just create a command buffer, iterate over the textures calling `recordTextureTransition` and submit the work and wait
+We first  create a command buffer, iterate over the textures calling `recordTextureTransition` and submit the work and wait
 it to be completed. Using arrays of textures is also the reason  why we need to keeping track of the position of each texture is important.
 This is why we use the `ArrayHashMap` struct which basically keeps insertion order. After we have finished recording texture transitions
 and the work has been completed, we can free the staging buffers of all the textures.
@@ -2266,7 +2249,23 @@ pub const Render = struct {
         );
         try self.materialsCache.init(allocator, &self.vkCtx, &self.textureCache, &self.cmdPools[0], self.queueGraphics, initData);
 
-        try self.textureCache.recordTextures(allocator, &self.vkCtx, &self.cmdPools[0], self.queueGraphics);
+        const numTextures = self.textureCache.textureMap.count();
+        if (numTextures < eng.tcach.MAX_TEXTURES) {
+            const numPadding = eng.tcach.MAX_TEXTURES - numTextures;
+            for (0..numPadding) |_| {
+                const id = try com.utils.generateUuid(allocator);
+                defer allocator.free(id);
+                const textureInfo = eng.tcach.TextureInfo{
+                    .data = eng.tcach.EMPTY_PIXELS[0..],
+                    .width = 1,
+                    .height = 1,
+                    .format = vulkan.Format.r8g8b8a8_srgb,
+                    .id = id,
+                };
+                try self.textureCache.addTexture(allocator, &self.vkCtx, &textureInfo);
+            }
+        }
+        try self.textureCache.recordTextures(&self.vkCtx, &self.cmdPools[0], self.queueGraphics);
 
         try self.modelsCache.init(allocator, &self.vkCtx, &self.cmdPools[0], self.queueGraphics, initData);
 
@@ -2289,6 +2288,11 @@ pub const Render = struct {
     ...
 };
 ```
+
+Before calling the `recordTextures` function we check if we have reached the maximum number of textures. If we do not have reached that
+size, we will add empty slots with a default texture (just one pixel). The reason behind this code is that we are using arrays of
+textures in the fragment shader. When using those arrays, the size needs to be set upfront and it expects to have valid images (empty slots
+will not work). 
 
 We will need also to update the `Engine` struct to initialize the zstbi library prior to any texture loading code gets executed. In the
 `create` function we will add the following line prior to the `Render` instance creation: 
