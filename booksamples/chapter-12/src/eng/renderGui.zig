@@ -209,8 +209,7 @@ pub const RenderGui = struct {
             .render_area = .{ .extent = extent, .offset = .{ .x = 0, .y = 0 } },
             .layer_count = 1,
             .color_attachment_count = 1,
-            .p_color_attachments = @ptrCast(&renderAttInfo),
-            .p_depth_attachment = null,
+            .p_color_attachments = &[_]vulkan.RenderingAttachmentInfo{renderAttInfo},
             .view_mask = 0,
         };
 
