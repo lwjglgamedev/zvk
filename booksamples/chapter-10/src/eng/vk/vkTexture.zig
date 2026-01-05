@@ -53,8 +53,8 @@ pub const VkTexture = struct {
     width: u32,
     height: u32,
     mipLevels: u32,
-    transparent: bool,
     recorded: bool = false,
+    transparent: bool,
 
     pub fn create(vkCtx: *const vk.ctx.VkCtx, vkTextureInfo: *const VkTextureInfo) !VkTexture {
         const minDimension = @min(vkTextureInfo.width, vkTextureInfo.height);

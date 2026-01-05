@@ -125,7 +125,7 @@ pub const VkTexture = struct {
         return transparent;
     }
 
-    fn recordMipMap(self: *VkTexture, vkCtx: *const vk.ctx.VkCtx, cmdHandle: vulkan.CommandBuffer) void {
+    fn recordMipMap(self: *const VkTexture, vkCtx: *const vk.ctx.VkCtx, cmdHandle: vulkan.CommandBuffer) void {
         const device = vkCtx.vkDevice.deviceProxy;
         const image: vulkan.Image = @enumFromInt(@intFromPtr(self.vkImage.image));
 

@@ -128,7 +128,9 @@ pub const Wnd = struct {
     }
 
     fn processTextInput(text: [:0]const u8) void {
-        zgui.io.addInputCharactersUTF8(text);
+        if (zgui.io.getWantCaptureKeyboard()) {
+            zgui.io.addInputCharactersUTF8(text);
+        }
     }
 
     fn processKey(keyCode: sdl3.keycode.Keycode, keyDown: bool) void {

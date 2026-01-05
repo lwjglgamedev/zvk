@@ -231,9 +231,7 @@ pub const RenderScn = struct {
             DESC_ID_MAT,
             self.descLayoutFrgSt,
         );
-        if (materialsCache.materialsBuffer) |matBuff| {
-            matDescSet.setBuffer(vkCtx.vkDevice, matBuff, self.descLayoutFrgSt.binding, self.descLayoutFrgSt.descType);
-        }
+        matDescSet.setBuffer(vkCtx.vkDevice, materialsCache.materialsBuffer.?, self.descLayoutFrgSt.binding, self.descLayoutFrgSt.descType);
     }
 
     pub fn render(

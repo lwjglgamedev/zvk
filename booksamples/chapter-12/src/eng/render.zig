@@ -139,13 +139,13 @@ pub const Render = struct {
 
         const attColor = try createColorAttachment(&vkCtx);
 
-        const materialsCache = eng.mcach.MaterialsCache.create(allocator);
-        const modelsCache = eng.mcach.ModelsCache.create(allocator);
-        const textureCache = eng.tcach.TextureCache.create(allocator);
-
         const renderGui = try eng.rgui.RenderGui.create(allocator, &vkCtx);
         const renderPost = try eng.rpst.RenderPost.create(allocator, &vkCtx, constants, &attColor);
         const renderScn = try eng.rscn.RenderScn.create(allocator, &vkCtx);
+
+        const materialsCache = eng.mcach.MaterialsCache.create(allocator);
+        const modelsCache = eng.mcach.ModelsCache.create(allocator);
+        const textureCache = eng.tcach.TextureCache.create(allocator);
 
         return .{
             .vkCtx = vkCtx,
@@ -252,16 +252,8 @@ pub const Render = struct {
         );
         self.renderMainFinish(vkCmdBuff);
 
-        self.renderInitPost(
-            vkCmdBuff,
-            imageIndex,
-        );
-        try self.renderPost.render(
-            &self.vkCtx,
-            engCtx,
-            vkCmdBuff,
-            imageIndex,
-        );
+        self.renderInitPost(vkCmdBuff, imageIndex);
+        try self.renderPost.render(&self.vkCtx, engCtx, vkCmdBuff, imageIndex);
         try self.renderGui.render(
             &self.vkCtx,
             engCtx,
