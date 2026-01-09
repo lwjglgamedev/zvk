@@ -6,12 +6,8 @@ const log = std.log.scoped(.main);
 const zstbi = @import("zstbi");
 
 pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{
-        .safety = true,
-        .retain_metadata = true,
-    }){};
-    //defer if (gpa.deinit() == .leak) @panic("memory leaked");
-    defer _ = gpa.deinit();
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer if (gpa.deinit() == .leak) @panic("memory leaked");
     const allocator = gpa.allocator();
 
     const wndTitle = "Vulkan Book";
