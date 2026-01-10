@@ -23,6 +23,8 @@ const vulkan = @import("vulkan");
 const sdl3 = @import("sdl3");
 const log = std.log.scoped(.vk);
 
+const VALIDATION_AYER = "VK_LAYER_KHRONOS_validation";
+
 pub const VkInstance = struct {
     vkb: vulkan.BaseWrapper,
     instanceProxy: vulkan.InstanceProxy,
@@ -86,9 +88,12 @@ delivery.
 > to use validation layers, you will need to install [Vulkan SDK](https://www.lunarg.com/vulkan-sdk/) for your platform,
 > please consult the specific instructions for your platform. In fact, if you install Vulkan SDK you can use Vulkan Configurator
 > to configure any validation layer you want without modifying source code.
+> In Linux you will need to create one environment variables if you manually install the SDK: `VK_LAYER_PATH` which should point
+> to the directory where the validation layers are define: `$VULKAN_SDK/x86_64/share/vulkan/explicit_layer.d` (`VULKAN_SDK` should
+> have the path of the base directory of the Vulkan SDK)
 
 Our `create` function receives a boolean parameter indication if validation should be enabled or not. If validation is requested, we will
-use the `VK_LAYER_KHRONOS_validation` layer. 
+use the `VK_LAYER_KHRONOS_validation` layer (defined in the constant `VALIDATION_AYER`). 
 
 ```zig
 pub const VkInstance = struct {
@@ -97,15 +102,52 @@ pub const VkInstance = struct {
         ...
         var layer_names = try std.ArrayList([*:0]const u8).initCapacity(allocator, 2);
         defer layer_names.deinit(allocator);
+
+        _ = try supportsValidation(allocator, &vkb);
         if (validate) {
-            log.debug("Enabling validation. Make sure Vulkan SDK is installed", .{});
-            try layer_names.append(allocator, "VK_LAYER_KHRONOS_validation");
+            if (try supportsValidation(allocator, &vkb)) {
+                log.debug("Enabling validation", .{});
+                try layer_names.append(allocator, VALIDATION_LAYER);
+            } else {
+                log.debug("Validation layer not supported. Make sure Vulkan SDK is installed", .{});
+            }
         }
         ...
     }
     ...
 };
 ```
+
+The `supportsValidation` function is defined like this:
+
+```zig
+pub const VkInstance = struct {
+    ...
+    fn supportsValidation(allocator: std.mem.Allocator, vkb: *const vulkan.BaseWrapper) !bool {
+        var result = false;
+        var numLayers: u32 = 0;
+        _ = try vkb.enumerateInstanceLayerProperties(&numLayers, null);
+
+        const layers = try allocator.alloc(vulkan.LayerProperties, numLayers);
+        defer allocator.free(layers);
+        _ = try vkb.enumerateInstanceLayerProperties(&numLayers, layers.ptr);
+
+        for (layers) |layerProps| {
+            const layerName = std.mem.sliceTo(&layerProps.layer_name, 0);
+            log.debug("Supported layer [{s}]", .{layerName});
+            if (std.mem.eql(u8, layerName, VALIDATION_LAYER)) {
+                result = true;
+            }
+        }
+
+        return result;
+    }
+};
+```
+
+We first get the number of supported layers by calling the `enumerateInstanceLayerProperties` function which just a pointer to an
+`u32` variable to get the number of supported layers. After that, we call again the `enumerateInstanceLayerProperties` function to get
+the layers themselves passing a preallocated array. If we find the the validation layer, we can enable it.
 
 ## Extensions
 

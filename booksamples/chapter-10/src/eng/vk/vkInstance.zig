@@ -4,6 +4,8 @@ const vulkan = @import("vulkan");
 const sdl3 = @import("sdl3");
 const log = std.log.scoped(.vk);
 
+const VALIDATION_LAYER = "VK_LAYER_KHRONOS_validation";
+
 pub const VkInstance = struct {
     vkb: vulkan.BaseWrapper,
     instanceProxy: vulkan.InstanceProxy,
@@ -29,9 +31,15 @@ pub const VkInstance = struct {
 
         var layer_names = try std.ArrayList([*:0]const u8).initCapacity(allocator, 2);
         defer layer_names.deinit(allocator);
+
+        _ = try supportsValidation(allocator, &vkb);
         if (validate) {
-            log.debug("Enabling validation. Make sure Vulkan SDK is installed", .{});
-            try layer_names.append(allocator, "VK_LAYER_KHRONOS_validation");
+            if (try supportsValidation(allocator, &vkb)) {
+                log.debug("Enabling validation", .{});
+                try layer_names.append(allocator, VALIDATION_LAYER);
+            } else {
+                log.debug("Validation layer not supported. Make sure Vulkan SDK is installed", .{});
+            }
         }
 
         for (sdlExtensions) |value| {
@@ -72,5 +80,25 @@ pub const VkInstance = struct {
         self.instanceProxy.destroyInstance(null);
         allocator.destroy(self.instanceProxy.wrapper);
         self.instanceProxy = undefined;
+    }
+
+    fn supportsValidation(allocator: std.mem.Allocator, vkb: *const vulkan.BaseWrapper) !bool {
+        var result = false;
+        var numLayers: u32 = 0;
+        _ = try vkb.enumerateInstanceLayerProperties(&numLayers, null);
+
+        const layers = try allocator.alloc(vulkan.LayerProperties, numLayers);
+        defer allocator.free(layers);
+        _ = try vkb.enumerateInstanceLayerProperties(&numLayers, layers.ptr);
+
+        for (layers) |layerProps| {
+            const layerName = std.mem.sliceTo(&layerProps.layer_name, 0);
+            log.debug("Supported layer [{s}]", .{layerName});
+            if (std.mem.eql(u8, layerName, VALIDATION_LAYER)) {
+                result = true;
+            }
+        }
+
+        return result;
     }
 };
