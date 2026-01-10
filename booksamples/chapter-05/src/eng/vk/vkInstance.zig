@@ -12,7 +12,7 @@ pub const VkInstance = struct {
         const sdlExtensions = try sdl3.vulkan.getInstanceExtensions();
 
         const rawProc = sdl3.vulkan.getVkGetInstanceProcAddr() catch |err| {
-            std.debug.print("SDL Vulkan not available: {}\n", .{err});
+            std.debug.print("Vulkan not available: {}\n", .{err});
             return err;
         };
 

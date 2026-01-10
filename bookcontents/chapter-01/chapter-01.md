@@ -24,18 +24,28 @@ In order to add the dependency to the `build.zig.zon` file just execute:
 - [Vulkan](https://github.com/Snektron/vulkan-zig) Zig bindings.
 In order to add the dependency to the `build.zig.zon` file just execute:
 `zig fetch --save git+https://github.com/Snektron/vulkan-zig#zig-0.15-compat`
+- [Vulkan Headers](https://github.com/KhronosGroup/Vulkan-Headers) we will need to add to the `build.zig.zon` file the following entry
+
+```zig
+.{
+    ...
+    .dependencies = .{
+        ...
+        .vulkan_headers = .{
+            .url = "https://github.com/KhronosGroup/Vulkan-Headers/archive/refs/tags/v1.4.338.tar.gz",
+            .hash = "N-V-__8AAMZuLQIcPe--JSv0kn_Ga8tsjgbkaojW0OHW2Rfd",
+        },
+        ...
+    }
+    ...    
+}
+```
 
 > [!WARNING]  
-> In order for Vulkan to work you will need the [Vulkan SDK](https://vulkan.lunarg.com/sdk/home). Just download the proper package for your
-> operative system. Once installed, you will need to set up an environment variable named `VULKAN_SDK` which points to the root folder of
-> the Vulkan SDK. The build file assumes that there is a `vk.xml` file in the Vulkan SDK. It will look for it in the following folders:
->
-> - `$VULKAN_SDK/share/vulkan/registry`
-> - `$VULKAN_SDK/x86_64/share/vulkan/registry`
->
-> Make sure the `vk.xml` file is located there or change the path accordingly. It is required to generate the zig Vulkan bindings.
-
-You will also need the Vulkan SDK when enabling validation.
+> If you want to enable Vulkan validation layers, will need the [Vulkan SDK](https://vulkan.lunarg.com/sdk/home). Just download the proper
+> package for your operative system. Once installed, you will need to set up an environment variable named `VULKAN_SDK` which points to the
+> root folder of the Vulkan SDK. We will be dynamically downloading Vulkan headers, so if you are not using validation you may skip
+> Vulkan SDK installation.
 
 The `build.zig` file is defined like this:
 
@@ -66,29 +76,8 @@ pub fn build(b: *std.Build) void {
     exe.root_module.addImport("sdl3", sdl3);
 
     // Vulkan
-    const vk_sdk = std.process.getEnvVarOwned(b.allocator, "VULKAN_SDK") catch {
-        std.debug.panic("Environment variable VULKAN_SDK is not set", .{});
-    };
-    const primary = std.fs.path.join(b.allocator, &.{ vk_sdk, "share", "vulkan", "registry", "vk.xml" }) catch {
-        std.debug.panic("Error constructing vk.xml path", .{});
-    };
-    const fallback = std.fs.path.join(b.allocator, &.{ vk_sdk, "x86_64", "share", "vulkan", "registry", "vk.xml" }) catch {
-        std.debug.panic("Error constructing vk.xml path", .{});
-    };
-    const vk_xml_abs = blk: {
-        if (std.fs.cwd().access(primary, .{})) |_| {
-            break :blk primary;
-        } else |_| {}
-
-        if (std.fs.cwd().access(fallback, .{})) |_| {
-            break :blk fallback;
-        } else |_| {}
-
-        std.debug.panic("vk.xml not found in Vulkan SDK", .{});
-    };
-    const vk_xml: std.Build.LazyPath = .{ .cwd_relative = vk_xml_abs };
     const vulkan_dep = b.dependency("vulkan", .{
-        .registry = vk_xml,
+        .registry = b.dependency("vulkan_headers", .{}).path("registry/vk.xml"),
     });
     const vulkan = vulkan_dep.module("vulkan-zig");
     exe.root_module.addImport("vulkan", vulkan);

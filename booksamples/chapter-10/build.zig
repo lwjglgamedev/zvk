@@ -33,29 +33,8 @@ pub fn build(b: *std.Build) void {
     const vmaIncludePath = vmaDep.path("include");
 
     // Vulkan
-    const vk_sdk = std.process.getEnvVarOwned(b.allocator, "VULKAN_SDK") catch {
-        std.debug.panic("Environment variable VULKAN_SDK is not set", .{});
-    };
-    const primary = std.fs.path.join(b.allocator, &.{ vk_sdk, "share", "vulkan", "registry", "vk.xml" }) catch {
-        std.debug.panic("Error constructing vk.xml path", .{});
-    };
-    const fallback = std.fs.path.join(b.allocator, &.{ vk_sdk, "x86_64", "share", "vulkan", "registry", "vk.xml" }) catch {
-        std.debug.panic("Error constructing vk.xml path", .{});
-    };
-    const vk_xml_abs = blk: {
-        if (std.fs.cwd().access(primary, .{})) |_| {
-            break :blk primary;
-        } else |_| {}
-
-        if (std.fs.cwd().access(fallback, .{})) |_| {
-            break :blk fallback;
-        } else |_| {}
-
-        std.debug.panic("vk.xml not found in Vulkan SDK", .{});
-    };
-    const vk_xml: std.Build.LazyPath = .{ .cwd_relative = vk_xml_abs };
     const vulkan_dep = b.dependency("vulkan", .{
-        .registry = vk_xml,
+        .registry = b.dependency("vulkan_headers", .{}).path("registry/vk.xml"),
     });
     const vulkan = vulkan_dep.module("vulkan-zig");
     exe.root_module.addImport("vulkan", vulkan);
@@ -87,10 +66,6 @@ pub fn build(b: *std.Build) void {
     vk.addImport("sdl3", sdl3);
     vk.addImport("com", com);
     exe.root_module.addImport("vk", vk);
-    const vk_include = std.fs.path.join(b.allocator, &.{ vk_sdk, "Include" }) catch {
-        std.debug.panic("Could not find Vulkan include path", .{});
-    };
-    vk.addIncludePath(.{ .cwd_relative = vk_include });
     vk.addIncludePath(vmaIncludePath);
     vk.addCSourceFile(.{ .file = b.path("src/eng/vk/vma.cpp"), .flags = &.{"-std=c++17"} });
     exe.linkLibCpp();
