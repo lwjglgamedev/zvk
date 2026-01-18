@@ -44,7 +44,10 @@ const DESC_ID_MAT = "SCN_DESC_ID_MAT";
 const DESC_ID_CAM = "SCN_DESC_ID_CAM";
 const DESC_ID_TEXTS = "SCN_DESC_ID_TEXTS";
 
+const COLOR_ATTACHMENT_FORMAT = vulkan.Format.r16g16b16a16_sfloat;
+
 pub const RenderScn = struct {
+    attachments: []eng.rend.Attachment,
     buffsCamera: []vk.buf.VkBuffer,
     depthAttachments: []eng.rend.Attachment,
     descLayoutFrgSt: vk.desc.VkDescSetLayout,
@@ -55,6 +58,11 @@ pub const RenderScn = struct {
 
     pub fn cleanup(self: *RenderScn, allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx) void {
         self.vkPipeline.cleanup(vkCtx);
+        for (self.attachments) |*attachment| {
+            attachment.cleanup(vkCtx);
+        }
+        allocator.free(self.attachments);
+
         for (self.depthAttachments) |*depthAttachment| {
             depthAttachment.cleanup(vkCtx);
         }
@@ -71,6 +79,7 @@ pub const RenderScn = struct {
     }
 
     pub fn create(allocator: std.mem.Allocator, vkCtx: *vk.ctx.VkCtx) !RenderScn {
+        const attachments = try createColorAttachment(allocator, vkCtx);
         const depthAttachments = try createDepthAttachments(allocator, vkCtx);
 
         // Shader modules
@@ -105,25 +114,34 @@ pub const RenderScn = struct {
 
         // Descriptor set layouts
         const descLayoutVtx = try vk.desc.VkDescSetLayout.create(
+            allocator,
             vkCtx,
-            0,
-            vulkan.DescriptorType.uniform_buffer,
-            vulkan.ShaderStageFlags{ .vertex_bit = true },
-            1,
+            &[_]vk.desc.LayoutInfo{.{
+                .binding = 0,
+                .descCount = 1,
+                .descType = vulkan.DescriptorType.uniform_buffer,
+                .stageFlags = vulkan.ShaderStageFlags{ .vertex_bit = true },
+            }},
         );
         const descLayoutFrgSt = try vk.desc.VkDescSetLayout.create(
+            allocator,
             vkCtx,
-            0,
-            vulkan.DescriptorType.storage_buffer,
-            vulkan.ShaderStageFlags{ .fragment_bit = true },
-            1,
+            &[_]vk.desc.LayoutInfo{.{
+                .binding = 0,
+                .descCount = 1,
+                .descType = vulkan.DescriptorType.storage_buffer,
+                .stageFlags = vulkan.ShaderStageFlags{ .fragment_bit = true },
+            }},
         );
         const descLayoutTexture = try vk.desc.VkDescSetLayout.create(
+            allocator,
             vkCtx,
-            0,
-            vulkan.DescriptorType.combined_image_sampler,
-            vulkan.ShaderStageFlags{ .fragment_bit = true },
-            eng.tcach.MAX_TEXTURES,
+            &[_]vk.desc.LayoutInfo{.{
+                .binding = 0,
+                .descCount = eng.tcach.MAX_TEXTURES,
+                .descType = vulkan.DescriptorType.combined_image_sampler,
+                .stageFlags = vulkan.ShaderStageFlags{ .fragment_bit = true },
+            }},
         );
         const descSetLayouts = [_]vulkan.DescriptorSetLayout{ descLayoutVtx.descSetLayout, descLayoutFrgSt.descSetLayout, descLayoutTexture.descSetLayout };
 
@@ -145,7 +163,7 @@ pub const RenderScn = struct {
 
         // Pipeline
         const vkPipelineCreateInfo = vk.pipe.VkPipelineCreateInfo{
-            .colorFormat = eng.rend.COLOR_ATTACHMENT_FORMAT,
+            .colorFormat = COLOR_ATTACHMENT_FORMAT,
             .depthFormat = DEPTH_FORMAT,
             .descSetLayouts = descSetLayouts[0..],
             .modulesInfo = modulesInfo,
@@ -159,6 +177,7 @@ pub const RenderScn = struct {
         const vkPipeline = try vk.pipe.VkPipeline.create(allocator, vkCtx, &vkPipelineCreateInfo);
 
         return .{
+            .attachments = attachments,
             .buffsCamera = buffsCamera,
             .depthAttachments = depthAttachments,
             .descLayoutFrgSt = descLayoutFrgSt,
@@ -167,6 +186,30 @@ pub const RenderScn = struct {
             .textSampler = textSampler,
             .vkPipeline = vkPipeline,
         };
+    }
+
+    fn createColorAttachment(allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx) ![]eng.rend.Attachment {
+        const extent = vkCtx.vkSwapChain.extent;
+        const flags = vulkan.ImageUsageFlags{
+            .color_attachment_bit = true,
+            .sampled_bit = true,
+        };
+
+        const numAttachments = 1;
+        const attachments = try allocator.alloc(eng.rend.Attachment, numAttachments);
+        errdefer allocator.free(attachments);
+
+        for (0..numAttachments) |i| {
+            const attachment = try eng.rend.Attachment.create(
+                vkCtx,
+                extent.width,
+                extent.height,
+                COLOR_ATTACHMENT_FORMAT,
+                flags,
+            );
+            attachments[i] = attachment;
+        }
+        return attachments;
     }
 
     fn createCamBuffers(allocator: std.mem.Allocator, vkCtx: *vk.ctx.VkCtx, descLayout: vk.desc.VkDescSetLayout) ![]vk.buf.VkBuffer {
@@ -231,7 +274,8 @@ pub const RenderScn = struct {
             DESC_ID_MAT,
             self.descLayoutFrgSt,
         );
-        matDescSet.setBuffer(vkCtx.vkDevice, materialsCache.materialsBuffer.?, self.descLayoutFrgSt.binding, self.descLayoutFrgSt.descType);
+        const layoutInfo = self.descLayoutFrgSt.layoutInfos[0];
+        matDescSet.setBuffer(vkCtx.vkDevice, materialsCache.materialsBuffer.?, layoutInfo.binding, layoutInfo.descType);
     }
 
     pub fn render(
@@ -239,7 +283,6 @@ pub const RenderScn = struct {
         vkCtx: *const vk.ctx.VkCtx,
         engCtx: *const eng.engine.EngCtx,
         vkCmd: vk.cmd.VkCmdBuff,
-        attColor: *const eng.rend.Attachment,
         modelsCache: *const eng.mcach.ModelsCache,
         materialsCache: *const eng.mcach.MaterialsCache,
         imageIndex: u32,
@@ -250,15 +293,24 @@ pub const RenderScn = struct {
         const cmdHandle = vkCmd.cmdBuffProxy.handle;
         const device = vkCtx.vkDevice.deviceProxy;
 
-        const renderAttInfo = vulkan.RenderingAttachmentInfo{
-            .image_view = attColor.vkImageView.view,
-            .image_layout = vulkan.ImageLayout.color_attachment_optimal,
-            .load_op = vulkan.AttachmentLoadOp.clear,
-            .store_op = vulkan.AttachmentStoreOp.store,
-            .clear_value = vulkan.ClearValue{ .color = .{ .float_32 = .{ 0.0, 0.0, 0.0, 1.0 } } },
-            .resolve_mode = vulkan.ResolveModeFlags{},
-            .resolve_image_layout = vulkan.ImageLayout.attachment_optimal,
-        };
+        try self.renderInit(allocator, vkCtx, cmdHandle);
+
+        const renderAttInfos = try allocator.alloc(vulkan.RenderingAttachmentInfo, self.attachments.len);
+        defer allocator.free(renderAttInfos);
+        for (0..self.attachments.len) |i| {
+            const renderAttInfo = vulkan.RenderingAttachmentInfo{
+                .image_view = self.attachments[i].vkImageView.view,
+                .image_layout = vulkan.ImageLayout.color_attachment_optimal,
+                .load_op = vulkan.AttachmentLoadOp.clear,
+                .store_op = vulkan.AttachmentStoreOp.store,
+                .clear_value = vulkan.ClearValue{ .color = .{ .float_32 = .{ 0.0, 0.0, 0.0, 1.0 } } },
+                .resolve_mode = vulkan.ResolveModeFlags{},
+                .resolve_image_layout = vulkan.ImageLayout.attachment_optimal,
+            };
+            renderAttInfos[i] = renderAttInfo;
+        }
+
+        // TODO: Use only one vale?
         const depthAttInfo = vulkan.RenderingAttachmentInfo{
             .image_view = self.depthAttachments[imageIndex].vkImageView.view,
             .image_layout = vulkan.ImageLayout.depth_stencil_attachment_optimal,
@@ -274,7 +326,7 @@ pub const RenderScn = struct {
             .render_area = .{ .extent = extent, .offset = .{ .x = 0, .y = 0 } },
             .layer_count = 1,
             .color_attachment_count = 1,
-            .p_color_attachments = &[_]vulkan.RenderingAttachmentInfo{renderAttInfo},
+            .p_color_attachments = renderAttInfos.ptr,
             .p_depth_attachment = &depthAttInfo,
             .view_mask = 0,
         };
@@ -392,6 +444,37 @@ pub const RenderScn = struct {
                 std.log.warn("Could not find model {s}", .{entity.modelId});
             }
         }
+    }
+
+    fn renderInit(self: *RenderScn, allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx, cmdHandle: vulkan.CommandBuffer) !void {
+        const initBarriers = try allocator.alloc(vulkan.ImageMemoryBarrier2, self.attachments.len);
+        defer allocator.free(initBarriers);
+        for (0..self.attachments.len) |i| {
+            const barrier = vulkan.ImageMemoryBarrier2{
+                .old_layout = vulkan.ImageLayout.undefined,
+                .new_layout = vulkan.ImageLayout.color_attachment_optimal,
+                .src_stage_mask = .{ .color_attachment_output_bit = true },
+                .dst_stage_mask = .{ .color_attachment_output_bit = true },
+                .src_access_mask = .{},
+                .dst_access_mask = .{ .color_attachment_write_bit = true },
+                .src_queue_family_index = vulkan.QUEUE_FAMILY_IGNORED,
+                .dst_queue_family_index = vulkan.QUEUE_FAMILY_IGNORED,
+                .subresource_range = .{
+                    .aspect_mask = .{ .color_bit = true },
+                    .base_mip_level = 0,
+                    .level_count = vulkan.REMAINING_MIP_LEVELS,
+                    .base_array_layer = 0,
+                    .layer_count = vulkan.REMAINING_ARRAY_LAYERS,
+                },
+                .image = @enumFromInt(@intFromPtr(self.attachments[i].vkImage.image)),
+            };
+            initBarriers[i] = barrier;
+        }
+        const initDepInfo = vulkan.DependencyInfo{
+            .image_memory_barrier_count = @as(u32, @intCast(initBarriers.len)),
+            .p_image_memory_barriers = initBarriers.ptr,
+        };
+        vkCtx.vkDevice.deviceProxy.cmdPipelineBarrier2(cmdHandle, &initDepInfo);
     }
 
     pub fn resize(self: *RenderScn, vkCtx: *const vk.ctx.VkCtx, engCtx: *const eng.engine.EngCtx) !void {

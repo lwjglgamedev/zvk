@@ -102,6 +102,8 @@ pub fn build(b: *std.Build) void {
     const shaders = [_]Shader{
         .{ .path = "res/shaders/scn_vtx.glsl", .stage = "vertex" },
         .{ .path = "res/shaders/scn_frg.glsl", .stage = "fragment" },
+        .{ .path = "res/shaders/light_vtx.glsl", .stage = "vertex" },
+        .{ .path = "res/shaders/light_frg.glsl", .stage = "fragment" },
         .{ .path = "res/shaders/post_vtx.glsl", .stage = "vertex" },
         .{ .path = "res/shaders/post_frg.glsl", .stage = "fragment" },
         .{ .path = "res/shaders/gui_vtx.glsl", .stage = "vertex" },

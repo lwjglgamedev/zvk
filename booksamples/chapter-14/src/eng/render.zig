@@ -45,11 +45,8 @@ pub const Attachment = struct {
     }
 };
 
-pub const COLOR_ATTACHMENT_FORMAT = vulkan.Format.r16g16b16a16_sfloat;
-
 pub const Render = struct {
     vkCtx: vk.ctx.VkCtx,
-    attColor: Attachment,
     cmdPools: []vk.cmd.VkCmdPool,
     cmdBuffs: []vk.cmd.VkCmdBuff,
     currentFrame: u8,
@@ -60,6 +57,7 @@ pub const Render = struct {
     queueGraphics: vk.queue.VkQueue,
     queuePresent: vk.queue.VkQueue,
     renderGui: eng.rgui.RenderGui,
+    renderLight: eng.rlgt.RenderLight,
     renderPost: eng.rpst.RenderPost,
     renderScn: eng.rscn.RenderScn,
     semsPresComplete: []vk.sync.VkSemaphore,
@@ -72,7 +70,7 @@ pub const Render = struct {
         self.renderGui.cleanup(allocator, &self.vkCtx);
         self.renderPost.cleanup(&self.vkCtx);
         self.renderScn.cleanup(allocator, &self.vkCtx);
-        self.attColor.cleanup(&self.vkCtx);
+        self.renderLight.cleanup(&self.vkCtx);
 
         self.textureCache.cleanup(allocator, &self.vkCtx);
         self.materialsCache.cleanup(allocator, &self.vkCtx);
@@ -137,11 +135,10 @@ pub const Render = struct {
         const queueGraphics = vk.queue.VkQueue.create(&vkCtx, vkCtx.vkPhysDevice.queuesInfo.graphics_family);
         const queuePresent = vk.queue.VkQueue.create(&vkCtx, vkCtx.vkPhysDevice.queuesInfo.present_family);
 
-        const attColor = try createColorAttachment(&vkCtx);
-
         const renderGui = try eng.rgui.RenderGui.create(allocator, &vkCtx);
-        const renderPost = try eng.rpst.RenderPost.create(allocator, &vkCtx, constants, &attColor);
         const renderScn = try eng.rscn.RenderScn.create(allocator, &vkCtx);
+        const renderLight = try eng.rlgt.RenderLight.create(allocator, &vkCtx, &renderScn.attachments);
+        const renderPost = try eng.rpst.RenderPost.create(allocator, &vkCtx, constants, &renderLight.outputAtt);
 
         const materialsCache = eng.mcach.MaterialsCache.create(allocator);
         const modelsCache = eng.mcach.ModelsCache.create(allocator);
@@ -150,7 +147,6 @@ pub const Render = struct {
         return .{
             .vkCtx = vkCtx,
             .cmdPools = cmdPools,
-            .attColor = attColor,
             .cmdBuffs = cmdBuffs,
             .currentFrame = 0,
             .fences = fences,
@@ -160,28 +156,13 @@ pub const Render = struct {
             .queueGraphics = queueGraphics,
             .queuePresent = queuePresent,
             .renderGui = renderGui,
+            .renderLight = renderLight,
             .renderPost = renderPost,
             .renderScn = renderScn,
             .semsPresComplete = semsPresComplete,
             .semsRenderComplete = semsRenderComplete,
             .textureCache = textureCache,
         };
-    }
-
-    fn createColorAttachment(vkCtx: *const vk.ctx.VkCtx) !Attachment {
-        const extent = vkCtx.vkSwapChain.extent;
-        const flags = vulkan.ImageUsageFlags{
-            .color_attachment_bit = true,
-            .sampled_bit = true,
-        };
-        const attColor = try Attachment.create(
-            vkCtx,
-            extent.width,
-            extent.height,
-            COLOR_ATTACHMENT_FORMAT,
-            flags,
-        );
-        return attColor;
     }
 
     pub fn init(self: *Render, allocator: std.mem.Allocator, engCtx: *eng.engine.EngCtx, initData: *const eng.engine.InitData) !void {
@@ -239,18 +220,21 @@ pub const Render = struct {
         }
         const imageIndex = res.ok;
 
-        self.renderMainInit(vkCmdBuff);
         try self.renderScn.render(
             &self.vkCtx,
             engCtx,
             vkCmdBuff,
-            &self.attColor,
             &self.modelsCache,
             &self.materialsCache,
             imageIndex,
             self.currentFrame,
         );
-        self.renderMainFinish(vkCmdBuff);
+        try self.renderLight.render(
+            &self.vkCtx,
+            engCtx,
+            vkCmdBuff,
+            &self.renderScn.attachments,
+        );
 
         self.renderInitPost(vkCmdBuff, imageIndex);
         try self.renderPost.render(&self.vkCtx, engCtx, vkCmdBuff, imageIndex);
@@ -272,58 +256,6 @@ pub const Render = struct {
         self.mustResize = !self.vkCtx.vkSwapChain.present(self.vkCtx.vkDevice, self.queuePresent, self.semsRenderComplete[imageIndex], imageIndex);
 
         self.currentFrame = (self.currentFrame + 1) % com.common.FRAMES_IN_FLIGHT;
-    }
-
-    fn renderMainFinish(self: *Render, vkCmd: vk.cmd.VkCmdBuff) void {
-        const initBarriers = [_]vulkan.ImageMemoryBarrier2{.{
-            .old_layout = vulkan.ImageLayout.color_attachment_optimal,
-            .new_layout = vulkan.ImageLayout.shader_read_only_optimal,
-            .src_stage_mask = .{ .color_attachment_output_bit = true },
-            .dst_stage_mask = .{ .fragment_shader_bit = true },
-            .src_access_mask = .{ .color_attachment_write_bit = true },
-            .dst_access_mask = .{ .shader_read_bit = true },
-            .src_queue_family_index = vulkan.QUEUE_FAMILY_IGNORED,
-            .dst_queue_family_index = vulkan.QUEUE_FAMILY_IGNORED,
-            .subresource_range = .{
-                .aspect_mask = .{ .color_bit = true },
-                .base_mip_level = 0,
-                .level_count = vulkan.REMAINING_MIP_LEVELS,
-                .base_array_layer = 0,
-                .layer_count = vulkan.REMAINING_ARRAY_LAYERS,
-            },
-            .image = @enumFromInt(@intFromPtr(self.attColor.vkImage.image)),
-        }};
-        const initDepInfo = vulkan.DependencyInfo{
-            .image_memory_barrier_count = initBarriers.len,
-            .p_image_memory_barriers = &initBarriers,
-        };
-        self.vkCtx.vkDevice.deviceProxy.cmdPipelineBarrier2(vkCmd.cmdBuffProxy.handle, &initDepInfo);
-    }
-
-    fn renderMainInit(self: *Render, vkCmd: vk.cmd.VkCmdBuff) void {
-        const initBarriers = [_]vulkan.ImageMemoryBarrier2{.{
-            .old_layout = vulkan.ImageLayout.undefined,
-            .new_layout = vulkan.ImageLayout.color_attachment_optimal,
-            .src_stage_mask = .{ .color_attachment_output_bit = true },
-            .dst_stage_mask = .{ .color_attachment_output_bit = true },
-            .src_access_mask = .{},
-            .dst_access_mask = .{ .color_attachment_write_bit = true },
-            .src_queue_family_index = vulkan.QUEUE_FAMILY_IGNORED,
-            .dst_queue_family_index = vulkan.QUEUE_FAMILY_IGNORED,
-            .subresource_range = .{
-                .aspect_mask = .{ .color_bit = true },
-                .base_mip_level = 0,
-                .level_count = vulkan.REMAINING_MIP_LEVELS,
-                .base_array_layer = 0,
-                .layer_count = vulkan.REMAINING_ARRAY_LAYERS,
-            },
-            .image = @enumFromInt(@intFromPtr(self.attColor.vkImage.image)),
-        }};
-        const initDepInfo = vulkan.DependencyInfo{
-            .image_memory_barrier_count = initBarriers.len,
-            .p_image_memory_barriers = &initBarriers,
-        };
-        self.vkCtx.vkDevice.deviceProxy.cmdPipelineBarrier2(vkCmd.cmdBuffProxy.handle, &initDepInfo);
     }
 
     fn renderFinishPost(self: *Render, vkCmd: vk.cmd.VkCmdBuff, imageIndex: u32) void {
@@ -411,9 +343,6 @@ pub const Render = struct {
         self.semsPresComplete = semsPresComplete;
         self.semsRenderComplete = semsRenderComplete;
 
-        self.attColor.cleanup(&self.vkCtx);
-        self.attColor = try createColorAttachment(&self.vkCtx);
-
         const constants = engCtx.constants;
         const extent = self.vkCtx.vkSwapChain.extent;
         engCtx.scene.camera.projData.update(
@@ -425,7 +354,7 @@ pub const Render = struct {
         );
 
         try self.renderScn.resize(&self.vkCtx, engCtx);
-        try self.renderPost.resize(&self.vkCtx, &self.attColor);
+        try self.renderPost.resize(&self.vkCtx, &self.renderLight.outputAtt);
         try self.renderGui.resize(&self.vkCtx);
     }
 

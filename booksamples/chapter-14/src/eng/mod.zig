@@ -4,6 +4,7 @@ pub const mcach = @import("modelsCache.zig");
 pub const mdata = @import("modelData.zig");
 pub const rgui = @import("renderGui.zig");
 pub const rend = @import("render.zig");
+pub const rlgt = @import("renderLight.zig");
 pub const rpst = @import("renderPost.zig");
 pub const rscn = @import("renderScn.zig");
 pub const scn = @import("scene.zig");

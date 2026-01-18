@@ -28,7 +28,8 @@ pub fn createHostVisibleBuff(
         id,
         vkDescSetLayout,
     );
-    descSet.setBuffer(vkCtx.vkDevice, buffer, vkDescSetLayout.binding, vkDescSetLayout.descType);
+    const layoutInfo = vkDescSetLayout.layoutInfos[0];
+    descSet.setBuffer(vkCtx.vkDevice, buffer, layoutInfo.binding, layoutInfo.descType);
 
     return buffer;
 }

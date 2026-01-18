@@ -66,17 +66,24 @@ pub const VkDescAllocator = struct {
             return error.DuplicateDescKey;
         }
         for (self.poolInfoList.items) |poolInfo| {
-            const available = poolInfo.descCount.get(vkDescSetLayout.descType) orelse return error.KeyNotFound;
-            const limit = try PoolInfo.getLimits(vkPhysDevice, vkDescSetLayout.descType);
-            if (count > limit) {
-                log.err("Cannot create more than [{d}] for descriptor type [{any}]", .{
-                    limit, vkDescSetLayout.descType,
-                });
-                return error.DescLimitExceeded;
+            for (vkDescSetLayout.layoutInfos) |layoutInfo| {
+                const available = poolInfo.descCount.get(layoutInfo.descType) orelse return error.KeyNotFound;
+                const limit = try PoolInfo.getLimits(vkPhysDevice, layoutInfo.descType);
+                if (count > limit) {
+                    log.err("Cannot create more than [{d}] for descriptor type [{any}]", .{
+                        limit, layoutInfo.descType,
+                    });
+                    return error.DescLimitExceeded;
+                }
+                if (available >= count) {
+                    vkDescPoolOpt = poolInfo.vkDescPool;
+                    poolInfoOpt = poolInfo;
+                } else {
+                    vkDescPoolOpt = null;
+                    poolInfoOpt = null;
+                }
             }
-            if (available >= count) {
-                vkDescPoolOpt = poolInfo.vkDescPool;
-                poolInfoOpt = poolInfo;
+            if (poolInfoOpt != null) {
                 break;
             }
         }
@@ -93,15 +100,16 @@ pub const VkDescAllocator = struct {
         if (vkDescPoolOpt) |vkDescPool| {
             const vkDescSet = try VkDesSet.create(vkDevice, vkDescPool, vkDescSetLayout);
             const poolInfo = poolInfoOpt.?;
-            const available = poolInfo.descCount.get(vkDescSetLayout.descType) orelse return error.KeyNotFound;
-            if (available < count) {
-                return error.NotAvailable;
+
+            for (vkDescSetLayout.layoutInfos) |layoutInfo| {
+                const available = poolInfo.descCount.get(layoutInfo.descType) orelse return error.KeyNotFound;
+
+                try poolInfo.descCount.put(
+                    layoutInfo.descType,
+                    available - count,
+                );
             }
 
-            try poolInfo.descCount.put(
-                vkDescSetLayout.descType,
-                available - count,
-            );
             const ownedId = try allocator.dupe(u8, id);
             try self.descSetMap.put(ownedId, vkDescSet);
             return vkDescSet;
@@ -169,24 +177,39 @@ pub const VkDescPool = struct {
     }
 };
 
-pub const VkDescSetLayout = struct {
+pub const LayoutInfo = struct {
     binding: u32,
-    descSetLayout: vulkan.DescriptorSetLayout,
+    descCount: u32,
     descType: vulkan.DescriptorType,
+    stageFlags: vulkan.ShaderStageFlags,
+};
 
-    pub fn create(vkCtx: *const vk.ctx.VkCtx, binding: u32, descType: vulkan.DescriptorType, stageFlags: vulkan.ShaderStageFlags, count: u32) !VkDescSetLayout {
-        const bindingInfos = [_]vulkan.DescriptorSetLayoutBinding{.{
-            .descriptor_count = count,
-            .binding = binding,
-            .descriptor_type = descType,
-            .stage_flags = stageFlags,
-        }};
+pub const VkDescSetLayout = struct {
+    descSetLayout: vulkan.DescriptorSetLayout,
+    layoutInfos: []const LayoutInfo,
+
+    pub fn create(allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx, layoutInfos: []const LayoutInfo) !VkDescSetLayout {
+        const bindingInfos = try allocator.alloc(vulkan.DescriptorSetLayoutBinding, layoutInfos.len);
+        defer allocator.free(bindingInfos);
+
+        for (0..layoutInfos.len) |i| {
+            const bindingInfo = vulkan.DescriptorSetLayoutBinding{
+                .binding = layoutInfos[i].binding,
+                .descriptor_count = layoutInfos[i].descCount,
+                .descriptor_type = layoutInfos[i].descType,
+                .stage_flags = layoutInfos[i].stageFlags,
+            };
+            bindingInfos[i] = bindingInfo;
+        }
         const createInfo = vulkan.DescriptorSetLayoutCreateInfo{
-            .binding_count = bindingInfos.len,
-            .p_bindings = &bindingInfos,
+            .binding_count = @as(u32, @intCast(bindingInfos.len)),
+            .p_bindings = bindingInfos.ptr,
         };
         const descSetLayout = try vkCtx.vkDevice.deviceProxy.createDescriptorSetLayout(&createInfo, null);
-        return .{ .binding = binding, .descSetLayout = descSetLayout, .descType = descType };
+        return .{
+            .descSetLayout = descSetLayout,
+            .layoutInfos = layoutInfos,
+        };
     }
 
     pub fn cleanup(self: *const VkDescSetLayout, vkCtx: *const vk.ctx.VkCtx) void {
@@ -256,6 +279,43 @@ pub const VkDesSet = struct {
         }};
 
         vkDevice.deviceProxy.updateDescriptorSets(descSets.len, &descSets, 0, null);
+    }
+
+    pub fn setImages(
+        self: *const VkDesSet,
+        allocator: std.mem.Allocator,
+        vkDevice: vk.dev.VkDevice,
+        vkImageViews: []vk.imv.VkImageView,
+        vkTextSampler: vk.text.VkTextSampler,
+        binding: u32,
+    ) !void {
+        const imageInfos = try allocator.alloc(vulkan.DescriptorImageInfo, vkImageViews.len);
+        defer allocator.free(imageInfos);
+        const writeDesSets = try allocator.alloc(vulkan.WriteDescriptorSet, vkImageViews.len);
+        defer allocator.free(writeDesSets);
+        const bufferInfo = [_]vulkan.DescriptorBufferInfo{};
+        const texelBufferView = [_]vulkan.BufferView{};
+
+        for (vkImageViews, 0..) |vkImageView, i| {
+            const imageInfo = vulkan.DescriptorImageInfo{
+                .image_layout = vulkan.ImageLayout.shader_read_only_optimal,
+                .image_view = vkImageView.view,
+                .sampler = vkTextSampler.sampler,
+            };
+            imageInfos[i] = imageInfo;
+            writeDesSets[i] = vulkan.WriteDescriptorSet{
+                .dst_set = self.descSet,
+                .descriptor_count = 1,
+                .dst_binding = binding,
+                .descriptor_type = vulkan.DescriptorType.combined_image_sampler,
+                .p_buffer_info = &bufferInfo,
+                .p_image_info = imageInfos.ptr,
+                .p_texel_buffer_view = &texelBufferView,
+                .dst_array_element = 0,
+            };
+        }
+
+        vkDevice.deviceProxy.updateDescriptorSets(@as(u32, @intCast(writeDesSets.len)), writeDesSets.ptr, 0, null);
     }
 
     pub fn setImageArr(

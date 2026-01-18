@@ -1,10 +1,10 @@
 #version 450
 
-// Keep in sync manually with code
+// Keep in sync manually with Java code
 const int MAX_TEXTURES = 100;
 
 layout(location = 0) in vec2 inTextCoords;
-layout(location = 0) out vec4 outFragColor;
+layout(location = 0) out vec4 outAlbedo;
 
 struct Material {
     vec4 diffuseColor;
@@ -27,8 +27,8 @@ void main()
 {
     Material material = matUniform.materials[push_constants.materialIdx];
     if (material.hasTexture == 1) {
-        outFragColor = texture(textSampler[material.textureIdx], inTextCoords);
+        outAlbedo = texture(textSampler[material.textureIdx], inTextCoords);
     } else {
-        outFragColor = material.diffuseColor;
+        outAlbedo = material.diffuseColor;
     }
 }
