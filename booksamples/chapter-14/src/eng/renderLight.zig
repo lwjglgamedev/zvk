@@ -265,4 +265,21 @@ pub const RenderLight = struct {
         };
         vkCtx.vkDevice.deviceProxy.cmdPipelineBarrier2(cmdHandle, &initDepInfo);
     }
+
+    pub fn resize(self: *RenderLight, vkCtx: *const vk.ctx.VkCtx, engCtx: *const eng.engine.EngCtx, inputAttachments: *const []eng.rend.Attachment) !void {
+        const allocator = engCtx.allocator;
+        self.outputAtt.cleanup(vkCtx);
+
+        const outputAtt = try createColorAttachment(vkCtx);
+
+        const imageViews = try allocator.alloc(vk.imv.VkImageView, inputAttachments.len);
+        defer allocator.free(imageViews);
+        for (0..inputAttachments.len) |i| {
+            imageViews[i] = inputAttachments.ptr[i].vkImageView;
+        }
+        const vkDescSetTxt = vkCtx.vkDescAllocator.getDescSet(DESC_ID_LIGHT_TEXT_SAMPLER).?;
+        try vkDescSetTxt.setImages(allocator, vkCtx.vkDevice, imageViews, self.textSampler, 0);
+
+        self.outputAtt = outputAtt;
+    }
 };

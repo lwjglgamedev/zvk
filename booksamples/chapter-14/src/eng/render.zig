@@ -226,7 +226,6 @@ pub const Render = struct {
             vkCmdBuff,
             &self.modelsCache,
             &self.materialsCache,
-            imageIndex,
             self.currentFrame,
         );
         try self.renderLight.render(
@@ -353,6 +352,7 @@ pub const Render = struct {
         );
 
         try self.renderScn.resize(&self.vkCtx, engCtx);
+        try self.renderLight.resize(&self.vkCtx, engCtx, &self.renderScn.attachments);
         try self.renderPost.resize(&self.vkCtx, &self.renderLight.outputAtt);
         try self.renderGui.resize(&self.vkCtx);
     }
