@@ -407,6 +407,8 @@ pub const RenderScn = struct {
         self.renderEntities(vkCtx, engCtx, modelsCache, materialsCache, cmdHandle, true);
 
         device.cmdEndRendering(cmdHandle);
+
+        try self.renderFinish(allocator, vkCtx, cmdHandle);
     }
 
     fn renderEntities(
@@ -446,9 +448,41 @@ pub const RenderScn = struct {
         }
     }
 
+    fn renderFinish(self: *RenderScn, allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx, cmdHandle: vulkan.CommandBuffer) !void {
+        const barriers = try allocator.alloc(vulkan.ImageMemoryBarrier2, self.attachments.len);
+        defer allocator.free(barriers);
+        for (0..self.attachments.len) |i| {
+            const barrier =
+                vulkan.ImageMemoryBarrier2{
+                    .old_layout = vulkan.ImageLayout.color_attachment_optimal,
+                    .new_layout = vulkan.ImageLayout.read_only_optimal,
+                    .src_stage_mask = .{ .color_attachment_output_bit = true },
+                    .dst_stage_mask = .{ .fragment_shader_bit = true },
+                    .src_access_mask = .{ .color_attachment_write_bit = true },
+                    .dst_access_mask = .{ .color_attachment_read_bit = true },
+                    .src_queue_family_index = vulkan.QUEUE_FAMILY_IGNORED,
+                    .dst_queue_family_index = vulkan.QUEUE_FAMILY_IGNORED,
+                    .subresource_range = .{
+                        .aspect_mask = .{ .color_bit = true },
+                        .base_mip_level = 0,
+                        .level_count = vulkan.REMAINING_MIP_LEVELS,
+                        .base_array_layer = 0,
+                        .layer_count = vulkan.REMAINING_ARRAY_LAYERS,
+                    },
+                    .image = @enumFromInt(@intFromPtr(self.attachments[i].vkImage.image)),
+                };
+            barriers[i] = barrier;
+        }
+        const depInfo = vulkan.DependencyInfo{
+            .image_memory_barrier_count = @as(u32, @intCast(barriers.len)),
+            .p_image_memory_barriers = barriers.ptr,
+        };
+        vkCtx.vkDevice.deviceProxy.cmdPipelineBarrier2(cmdHandle, &depInfo);
+    }
+
     fn renderInit(self: *RenderScn, allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx, cmdHandle: vulkan.CommandBuffer) !void {
-        const initBarriers = try allocator.alloc(vulkan.ImageMemoryBarrier2, self.attachments.len);
-        defer allocator.free(initBarriers);
+        const barriers = try allocator.alloc(vulkan.ImageMemoryBarrier2, self.attachments.len);
+        defer allocator.free(barriers);
         for (0..self.attachments.len) |i| {
             const barrier = vulkan.ImageMemoryBarrier2{
                 .old_layout = vulkan.ImageLayout.undefined,
@@ -468,13 +502,13 @@ pub const RenderScn = struct {
                 },
                 .image = @enumFromInt(@intFromPtr(self.attachments[i].vkImage.image)),
             };
-            initBarriers[i] = barrier;
+            barriers[i] = barrier;
         }
-        const initDepInfo = vulkan.DependencyInfo{
-            .image_memory_barrier_count = @as(u32, @intCast(initBarriers.len)),
-            .p_image_memory_barriers = initBarriers.ptr,
+        const depInfo = vulkan.DependencyInfo{
+            .image_memory_barrier_count = @as(u32, @intCast(barriers.len)),
+            .p_image_memory_barriers = barriers.ptr,
         };
-        vkCtx.vkDevice.deviceProxy.cmdPipelineBarrier2(cmdHandle, &initDepInfo);
+        vkCtx.vkDevice.deviceProxy.cmdPipelineBarrier2(cmdHandle, &depInfo);
     }
 
     pub fn resize(self: *RenderScn, vkCtx: *const vk.ctx.VkCtx, engCtx: *const eng.engine.EngCtx) !void {

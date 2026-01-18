@@ -26,6 +26,8 @@ pub const RenderLight = struct {
     pub fn cleanup(self: *RenderLight, vkCtx: *vk.ctx.VkCtx) void {
         self.descLayoutFrg.cleanup(vkCtx);
         self.outputAtt.cleanup(vkCtx);
+        self.vkPipeline.cleanup(vkCtx);
+        self.textSampler.cleanup(vkCtx);
     }
 
     pub fn create(
@@ -138,13 +140,12 @@ pub const RenderLight = struct {
         vkCtx: *const vk.ctx.VkCtx,
         engCtx: *const eng.engine.EngCtx,
         vkCmd: vk.cmd.VkCmdBuff,
-        inputAttachments: *const []eng.rend.Attachment,
     ) !void {
         const allocator = engCtx.allocator;
         const cmdHandle = vkCmd.cmdBuffProxy.handle;
         const device = vkCtx.vkDevice.deviceProxy;
 
-        try self.renderMainInit(allocator, vkCtx, cmdHandle, inputAttachments);
+        self.renderInit(vkCtx, cmdHandle);
 
         const renderAttInfo = vulkan.RenderingAttachmentInfo{
             .image_view = self.outputAtt.vkImageView.view,
@@ -201,15 +202,45 @@ pub const RenderLight = struct {
         device.cmdDraw(cmdHandle, 3, 1, 0, 0);
 
         device.cmdEndRendering(cmdHandle);
+
+        self.renderFinish(vkCtx, cmdHandle);
     }
 
-    fn renderMainInit(
+    fn renderFinish(
         self: *RenderLight,
-        allocator: std.mem.Allocator,
         vkCtx: *const vk.ctx.VkCtx,
         cmdHandle: vulkan.CommandBuffer,
-        inputAttachments: *const []eng.rend.Attachment,
-    ) !void {
+    ) void {
+        const initBarriers = [_]vulkan.ImageMemoryBarrier2{.{
+            .old_layout = vulkan.ImageLayout.color_attachment_optimal,
+            .new_layout = vulkan.ImageLayout.shader_read_only_optimal,
+            .src_stage_mask = .{ .color_attachment_output_bit = true },
+            .dst_stage_mask = .{ .fragment_shader_bit = true },
+            .src_access_mask = .{ .color_attachment_write_bit = true },
+            .dst_access_mask = .{ .shader_read_bit = true },
+            .src_queue_family_index = vulkan.QUEUE_FAMILY_IGNORED,
+            .dst_queue_family_index = vulkan.QUEUE_FAMILY_IGNORED,
+            .subresource_range = .{
+                .aspect_mask = .{ .color_bit = true },
+                .base_mip_level = 0,
+                .level_count = vulkan.REMAINING_MIP_LEVELS,
+                .base_array_layer = 0,
+                .layer_count = vulkan.REMAINING_ARRAY_LAYERS,
+            },
+            .image = @enumFromInt(@intFromPtr(self.outputAtt.vkImage.image)),
+        }};
+        const initDepInfo = vulkan.DependencyInfo{
+            .image_memory_barrier_count = initBarriers.len,
+            .p_image_memory_barriers = &initBarriers,
+        };
+        vkCtx.vkDevice.deviceProxy.cmdPipelineBarrier2(cmdHandle, &initDepInfo);
+    }
+
+    fn renderInit(
+        self: *RenderLight,
+        vkCtx: *const vk.ctx.VkCtx,
+        cmdHandle: vulkan.CommandBuffer,
+    ) void {
         const initBarriers = [_]vulkan.ImageMemoryBarrier2{.{
             .old_layout = vulkan.ImageLayout.undefined,
             .new_layout = vulkan.ImageLayout.color_attachment_optimal,
@@ -233,35 +264,5 @@ pub const RenderLight = struct {
             .p_image_memory_barriers = &initBarriers,
         };
         vkCtx.vkDevice.deviceProxy.cmdPipelineBarrier2(cmdHandle, &initDepInfo);
-
-        const inputBarriers = try allocator.alloc(vulkan.ImageMemoryBarrier2, inputAttachments.len);
-        defer allocator.free(inputBarriers);
-        for (0..inputAttachments.len) |i| {
-            const barrier =
-                vulkan.ImageMemoryBarrier2{
-                    .old_layout = vulkan.ImageLayout.color_attachment_optimal,
-                    .new_layout = vulkan.ImageLayout.present_src_khr,
-                    .src_stage_mask = .{ .color_attachment_output_bit = true },
-                    .dst_stage_mask = .{ .bottom_of_pipe_bit = true },
-                    .src_access_mask = .{ .color_attachment_write_bit = true },
-                    .dst_access_mask = .{},
-                    .src_queue_family_index = vulkan.QUEUE_FAMILY_IGNORED,
-                    .dst_queue_family_index = vulkan.QUEUE_FAMILY_IGNORED,
-                    .subresource_range = .{
-                        .aspect_mask = .{ .color_bit = true },
-                        .base_mip_level = 0,
-                        .level_count = vulkan.REMAINING_MIP_LEVELS,
-                        .base_array_layer = 0,
-                        .layer_count = vulkan.REMAINING_ARRAY_LAYERS,
-                    },
-                    .image = @enumFromInt(@intFromPtr(inputAttachments.*[i].vkImage.image)),
-                };
-            inputBarriers[i] = barrier;
-        }
-        const inputDepInfo = vulkan.DependencyInfo{
-            .image_memory_barrier_count = @as(u32, @intCast(inputBarriers.len)),
-            .p_image_memory_barriers = inputBarriers.ptr,
-        };
-        vkCtx.vkDevice.deviceProxy.cmdPipelineBarrier2(cmdHandle, &inputDepInfo);
     }
 };

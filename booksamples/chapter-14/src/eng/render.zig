@@ -233,7 +233,6 @@ pub const Render = struct {
             &self.vkCtx,
             engCtx,
             vkCmdBuff,
-            &self.renderScn.attachments,
         );
 
         self.renderInitPost(vkCmdBuff, imageIndex);
