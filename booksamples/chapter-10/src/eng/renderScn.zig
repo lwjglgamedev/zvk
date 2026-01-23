@@ -105,25 +105,34 @@ pub const RenderScn = struct {
 
         // Descriptor set layouts
         const descLayoutVtx = try vk.desc.VkDescSetLayout.create(
+            allocator,
             vkCtx,
-            0,
-            vulkan.DescriptorType.uniform_buffer,
-            vulkan.ShaderStageFlags{ .vertex_bit = true },
-            1,
+            &[_]vk.desc.LayoutInfo{.{
+                .binding = 0,
+                .descCount = 1,
+                .descType = vulkan.DescriptorType.uniform_buffer,
+                .stageFlags = vulkan.ShaderStageFlags{ .vertex_bit = true },
+            }},
         );
         const descLayoutFrgSt = try vk.desc.VkDescSetLayout.create(
+            allocator,
             vkCtx,
-            0,
-            vulkan.DescriptorType.storage_buffer,
-            vulkan.ShaderStageFlags{ .fragment_bit = true },
-            1,
+            &[_]vk.desc.LayoutInfo{.{
+                .binding = 0,
+                .descCount = 1,
+                .descType = vulkan.DescriptorType.storage_buffer,
+                .stageFlags = vulkan.ShaderStageFlags{ .fragment_bit = true },
+            }},
         );
         const descLayoutTexture = try vk.desc.VkDescSetLayout.create(
+            allocator,
             vkCtx,
-            0,
-            vulkan.DescriptorType.combined_image_sampler,
-            vulkan.ShaderStageFlags{ .fragment_bit = true },
-            eng.tcach.MAX_TEXTURES,
+            &[_]vk.desc.LayoutInfo{.{
+                .binding = 0,
+                .descCount = eng.tcach.MAX_TEXTURES,
+                .descType = vulkan.DescriptorType.combined_image_sampler,
+                .stageFlags = vulkan.ShaderStageFlags{ .fragment_bit = true },
+            }},
         );
         const descSetLayouts = [_]vulkan.DescriptorSetLayout{ descLayoutVtx.descSetLayout, descLayoutFrgSt.descSetLayout, descLayoutTexture.descSetLayout };
 
@@ -231,7 +240,8 @@ pub const RenderScn = struct {
             DESC_ID_MAT,
             self.descLayoutFrgSt,
         );
-        matDescSet.setBuffer(vkCtx.vkDevice, materialsCache.materialsBuffer.?, self.descLayoutFrgSt.binding, self.descLayoutFrgSt.descType);
+        const layoutInfo = self.descLayoutFrgSt.layoutInfos[0];
+        matDescSet.setBuffer(vkCtx.vkDevice, materialsCache.materialsBuffer.?, layoutInfo.binding, layoutInfo.descType);
     }
 
     pub fn render(

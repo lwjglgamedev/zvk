@@ -1,3 +1,7 @@
+renderScn
+vkDescks
+vkUtils
+
 # Chapter 08 - Complex models and textures
 
 In this chapter we will add support for loading complex 3D models which may include textures.
@@ -1250,29 +1254,55 @@ layout(set = 1, binding = 0) uniform C {
 In the fragment above we have two descriptor sets. The first one is composed by two uniforms (`a` and `b`), each of them located in a
 different binding point `0` and `1`. The second descriptor set just defines a single uniform (`c`) located at binding `0`. Descriptor set
 layouts are used to define that structure. In fact, we can have several descriptor sets sharing the same layout. In the example above we can
-see two descriptor sets using different buffers associated to the same layout, for example, the layout shown for "c". 
+see two descriptor sets using different buffers associated to the same layout, for example, the layout shown for "c". Therefore, we
+need first to define a struct which contains information for a descriptor set inside a descriptor set layout. In this case, it will be
+named `LayoutInfo`:
+
+```zig
+pub const LayoutInfo = struct {
+    binding: u32,
+    descCount: u32,
+    descType: vulkan.DescriptorType,
+    stageFlags: vulkan.ShaderStageFlags,
+};
+```
+
+The attributes are:
+- `binding`: the binding point (given a descriptor set, each of the descriptors will be assigned to a unique binding number).
+- `descCount`: The number of descriptors (we can have, for example, an array of buffers, so we will need as many descriptor set as
+the length of the array).
+- `descType`: The type of the descriptor set (a uniform buffer, a texture sampler, etc.).
+- `stageFlags`: At which stage in the pipeline it will be used.
 
 We will create a struct to help us create descriptor set layouts:
 
 ```zig
 pub const VkDescSetLayout = struct {
-    binding: u32,
     descSetLayout: vulkan.DescriptorSetLayout,
-    descType: vulkan.DescriptorType,
+    layoutInfos: []const LayoutInfo,
 
-    pub fn create(vkCtx: *const vk.ctx.VkCtx, binding: u32, descType: vulkan.DescriptorType, stageFlags: vulkan.ShaderStageFlags, count: u32) !VkDescSetLayout {
-        const bindingInfos = [_]vulkan.DescriptorSetLayoutBinding{.{
-            .descriptor_count = count,
-            .binding = binding,
-            .descriptor_type = descType,
-            .stage_flags = stageFlags,
-        }};
+    pub fn create(allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx, layoutInfos: []const LayoutInfo) !VkDescSetLayout {
+        const bindingInfos = try allocator.alloc(vulkan.DescriptorSetLayoutBinding, layoutInfos.len);
+        defer allocator.free(bindingInfos);
+
+        for (0..layoutInfos.len) |i| {
+            const bindingInfo = vulkan.DescriptorSetLayoutBinding{
+                .binding = layoutInfos[i].binding,
+                .descriptor_count = layoutInfos[i].descCount,
+                .descriptor_type = layoutInfos[i].descType,
+                .stage_flags = layoutInfos[i].stageFlags,
+            };
+            bindingInfos[i] = bindingInfo;
+        }
         const createInfo = vulkan.DescriptorSetLayoutCreateInfo{
-            .binding_count = bindingInfos.len,
-            .p_bindings = &bindingInfos,
+            .binding_count = @as(u32, @intCast(bindingInfos.len)),
+            .p_bindings = bindingInfos.ptr,
         };
         const descSetLayout = try vkCtx.vkDevice.deviceProxy.createDescriptorSetLayout(&createInfo, null);
-        return .{ .binding = binding, .descSetLayout = descSetLayout, .descType = descType };
+        return .{
+            .descSetLayout = descSetLayout,
+            .layoutInfos = layoutInfos,
+        };
     }
 
     pub fn cleanup(self: *const VkDescSetLayout, vkCtx: *const vk.ctx.VkCtx) void {
@@ -1281,13 +1311,49 @@ pub const VkDescSetLayout = struct {
 };
 ```
 
-We define thee binding structure, in terms of types and binding points though descriptor set layout. We start by defining the binding point
-(given a descriptor set, each of the descriptors will be assigned to a unique binding number). This is done by filling up a
-`DescriptorSetLayoutCreateInfo` struct. The `binding` parameter shall match the one used in the shader for this specific descriptor. In
-addition to that, we specify the descriptor type and the shader stage where it will be used. That information is used to call the 
-`createDescriptorSetLayout` function. The struct is completed by the classical `cleanup` function.
+We need to create as many `vulkan.DescriptorSetLayoutBinding` instances as `LayoutInfo` elements we have. That information is used to call
+the  `createDescriptorSetLayout` function. The struct is completed by the classical `cleanup` function. In the example above,
+asuuming we will use the descriptors at the vertex stage, we could define the layout information as follows (it is just an example to
+understand the usage, not included in the code):
 
-Prior to getting deep dive with descriptor sets, let's review texture samplers. Images are not usually accessed directly when used as
+```zig
+const descLayoutAB = try vk.desc.VkDescSetLayout.create(
+    allocator,
+    vkCtx,
+    &[_]vk.desc.LayoutInfo{
+        .{
+        .binding = 0,
+        .descCount = 1,
+        .descType = vulkan.DescriptorType.uniform_buffer,
+        .stageFlags = vulkan.ShaderStageFlags{ .vertex_bit = true },
+        },
+        .{
+        .binding = 1,
+        .descCount = 1,
+        .descType = vulkan.DescriptorType.uniform_buffer,
+        .stageFlags = vulkan.ShaderStageFlags{ .vertex_bit = true },
+        },
+},
+);
+
+const descLayoutC = try vk.desc.VkDescSetLayout.create(
+    allocator,
+    vkCtx,
+    &[_]vk.desc.LayoutInfo{
+        .{
+        .binding = 0,
+        .descCount = 1,
+        .descType = vulkan.DescriptorType.uniform_buffer,
+        .stageFlags = vulkan.ShaderStageFlags{ .vertex_bit = true },
+        },
+},
+);
+```
+
+As you can see we need two `VkDescSetLayout` instances. The first one used for the first set (composed by uniforms `A` and `B`, each of
+them using different binding points) and the second one for uniform `C`. 
+
+Before doing a deep dive with descriptor sets, let's review texture samplers. Images are not usually accessed directly when used as
 textures. When we access a texture, we usually want to apply some type of filters, we may have mip levels and maybe specify some repetition
 patterns. All that is handled through a sampler. We have already created images and image views, but in order to access them in shaders we
 will need texture samplers. Therefore we will create a new struct named `TextureSampler` (it will be included in the `vkTexture.zig` file): 
@@ -1597,7 +1663,6 @@ const PoolInfo = struct {
         };
     }
 };
-
 ```
 
 In the `create` function we just get the device limits and define the size for each descriptor type to the maximum number supported. In our
@@ -1625,17 +1690,24 @@ pub const VkDescAllocator = struct {
             return error.DuplicateDescKey;
         }
         for (self.poolInfoList.items) |poolInfo| {
-            const available = poolInfo.descCount.get(vkDescSetLayout.descType) orelse return error.KeyNotFound;
-            const limit = try PoolInfo.getLimits(vkPhysDevice, vkDescSetLayout.descType);
-            if (count > limit) {
-                log.err("Cannot create more than [{d}] for descriptor type [{any}]", .{
-                    limit, vkDescSetLayout.descType,
-                });
-                return error.DescLimitExceeded;
+            for (vkDescSetLayout.layoutInfos) |layoutInfo| {
+                const available = poolInfo.descCount.get(layoutInfo.descType) orelse return error.KeyNotFound;
+                const limit = try PoolInfo.getLimits(vkPhysDevice, layoutInfo.descType);
+                if (count > limit) {
+                    log.err("Cannot create more than [{d}] for descriptor type [{any}]", .{
+                        limit, layoutInfo.descType,
+                    });
+                    return error.DescLimitExceeded;
+                }
+                if (available >= count) {
+                    vkDescPoolOpt = poolInfo.vkDescPool;
+                    poolInfoOpt = poolInfo;
+                } else {
+                    vkDescPoolOpt = null;
+                    poolInfoOpt = null;
+                }
             }
-            if (available >= count) {
-                vkDescPoolOpt = poolInfo.vkDescPool;
-                poolInfoOpt = poolInfo;
+            if (poolInfoOpt != null) {
                 break;
             }
         }
@@ -1652,15 +1724,16 @@ pub const VkDescAllocator = struct {
         if (vkDescPoolOpt) |vkDescPool| {
             const vkDescSet = try VkDesSet.create(vkDevice, vkDescPool, vkDescSetLayout);
             const poolInfo = poolInfoOpt.?;
-            const available = poolInfo.descCount.get(vkDescSetLayout.descType) orelse return error.KeyNotFound;
-            if (available < count) {
-                return error.NotAvailable;
+
+            for (vkDescSetLayout.layoutInfos) |layoutInfo| {
+                const available = poolInfo.descCount.get(layoutInfo.descType) orelse return error.KeyNotFound;
+
+                try poolInfo.descCount.put(
+                    layoutInfo.descType,
+                    available - count,
+                );
             }
 
-            try poolInfo.descCount.put(
-                vkDescSetLayout.descType,
-                available - count,
-            );
             const ownedId = try allocator.dupe(u8, id);
             try self.descSetMap.put(ownedId, vkDescSet);
             return vkDescSet;
@@ -1687,6 +1760,11 @@ the descriptor set, and update the available space in the associated pool.
 
 The process can still be improved to reduce fragmentation, but I did not want to complicate the code even more. In any case, you get the
 idea and can modify it to be more efficient easily.
+
+One important aspect to highlight is that, if you recall the example sets defined above. We said, that the first two uniforms shared
+the same set. Is you look at the code, we see that we iterate over all the `LayoutInfo` instances, so we are checking that we have
+room for `2` uniform descriptor sets. Although, they share the same descriptor set, we need to reserve space for all the underlying 
+structures.
 
 The rest of the functions of the struct are as follows:
 
@@ -1900,32 +1978,41 @@ pub const RenderScn = struct {
 
         // Descriptor set layouts
         const descLayoutVtx = try vk.desc.VkDescSetLayout.create(
+            allocator,
             vkCtx,
-            0,
-            vulkan.DescriptorType.uniform_buffer,
-            vulkan.ShaderStageFlags{ .vertex_bit = true },
-            1,
+            &[_]vk.desc.LayoutInfo{.{
+                .binding = 0,
+                .descCount = 1,
+                .descType = vulkan.DescriptorType.uniform_buffer,
+                .stageFlags = vulkan.ShaderStageFlags{ .vertex_bit = true },
+            }},
         );
         const descLayoutFrgSt = try vk.desc.VkDescSetLayout.create(
+            allocator,
             vkCtx,
-            0,
-            vulkan.DescriptorType.storage_buffer,
-            vulkan.ShaderStageFlags{ .fragment_bit = true },
-            1,
+            &[_]vk.desc.LayoutInfo{.{
+                .binding = 0,
+                .descCount = 1,
+                .descType = vulkan.DescriptorType.storage_buffer,
+                .stageFlags = vulkan.ShaderStageFlags{ .fragment_bit = true },
+            }},
         );
         const descLayoutTexture = try vk.desc.VkDescSetLayout.create(
+            allocator,
             vkCtx,
-            0,
-            vulkan.DescriptorType.combined_image_sampler,
-            vulkan.ShaderStageFlags{ .fragment_bit = true },
-            eng.tcach.MAX_TEXTURES,
+            &[_]vk.desc.LayoutInfo{.{
+                .binding = 0,
+                .descCount = eng.tcach.MAX_TEXTURES,
+                .descType = vulkan.DescriptorType.combined_image_sampler,
+                .stageFlags = vulkan.ShaderStageFlags{ .fragment_bit = true },
+            }},
         );
         const descSetLayouts = [_]vulkan.DescriptorSetLayout{ descLayoutVtx.descSetLayout, descLayoutFrgSt.descSetLayout, descLayoutTexture.descSetLayout };
 
         const buffCamera = try vk.util.createHostVisibleBuff(
             allocator,
             vkCtx,
-            DESC_ID_PROJ,
+            DESC_ID_CAM,
             vk.util.MATRIX_SIZE,
             .{ .uniform_buffer_bit = true },
             descLayoutVtx,
@@ -2023,14 +2110,15 @@ pub fn createHostVisibleBuff(
         id,
         vkDescSetLayout,
     );
-    descSet.setBuffer(vkCtx.vkDevice, buffer, vkDescSetLayout.binding, vkDescSetLayout.descType);
+    const layoutInfo = vkDescSetLayout.layoutInfos[0];
+    descSet.setBuffer(vkCtx.vkDevice, buffer, layoutInfo.binding, layoutInfo.descType);
 
     return buffer;
 }
 ```
 
-After that, we create the push constantas range definition and define the pipeline creation information using the descriptor sets layouts
-in the new `descSetLayouts` attribute to create the pipeline.
+Back in the `RenderScn` struct, after that, we create the push constants range definition and define the pipeline creation information
+using the descriptor sets layouts in the new `descSetLayouts` attribute to create the pipeline.
 
 We will add a new function named `init`. This function will create a descriptor set for the storage buffer that contains material data, and
 associate it with the buffer we created in the `MaterialsCache` struct. We will also create the descriptor set for the array of images with
@@ -2066,7 +2154,8 @@ pub const RenderScn = struct {
             DESC_ID_MAT,
             self.descLayoutFrgSt,
         );
-        matDescSet.setBuffer(vkCtx.vkDevice, materialsCache.materialsBuffer.?, self.descLayoutFrgSt.binding, self.descLayoutFrgSt.descType);
+        const layoutInfo = self.descLayoutFrgSt.layoutInfos[0];
+        matDescSet.setBuffer(vkCtx.vkDevice, materialsCache.materialsBuffer.?, layoutInfo.binding, layoutInfo.descType);
     }
     ...
 };

@@ -131,11 +131,14 @@ pub const RenderGui = struct {
 
         // Descriptor Set layouts
         const descLayoutFrg = try vk.desc.VkDescSetLayout.create(
+            allocator,
             vkCtx,
-            0,
-            vulkan.DescriptorType.combined_image_sampler,
-            vulkan.ShaderStageFlags{ .fragment_bit = true },
-            1,
+            &[_]vk.desc.LayoutInfo{.{
+                .binding = 0,
+                .descCount = 1,
+                .descType = vulkan.DescriptorType.combined_image_sampler,
+                .stageFlags = vulkan.ShaderStageFlags{ .fragment_bit = true },
+            }},
         );
 
         const descSetLayouts = [_]vulkan.DescriptorSetLayout{descLayoutFrg.descSetLayout};
