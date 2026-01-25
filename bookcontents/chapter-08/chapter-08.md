@@ -1,7 +1,3 @@
-renderScn
-vkDescks
-vkUtils
-
 # Chapter 08 - Complex models and textures
 
 In this chapter we will add support for loading complex 3D models which may include textures.

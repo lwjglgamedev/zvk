@@ -1,6 +1,6 @@
 #version 450
 
-// Keep in sync manually with Java code
+// Keep in sync manually with code
 const int MAX_TEXTURES = 100;
 
 layout(location = 0) in vec2 inTextCoords;

@@ -321,36 +321,6 @@ pub const RenderScn = struct {
             .view_mask = 0,
         };
 
-        const image: vulkan.Image = @enumFromInt(@intFromPtr(self.depthAttachment.vkImage.image));
-        const initBarriers = [_]vulkan.ImageMemoryBarrier2{.{
-            .old_layout = vulkan.ImageLayout.undefined,
-            .new_layout = vulkan.ImageLayout.depth_attachment_optimal,
-            .src_stage_mask = .{ .early_fragment_tests_bit = true, .late_fragment_tests_bit = true },
-            .dst_stage_mask = .{ .early_fragment_tests_bit = true, .late_fragment_tests_bit = true },
-            .src_access_mask = .{
-                .depth_stencil_attachment_write_bit = true,
-            },
-            .dst_access_mask = .{
-                .depth_stencil_attachment_read_bit = true,
-                .depth_stencil_attachment_write_bit = true,
-            },
-            .src_queue_family_index = vulkan.QUEUE_FAMILY_IGNORED,
-            .dst_queue_family_index = vulkan.QUEUE_FAMILY_IGNORED,
-            .subresource_range = .{
-                .aspect_mask = .{ .depth_bit = true },
-                .base_mip_level = 0,
-                .level_count = vulkan.REMAINING_MIP_LEVELS,
-                .base_array_layer = 0,
-                .layer_count = vulkan.REMAINING_ARRAY_LAYERS,
-            },
-            .image = image,
-        }};
-        const initDepInfo = vulkan.DependencyInfo{
-            .image_memory_barrier_count = initBarriers.len,
-            .p_image_memory_barriers = &initBarriers,
-        };
-        vkCtx.vkDevice.deviceProxy.cmdPipelineBarrier2(cmdHandle, &initDepInfo);
-
         device.cmdBeginRendering(cmdHandle, @ptrCast(&renderInfo));
 
         device.cmdBindPipeline(cmdHandle, vulkan.PipelineBindPoint.graphics, self.vkPipeline.pipeline);
@@ -471,9 +441,9 @@ pub const RenderScn = struct {
     }
 
     fn renderInit(self: *RenderScn, allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx, cmdHandle: vulkan.CommandBuffer) !void {
-        const barriers = try allocator.alloc(vulkan.ImageMemoryBarrier2, self.attachments.len);
+        const barriers = try allocator.alloc(vulkan.ImageMemoryBarrier2, self.attachments.len + 1);
         defer allocator.free(barriers);
-        for (0..self.attachments.len) |i| {
+        for (0..barriers.len - 1) |i| {
             const barrier = vulkan.ImageMemoryBarrier2{
                 .old_layout = vulkan.ImageLayout.undefined,
                 .new_layout = vulkan.ImageLayout.color_attachment_optimal,
@@ -494,6 +464,30 @@ pub const RenderScn = struct {
             };
             barriers[i] = barrier;
         }
+        const depthImage: vulkan.Image = @enumFromInt(@intFromPtr(self.depthAttachment.vkImage.image));
+        barriers[barriers.len - 1] = vulkan.ImageMemoryBarrier2{
+            .old_layout = vulkan.ImageLayout.undefined,
+            .new_layout = vulkan.ImageLayout.depth_attachment_optimal,
+            .src_stage_mask = .{ .early_fragment_tests_bit = true, .late_fragment_tests_bit = true },
+            .dst_stage_mask = .{ .early_fragment_tests_bit = true, .late_fragment_tests_bit = true },
+            .src_access_mask = .{
+                .depth_stencil_attachment_write_bit = true,
+            },
+            .dst_access_mask = .{
+                .depth_stencil_attachment_read_bit = true,
+                .depth_stencil_attachment_write_bit = true,
+            },
+            .src_queue_family_index = vulkan.QUEUE_FAMILY_IGNORED,
+            .dst_queue_family_index = vulkan.QUEUE_FAMILY_IGNORED,
+            .subresource_range = .{
+                .aspect_mask = .{ .depth_bit = true },
+                .base_mip_level = 0,
+                .level_count = vulkan.REMAINING_MIP_LEVELS,
+                .base_array_layer = 0,
+                .layer_count = vulkan.REMAINING_ARRAY_LAYERS,
+            },
+            .image = depthImage,
+        };
         const depInfo = vulkan.DependencyInfo{
             .image_memory_barrier_count = @as(u32, @intCast(barriers.len)),
             .p_image_memory_barriers = barriers.ptr,
