@@ -3,8 +3,16 @@
 // Keep in sync manually with code
 const int MAX_TEXTURES = 100;
 
-layout(location = 0) in vec2 inTextCoords;
-layout(location = 0) out vec4 outAlbedo;
+layout(location = 0) in vec4 inPos;
+layout(location = 1) in vec3 inNormal;
+layout(location = 2) in vec3 inTangent;
+layout(location = 3) in vec3 inBitangent;
+layout(location = 4) in vec2 inTextCoords;
+
+layout(location = 0) out vec4 outPos;
+layout(location = 1) out vec4 outAlbedo;
+layout(location = 2) out vec4 outNormal;
+layout(location = 3) out vec4 outPBR;
 
 struct Material {
     vec4 diffuseColor;
@@ -25,10 +33,14 @@ layout(push_constant) uniform pc {
 
 void main()
 {
+    outPos = inPos;
+    
     Material material = matUniform.materials[push_constants.materialIdx];
     if (material.hasTexture == 1) {
         outAlbedo = texture(textSampler[material.textureIdx], inTextCoords);
     } else {
         outAlbedo = material.diffuseColor;
     }
+
+    outNormal = vec4(inNormal, 1);
 }

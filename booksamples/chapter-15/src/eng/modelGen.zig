@@ -105,11 +105,15 @@ pub fn main() !void {
                 } else {
                     try vtxFile.writeAll(std.mem.sliceAsBytes(std.mem.asBytes(&defText)));
                 }
+                try vtxFile.writeAll(std.mem.sliceAsBytes(std.mem.asBytes(&meshIntData.normals.items[idx])));
+                try vtxFile.writeAll(std.mem.sliceAsBytes(std.mem.asBytes(&meshIntData.tangents.items[idx])));
+                try vtxFile.writeAll(std.mem.sliceAsBytes(std.mem.asBytes(&meshIntData.bitangents.items[idx])));
             }
 
             const numIndices = meshIntData.indices.items.len;
             // There can be models with no texture coords, but we fill up with empty coords
-            const numFloats = meshIntData.positions.items.len * 3 + meshIntData.positions.items.len * 2;
+            const numFloats = meshIntData.positions.items.len * 3 + meshIntData.texcoords.items.len * 2 +
+                meshIntData.normals.items.len * 3 + meshIntData.tangents.items.len * 3 + meshIntData.bitangents.items.len * 3;
             const meshData = eng.mdata.MeshData{
                 .id = meshIntData.id,
                 .materialId = meshIntData.materialId,
@@ -252,6 +256,7 @@ fn processMesh(
 
     const numTangents = intTangents.items.len;
     for (0..normals.items.len) |i| {
+        // TODO: Handle no normals case
         const tangent = if (i < numTangents) intTangents.items[i] else [4]f32{ 0, 0, 0, 0 };
         try tangents.append(allocator, tangent[0..3].*);
         const normal = normals.items[i];

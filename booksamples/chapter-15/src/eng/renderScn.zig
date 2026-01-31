@@ -25,10 +25,31 @@ const VtxBuffDesc = struct {
             .format = .r32g32_sfloat,
             .offset = @offsetOf(VtxBuffDesc, "textCoords"),
         },
+        .{
+            .binding = 0,
+            .location = 2,
+            .format = .r32g32b32_sfloat,
+            .offset = @offsetOf(VtxBuffDesc, "normal"),
+        },
+        .{
+            .binding = 0,
+            .location = 3,
+            .format = .r32g32b32_sfloat,
+            .offset = @offsetOf(VtxBuffDesc, "tangent"),
+        },
+        .{
+            .binding = 0,
+            .location = 4,
+            .format = .r32g32b32_sfloat,
+            .offset = @offsetOf(VtxBuffDesc, "bitangent"),
+        },
     };
 
     pos: [3]f32,
     textCoords: [2]f32,
+    normal: [3]f32,
+    tangent: [3]f32,
+    bitangent: [3]f32,
 };
 
 const PushConstantsVtx = struct {
@@ -159,8 +180,14 @@ pub const RenderScn = struct {
         };
 
         // Pipeline
+        const colorFormats = try allocator.alloc(vulkan.Format, attachments.len);
+        defer allocator.free(colorFormats);
+        for (0..colorFormats.len) |i| {
+            colorFormats[i] = attachments[i].vkImageView.format;
+        }
         const vkPipelineCreateInfo = vk.pipe.VkPipelineCreateInfo{
-            .colorFormat = COLOR_ATTACHMENT_FORMAT,
+            .colorAttachments = @as(u32, @intCast(colorFormats.len)),
+            .colorFormats = colorFormats,
             .depthFormat = DEPTH_FORMAT,
             .descSetLayouts = descSetLayouts[0..],
             .modulesInfo = modulesInfo,
@@ -192,7 +219,7 @@ pub const RenderScn = struct {
             .sampled_bit = true,
         };
 
-        const numAttachments = 1;
+        const numAttachments = 4;
         const attachments = try allocator.alloc(eng.rend.Attachment, numAttachments);
         errdefer allocator.free(attachments);
 
@@ -315,7 +342,7 @@ pub const RenderScn = struct {
         const renderInfo = vulkan.RenderingInfo{
             .render_area = .{ .extent = extent, .offset = .{ .x = 0, .y = 0 } },
             .layer_count = 1,
-            .color_attachment_count = 1,
+            .color_attachment_count = @as(u32, @intCast(renderAttInfos.len)),
             .p_color_attachments = renderAttInfos.ptr,
             .p_depth_attachment = &depthAttInfo,
             .view_mask = 0,

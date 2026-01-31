@@ -74,7 +74,7 @@ pub const RenderLight = struct {
         defer allocator.free(imageViews);
         for (0..inputAttachments.len) |i| {
             layoutInfos[i] = vk.desc.LayoutInfo{
-                .binding = 0,
+                .binding = @as(u32, @intCast(i)),
                 .descCount = 1,
                 .descType = vulkan.DescriptorType.combined_image_sampler,
                 .stageFlags = vulkan.ShaderStageFlags{ .fragment_bit = true },
@@ -98,8 +98,9 @@ pub const RenderLight = struct {
         const descSetLayouts = [_]vulkan.DescriptorSetLayout{descLayoutFrg.descSetLayout};
 
         // Pipeline
+        const colorFormats = [_]vulkan.Format{COLOR_ATTACHMENT_FORMAT};
         const vkPipelineCreateInfo = vk.pipe.VkPipelineCreateInfo{
-            .colorFormat = COLOR_ATTACHMENT_FORMAT,
+            .colorFormats = colorFormats[0..],
             .descSetLayouts = descSetLayouts[0..],
             .modulesInfo = modulesInfo,
             .useBlend = true,

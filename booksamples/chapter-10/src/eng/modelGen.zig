@@ -102,7 +102,7 @@ pub fn main() !void {
 
             const numIndices = meshIntData.indices.items.len;
             // There can be models with no texture coords, but we fill up with empty coords
-            const numFloats = meshIntData.positions.items.len * 3 + meshIntData.positions.items.len * 2;
+            const numFloats = meshIntData.positions.items.len * 3 + meshIntData.texcoords.items.len * 2;
             const meshData = eng.mdata.MeshData{
                 .id = meshIntData.id,
                 .materialId = meshIntData.materialId,
