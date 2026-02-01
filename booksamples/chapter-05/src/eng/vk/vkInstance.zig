@@ -32,7 +32,6 @@ pub const VkInstance = struct {
         var layer_names = try std.ArrayList([*:0]const u8).initCapacity(allocator, 2);
         defer layer_names.deinit(allocator);
 
-        _ = try supportsValidation(allocator, &vkb);
         if (validate) {
             if (try supportsValidation(allocator, &vkb)) {
                 log.debug("Enabling validation", .{});
@@ -46,22 +45,22 @@ pub const VkInstance = struct {
             log.debug("SDL extension: {s}", .{value});
         }
 
-        var extension_names = try std.ArrayList([*:0]const u8).initCapacity(allocator, 2);
-        defer extension_names.deinit(allocator);
-        try extension_names.appendSlice(allocator, sdlExtensions);
+        var extensionNames = try std.ArrayList([*:0]const u8).initCapacity(allocator, 2);
+        defer extensionNames.deinit(allocator);
+        try extensionNames.appendSlice(allocator, sdlExtensions);
         const is_macos = builtin.target.os.tag == .macos;
         if (is_macos) {
-            try extension_names.append("VK_KHR_portability_enumeration");
+            try extensionNames.append("VK_KHR_portability_enumeration");
         }
 
-        for (extension_names.items) |value| {
+        for (extensionNames.items) |value| {
             log.debug("Instance create extension: {s}", .{value});
         }
 
         const createInfo = vulkan.InstanceCreateInfo{
             .p_application_info = &appInfo,
-            .enabled_extension_count = @intCast(extension_names.items.len),
-            .pp_enabled_extension_names = extension_names.items.ptr,
+            .enabled_extension_count = @intCast(extensionNames.items.len),
+            .pp_enabled_extension_names = extensionNames.items.ptr,
             .enabled_layer_count = @intCast(layer_names.items.len),
             .pp_enabled_layer_names = layer_names.items.ptr,
             .flags = .{ .enumerate_portability_bit_khr = is_macos },
