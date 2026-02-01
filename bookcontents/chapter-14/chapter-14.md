@@ -764,7 +764,7 @@ pub const VkDesSet = struct {
                 .dst_binding = binding + @as(u32, @intCast(i)),
                 .descriptor_type = vulkan.DescriptorType.combined_image_sampler,
                 .p_buffer_info = &bufferInfo,
-                .p_image_info = imageInfos.ptr,
+                .p_image_info = imageInfos[i .. i + 1].ptr,
                 .p_texel_buffer_view = &texelBufferView,
                 .dst_array_element = 0,
             };
