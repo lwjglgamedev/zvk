@@ -10,7 +10,12 @@ const MaterialBuffRecord = struct {
     diffuseColor: zm.Vec,
     hasTexture: u32,
     textureIdx: u32,
-    padding: [2]u32,
+    hasNormalMap: u32,
+    normalMapIdx: u32,
+    hasRoughMap: u32,
+    roughMapIdx: u32,
+    metallicFactor: f32,
+    roughFactor: f32,
 };
 
 pub const VulkanMesh = struct {
@@ -92,6 +97,10 @@ pub const MaterialsCache = struct {
             .color = [_]f32{ 1, 1, 1, 1 },
             .id = "DEFAULT_MATERIAL_ID",
             .texturePath = "",
+            .normalMapPath = "",
+            .metalRoughMapPath = "",
+            .metallicFactor = 0,
+            .roughFactor = 0,
         };
         try materialsList.append(allocator, &defaultMaterial);
         for (initData.materials.items) |*materialData| {
@@ -146,11 +155,46 @@ pub const MaterialsCache = struct {
                     }
                 }
             }
+            var hasNormalMap: u32 = 0;
+            var normalMapIdx: u32 = 0;
+            if (materialData.normalMapPath.len > 0) {
+                const nullTermPath = try allocator.dupeZ(u8, materialData.normalMapPath);
+                defer allocator.free(nullTermPath);
+                if (try textureCache.addTextureFromPath(allocator, vkCtx, nullTermPath)) {
+                    if (textureCache.textureMap.getIndex(nullTermPath)) |idx| {
+                        normalMapIdx = @as(u32, @intCast(idx));
+                        hasNormalMap = 1;
+                        vulkanMaterial.transparent = textureCache.textureMap.get(nullTermPath).?.transparent;
+                    } else {
+                        log.warn("Could not find normal map texture added to the cache [{s}]", .{materialData.normalMapPath});
+                    }
+                }
+            }
+            var hasRoughMap: u32 = 0;
+            var roughMapIdx: u32 = 0;
+            if (materialData.metalRoughMapPath.len > 0) {
+                const nullTermPath = try allocator.dupeZ(u8, materialData.metalRoughMapPath);
+                defer allocator.free(nullTermPath);
+                if (try textureCache.addTextureFromPath(allocator, vkCtx, nullTermPath)) {
+                    if (textureCache.textureMap.getIndex(nullTermPath)) |idx| {
+                        roughMapIdx = @as(u32, @intCast(idx));
+                        hasRoughMap = 1;
+                        vulkanMaterial.transparent = textureCache.textureMap.get(nullTermPath).?.transparent;
+                    } else {
+                        log.warn("Could not find rough metal texture added to the cache [{s}]", .{materialData.metalRoughMapPath});
+                    }
+                }
+            }
             const atBuffRecord = MaterialBuffRecord{
                 .diffuseColor = materialData.color,
                 .hasTexture = hasTexture,
                 .textureIdx = textureIdx,
-                .padding = [_]u32{ 0, 0 },
+                .hasNormalMap = hasNormalMap,
+                .normalMapIdx = normalMapIdx,
+                .hasRoughMap = hasRoughMap,
+                .roughMapIdx = roughMapIdx,
+                .metallicFactor = materialData.metallicFactor,
+                .roughFactor = materialData.roughFactor,
             };
             mappedData[i] = atBuffRecord;
             try self.materialsMap.put(materialId, vulkanMaterial);

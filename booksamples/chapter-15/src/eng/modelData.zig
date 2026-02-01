@@ -6,6 +6,10 @@ pub const MaterialData = struct {
     id: []const u8,
     texturePath: []const u8,
     color: [4]f32,
+    normalMapPath: []const u8,
+    metalRoughMapPath: []const u8,
+    roughFactor: f32,
+    metallicFactor: f32,
 };
 
 pub const MeshData = struct {
@@ -52,6 +56,10 @@ pub fn loadMaterials(allocator: std.mem.Allocator, path: []const u8) !std.ArrayL
             .color = materialData.color,
             .id = try allocator.dupe(u8, materialData.id),
             .texturePath = try allocator.dupe(u8, materialData.texturePath),
+            .normalMapPath = try allocator.dupe(u8, materialData.normalMapPath),
+            .metalRoughMapPath = try allocator.dupe(u8, materialData.metalRoughMapPath),
+            .roughFactor = materialData.roughFactor,
+            .metallicFactor = materialData.metallicFactor,
         };
         try materials.append(allocator, ownedMaterialData);
     }

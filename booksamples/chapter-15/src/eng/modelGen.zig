@@ -204,18 +204,36 @@ fn processMaterial(
 ) !eng.mdata.MaterialData {
     var color = [_]f32{ 0.0, 0.0, 0.0, 0.0 };
     var texturePath: [*:0]const u8 = "";
+    var metalRoughMapPath: [*:0]const u8 = "";
+    var metallicFactor: f32 = 0;
+    var roughFactor: f32 = 0;
     if (material.has_pbr_metallic_roughness > 0) {
         if (material.pbr_metallic_roughness.base_color_texture.texture) |texture| {
             texturePath = texture.image.?.uri.?;
         }
+        if (material.pbr_metallic_roughness.metallic_roughness_texture.texture) |texture| {
+            metalRoughMapPath = texture.image.?.uri.?;
+        }
         color = material.pbr_metallic_roughness.base_color_factor;
+        metallicFactor = material.pbr_metallic_roughness.metallic_factor;
+        roughFactor = material.pbr_metallic_roughness.roughness_factor;
     }
-    const materialRelPath = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ baseDir, std.mem.span(texturePath) });
+    var normalMapPath: [*:0]const u8 = "";
+    if (material.normal_texture.texture) |texture| {
+        normalMapPath = texture.image.?.uri.?;
+    }
+    const textRelPath = if (texturePath[0] != 0) try std.fmt.allocPrint(allocator, "{s}/{s}", .{ baseDir, std.mem.span(texturePath) }) else "";
+    const normalMapRelPath = if (normalMapPath[0] != 0) try std.fmt.allocPrint(allocator, "{s}/{s}", .{ baseDir, std.mem.span(normalMapPath) }) else "";
+    const metalRoughMapRelPath = if (normalMapPath[0] != 0) try std.fmt.allocPrint(allocator, "{s}/{s}", .{ baseDir, std.mem.span(metalRoughMapPath) }) else "";
     const materialId = try std.fmt.allocPrint(allocator, "{s}-mat-{d}", .{ modelId, pos });
     return eng.mdata.MaterialData{
         .id = materialId,
-        .texturePath = materialRelPath,
+        .texturePath = textRelPath,
         .color = color,
+        .normalMapPath = normalMapRelPath,
+        .metalRoughMapPath = metalRoughMapRelPath,
+        .metallicFactor = metallicFactor,
+        .roughFactor = roughFactor,
     };
 }
 
