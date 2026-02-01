@@ -100,13 +100,13 @@ pub const VkInstance = struct {
     ...
     pub fn create(allocator: std.mem.Allocator, validate: bool) !VkInstance {
         ...
-        var layer_names = try std.ArrayList([*:0]const u8).initCapacity(allocator, 2);
-        defer layer_names.deinit(allocator);
+        var layerNames = try std.ArrayList([*:0]const u8).initCapacity(allocator, 2);
+        defer layerNames.deinit(allocator);
 
         if (validate) {
             if (try supportsValidation(allocator, &vkb)) {
                 log.debug("Enabling validation", .{});
-                try layer_names.append(allocator, VALIDATION_LAYER);
+                try layerNames.append(allocator, VALIDATION_LAYER);
             } else {
                 log.debug("Validation layer not supported. Make sure Vulkan SDK is installed", .{});
             }
@@ -190,8 +190,8 @@ pub const VkInstance = struct {
             .p_application_info = &appInfo,
             .enabled_extension_count = @intCast(extensionNames.items.len),
             .pp_enabled_extension_names = extensionNames.items.ptr,
-            .enabled_layer_count = @intCast(layer_names.items.len),
-            .pp_enabled_layer_names = layer_names.items.ptr,
+            .enabled_layer_count = @intCast(layerNames.items.len),
+            .pp_enabled_layer_names = layerNames.items.ptr,
             .flags = .{ .enumerate_portability_bit_khr = is_macos },
         };
         const instance = try vkb.createInstance(&createInfo, null);
