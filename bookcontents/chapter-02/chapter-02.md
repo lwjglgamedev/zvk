@@ -27,6 +27,7 @@ const VALIDATION_AYER = "VK_LAYER_KHRONOS_validation";
 
 pub const VkInstance = struct {
     vkb: vulkan.BaseWrapper,
+    debugMessenger: ?vulkan.DebugUtilsMessengerEXT = null,    
     instanceProxy: vulkan.InstanceProxy,
 
     pub fn create(allocator: std.mem.Allocator, validate: bool) !VkInstance {
@@ -74,6 +75,34 @@ zig Vulkan bindings we are using). We need to define the following attributes:
 - `api_version`: The version of the Vulkan API. This value should be the highest value of the Vulkan version that this application should
 use encoded according to what is stated in Vulkan specification (major, minor and patch version). In this case we are using version `1.3.0`.
 
+## Extensions
+
+A Vulkan extension is a piece of functionality that is not part of the core Vulkan specification, but can be added to the API optionally.
+You can think about extensions like plugins. As the Vulkan standard evolve, some of the extensions have been included in the core API
+so make sure you check this if you plan to include a new one. Let's review which extensions we will use in the code:
+
+```zig
+pub const VkInstance = struct {
+    ...
+    pub fn create(allocator: std.mem.Allocator, validate: bool) !VkInstance {
+        ...
+        var extensionNames = try std.ArrayList([*:0]const u8).initCapacity(allocator, 2);
+        defer extensionNames.deinit(allocator);
+        const sdlExtensions = try sdl3.vulkan.getInstanceExtensions();
+        try extensionNames.appendSlice(allocator, sdlExtensions);
+        const is_macos = builtin.target.os.tag == .macos;
+        if (is_macos) {
+            try extensionNames.append("VK_KHR_portability_enumeration");
+        }
+        ...
+    }
+    ...
+};
+```
+
+First we get the name of SDL extensions that we will need to use when creating the instance. This will allow Vulkan to use the SDL window.
+If we are using macOS we need also to enable portability extension (`VK_KHR_portability_enumeration`).
+
 ## Layers
 
 Vulkan is a layered API. When you read about the Vulkan core, you can think of it as the mandatory lowest level layer. On top of that,
@@ -93,7 +122,8 @@ delivery.
 > have the path of the base directory of the Vulkan SDK)
 
 Our `create` function receives a boolean parameter indication if validation should be enabled or not. If validation is requested, we will
-use the `VK_LAYER_KHRONOS_validation` layer (defined in the constant `VALIDATION_AYER`). 
+use the `VK_LAYER_KHRONOS_validation` layer (defined in the constant `VALIDATION_AYER`). In addition to that, if we support validation
+we will add a new layer to be able to use a callback that will be invoked whenever a validation event occurs.
 
 ```zig
 pub const VkInstance = struct {
@@ -103,13 +133,18 @@ pub const VkInstance = struct {
         var layerNames = try std.ArrayList([*:0]const u8).initCapacity(allocator, 2);
         defer layerNames.deinit(allocator);
 
+        const supValidation = try supportsValidation(allocator, &vkb);
         if (validate) {
-            if (try supportsValidation(allocator, &vkb)) {
+            if (supValidation) {
                 log.debug("Enabling validation", .{});
                 try layerNames.append(allocator, VALIDATION_LAYER);
+                try extensionNames.append(allocator, vulkan.extensions.ext_debug_utils.name);
             } else {
                 log.debug("Validation layer not supported. Make sure Vulkan SDK is installed", .{});
             }
+        }
+        for (extensionNames.items) |value| {
+            log.debug("Instance create extension: {s}", .{value});
         }
         ...
     }
@@ -148,35 +183,6 @@ We first get the number of supported layers by calling the `enumerateInstanceLay
 `u32` variable to get the number of supported layers. After that, we call again the `enumerateInstanceLayerProperties` function to get
 the layers themselves passing a preallocated array. If we find the the validation layer, we can enable it.
 
-## Extensions
-
-Now that we've set up all the validation layers, we move on to extensions.
-
-```zig
-pub const VkInstance = struct {
-    ...
-    pub fn create(allocator: std.mem.Allocator, validate: bool) !VkInstance {
-        ...
-        var extensionNames = try std.ArrayList([*:0]const u8).initCapacity(allocator, 2);
-        defer extensionNames.deinit(allocator);
-        try extensionNames.appendSlice(allocator, sdlExtensions);
-        const is_macos = builtin.target.os.tag == .macos;
-        if (is_macos) {
-            try extensionNames.append("VK_KHR_portability_enumeration");
-        }
-
-        for (extensionNames.items) |value| {
-            log.debug("Instance create extension: {s}", .{value});
-        }
-        ...
-    }
-    ...
-};
-```
-
-First we get the name of SDL extensions that we will need to use when creating the instance. This will allow Vulkan to use the SDL window.
-If we are using macOS we need also to enable portability extension.
-
 ## Creating the instance
 
 With all the information we can finally create the Vulkan instance:
@@ -199,8 +205,86 @@ pub const VkInstance = struct {
         const vki = try allocator.create(vulkan.InstanceWrapper);
         vki.* = vulkan.InstanceWrapper.load(instance, vkb.dispatch.vkGetInstanceProcAddr.?);
         const instanceProxy = vulkan.InstanceProxy.init(instance, vki);
+        ...
+    }
+    ...
+};
+```
 
-        return .{ .vkb = vkb, .instanceProxy = instanceProxy };
+If validation is enabled and supported we need to create the debug messenger extension:
+
+```zig
+pub const VkInstance = struct {
+    ...
+    pub fn create(allocator: std.mem.Allocator, validate: bool) !VkInstance {
+        ...
+        if (validate and supValidation) {
+            debugMessenger = try instanceProxy.createDebugUtilsMessengerEXT(&.{
+                .message_severity = .{
+                    .warning_bit_ext = true,
+                    .error_bit_ext = true,
+                },
+                .message_type = .{
+                    .general_bit_ext = true,
+                    .validation_bit_ext = true,
+                    .performance_bit_ext = true,
+                },
+                .pfn_user_callback = &VkInstance.debugUtilsMessengerCallback,
+                .p_user_data = null,
+            }, null);
+        }
+        ...
+    }
+    ...
+};    
+```
+
+The `message_severity` attribute is a composition of flags which triggers when the debug callback should be invoked. We are interested
+in just errors and warnings, but you can enable information and verbose levels. The `message_type` is used to filter the type of
+messages we are interested in. We will activate validation messages, general information and performance ones. Finally we will set up
+the callback to be invoked in the `pfn_user_callback` attribute. The function set as a callback is defined like this:
+
+```zig
+pub const VkInstance = struct {
+    ...
+    fn debugUtilsMessengerCallback(
+        severity: vulkan.DebugUtilsMessageSeverityFlagsEXT,
+        msgType: vulkan.DebugUtilsMessageTypeFlagsEXT,
+        callback_data: ?*const vulkan.DebugUtilsMessengerCallbackDataEXT,
+        _: ?*anyopaque,
+    ) callconv(.c) vulkan.Bool32 {
+        _ = msgType;
+        const message: [*c]const u8 = if (callback_data) |cb_data| cb_data.p_message else "NO MESSAGE!";
+        if (severity.error_bit_ext) {
+            log.err("{s}", .{message});
+        } else if (severity.warning_bit_ext) {
+            log.warn("{s}", .{message});
+        } else if (severity.info_bit_ext) {
+            log.info("{s}", .{message});
+        } else {
+            log.debug("{s}", .{message});
+        }
+        return vulkan.Bool32.false;
+    }
+    ...
+};
+```
+
+We just debug the message according to the severity level. We return a boolean stating if the process should be aborted
+(`vulkan.Bool32.true`) or not (`vulkan.Bool32.false`).
+
+Back to the `create` function, with all that information we just create the `VkInstance` structure and return it:
+
+```zig
+pub const VkInstance = struct {
+    ...
+    pub fn create(allocator: std.mem.Allocator, validate: bool) !VkInstance {
+        ...
+        return .{
+            .vkb = vkb,
+            .debugMessenger = debugMessenger,
+            .instanceProxy = instanceProxy,
+        };
     }
     ...
 };
@@ -213,6 +297,9 @@ pub const VkInstance = struct {
     ...
     pub fn cleanup(self: *VkInstance, allocator: std.mem.Allocator) !void {
         log.debug("Destroying Vulkan instance", .{});
+        if (self.debugMessenger) |dbg| {
+            self.instanceProxy.destroyDebugUtilsMessengerEXT(dbg, null);
+        }
         self.instanceProxy.destroyInstance(null);
         allocator.destroy(self.instanceProxy.wrapper);
         self.instanceProxy = undefined;

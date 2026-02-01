@@ -8,11 +8,10 @@ const VALIDATION_LAYER = "VK_LAYER_KHRONOS_validation";
 
 pub const VkInstance = struct {
     vkb: vulkan.BaseWrapper,
+    debugMessenger: ?vulkan.DebugUtilsMessengerEXT = null,
     instanceProxy: vulkan.InstanceProxy,
 
     pub fn create(allocator: std.mem.Allocator, validate: bool) !VkInstance {
-        const sdlExtensions = try sdl3.vulkan.getInstanceExtensions();
-
         const rawProc = sdl3.vulkan.getVkGetInstanceProcAddr() catch |err| {
             std.debug.print("Vulkan not available: {}\n", .{err});
             return err;
@@ -29,30 +28,28 @@ pub const VkInstance = struct {
             .api_version = @bitCast(vulkan.API_VERSION_1_3),
         };
 
-        var layerNames = try std.ArrayList([*:0]const u8).initCapacity(allocator, 2);
-        defer layerNames.deinit(allocator);
-
-        if (validate) {
-            if (try supportsValidation(allocator, &vkb)) {
-                log.debug("Enabling validation", .{});
-                try layerNames.append(allocator, VALIDATION_LAYER);
-            } else {
-                log.debug("Validation layer not supported. Make sure Vulkan SDK is installed", .{});
-            }
-        }
-
-        for (sdlExtensions) |value| {
-            log.debug("SDL extension: {s}", .{value});
-        }
-
         var extensionNames = try std.ArrayList([*:0]const u8).initCapacity(allocator, 2);
         defer extensionNames.deinit(allocator);
+        const sdlExtensions = try sdl3.vulkan.getInstanceExtensions();
         try extensionNames.appendSlice(allocator, sdlExtensions);
         const is_macos = builtin.target.os.tag == .macos;
         if (is_macos) {
             try extensionNames.append("VK_KHR_portability_enumeration");
         }
 
+        var layerNames = try std.ArrayList([*:0]const u8).initCapacity(allocator, 2);
+        defer layerNames.deinit(allocator);
+
+        const supValidation = try supportsValidation(allocator, &vkb);
+        if (validate) {
+            if (supValidation) {
+                log.debug("Enabling validation", .{});
+                try layerNames.append(allocator, VALIDATION_LAYER);
+                try extensionNames.append(allocator, vulkan.extensions.ext_debug_utils.name);
+            } else {
+                log.debug("Validation layer not supported. Make sure Vulkan SDK is installed", .{});
+            }
+        }
         for (extensionNames.items) |value| {
             log.debug("Instance create extension: {s}", .{value});
         }
@@ -71,11 +68,55 @@ pub const VkInstance = struct {
         vki.* = vulkan.InstanceWrapper.load(instance, vkb.dispatch.vkGetInstanceProcAddr.?);
         const instanceProxy = vulkan.InstanceProxy.init(instance, vki);
 
-        return .{ .vkb = vkb, .instanceProxy = instanceProxy };
+        var debugMessenger: ?vulkan.DebugUtilsMessengerEXT = null;
+        if (validate and supValidation) {
+            debugMessenger = try instanceProxy.createDebugUtilsMessengerEXT(&.{
+                .message_severity = .{
+                    .warning_bit_ext = true,
+                    .error_bit_ext = true,
+                },
+                .message_type = .{
+                    .general_bit_ext = true,
+                    .validation_bit_ext = true,
+                    .performance_bit_ext = true,
+                },
+                .pfn_user_callback = &VkInstance.debugUtilsMessengerCallback,
+                .p_user_data = null,
+            }, null);
+        }
+
+        return .{
+            .vkb = vkb,
+            .debugMessenger = debugMessenger,
+            .instanceProxy = instanceProxy,
+        };
+    }
+
+    fn debugUtilsMessengerCallback(
+        severity: vulkan.DebugUtilsMessageSeverityFlagsEXT,
+        msgType: vulkan.DebugUtilsMessageTypeFlagsEXT,
+        callback_data: ?*const vulkan.DebugUtilsMessengerCallbackDataEXT,
+        _: ?*anyopaque,
+    ) callconv(.c) vulkan.Bool32 {
+        _ = msgType;
+        const message: [*c]const u8 = if (callback_data) |cb_data| cb_data.p_message else "NO MESSAGE!";
+        if (severity.error_bit_ext) {
+            log.err("{s}", .{message});
+        } else if (severity.warning_bit_ext) {
+            log.warn("{s}", .{message});
+        } else if (severity.info_bit_ext) {
+            log.info("{s}", .{message});
+        } else {
+            log.debug("{s}", .{message});
+        }
+        return vulkan.Bool32.false;
     }
 
     pub fn cleanup(self: *VkInstance, allocator: std.mem.Allocator) !void {
         log.debug("Destroying Vulkan instance", .{});
+        if (self.debugMessenger) |dbg| {
+            self.instanceProxy.destroyDebugUtilsMessengerEXT(dbg, null);
+        }
         self.instanceProxy.destroyInstance(null);
         allocator.destroy(self.instanceProxy.wrapper);
         self.instanceProxy = undefined;
