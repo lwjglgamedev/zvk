@@ -70,7 +70,7 @@ pub const Render = struct {
         self.renderGui.cleanup(allocator, &self.vkCtx);
         self.renderPost.cleanup(&self.vkCtx);
         self.renderScn.cleanup(allocator, &self.vkCtx);
-        self.renderLight.cleanup(&self.vkCtx);
+        self.renderLight.cleanup(allocator, &self.vkCtx);
 
         self.textureCache.cleanup(allocator, &self.vkCtx);
         self.materialsCache.cleanup(allocator, &self.vkCtx);
@@ -232,6 +232,7 @@ pub const Render = struct {
             &self.vkCtx,
             engCtx,
             vkCmdBuff,
+            self.currentFrame,
         );
 
         self.renderInitPost(vkCmdBuff, imageIndex);

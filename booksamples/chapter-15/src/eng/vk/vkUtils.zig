@@ -33,3 +33,28 @@ pub fn createHostVisibleBuff(
 
     return buffer;
 }
+
+pub fn createHostVisibleBuffs(
+    allocator: std.mem.Allocator,
+    vkCtx: *vk.ctx.VkCtx,
+    baseId: []const u8,
+    numBuffers: u32,
+    size: u64,
+    bufferUsage: vulkan.BufferUsageFlags,
+    descLayout: vk.desc.VkDescSetLayout,
+) ![]vk.buf.VkBuffer {
+    const buffers = try allocator.alloc(vk.buf.VkBuffer, numBuffers);
+    for (buffers, 0..) |*buffer, i| {
+        const id = try std.fmt.allocPrint(allocator, "{s}{d}", .{ baseId, i });
+        defer allocator.free(id);
+        buffer.* = try vk.util.createHostVisibleBuff(
+            allocator,
+            vkCtx,
+            id,
+            size,
+            bufferUsage,
+            descLayout,
+        );
+    }
+    return buffers;
+}

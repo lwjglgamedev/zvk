@@ -44,6 +44,14 @@ const Game = struct {
         viewData.pos = zm.Vec{ 0.0, 3.0, -4.0, 0.0 };
         viewData.addRotation(std.math.degreesToRadians(0), std.math.degreesToRadians(90));
 
+        const pointLight = eng.scn.Light{
+            .color = zm.Vec{ 0.0, 1.0, 0.0, 1.0 },
+            .directional = false,
+            .intensity = 1.0,
+            .pos = zm.Vec{ 5.0, 3.4, 1.2, 0.0 },
+        };
+        try engCtx.scene.addLight(engCtx.allocator, pointLight);
+
         return .{ .models = models, .materials = materials };
     }
 

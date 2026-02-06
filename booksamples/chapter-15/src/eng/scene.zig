@@ -149,7 +149,10 @@ pub const Camera = struct {
     }
 };
 
+pub const MAX_LIGHTS: u32 = 10;
 pub const Scene = struct {
+    // alpha component is intensity
+    ambientLight: zm.Vec,
     camera: Camera,
     entitiesMap: std.StringHashMap(*eng.ent.Entity),
     lights: std.ArrayList(Light),
@@ -158,12 +161,18 @@ pub const Scene = struct {
         try self.entitiesMap.put(entity.id, entity);
     }
 
+    pub fn addLight(self: *Scene, allocator: std.mem.Allocator, light: eng.scn.Light) !void {
+        try self.lights.append(allocator, light);
+    }
+
     pub fn create(allocator: std.mem.Allocator) !Scene {
         const camera = Camera.create();
         const entitiesMap = std.StringHashMap(*eng.ent.Entity).init(allocator);
         const lights = try std.ArrayList(Light).initCapacity(allocator, 1);
+        const ambientLight = zm.Vec{ 1.0, 1.0, 1.0, 1.0 };
 
         return .{
+            .ambientLight = ambientLight,
             .camera = camera,
             .entitiesMap = entitiesMap,
             .lights = lights,

@@ -236,6 +236,7 @@ pub const RenderScn = struct {
         return attachments;
     }
 
+    // TODO: Use new function in utils
     fn createCamBuffers(allocator: std.mem.Allocator, vkCtx: *vk.ctx.VkCtx, descLayout: vk.desc.VkDescSetLayout) ![]vk.buf.VkBuffer {
         const buffers = try allocator.alloc(vk.buf.VkBuffer, com.common.FRAMES_IN_FLIGHT);
         for (buffers, 0..) |*buffer, i| {

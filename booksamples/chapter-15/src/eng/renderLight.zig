@@ -6,6 +6,10 @@ const vulkan = @import("vulkan");
 
 pub const COLOR_ATTACHMENT_FORMAT = vulkan.Format.r32g32b32a32_sfloat;
 const DESC_ID_LIGHT_TEXT_SAMPLER = "RENDER_LIGHT_DESC_ID_TEXT";
+const DESC_ID_LIGHTS = "RENDER_LIGHT_DESC_ID_LIGHTS";
+const DESC_ID_SCENE_INFO = "RENDER_LIGHT_DESC_ID_SCENE_INFO";
+const LIGHTS_BYTES_SIZE: u32 = 32;
+const SCENE_INFO_BYTES_SIZE: u32 = 32;
 
 const EmptyVtxBuffDesc = struct {
     const binding_description = vulkan.VertexInputBindingDescription{
@@ -18,13 +22,27 @@ const EmptyVtxBuffDesc = struct {
 };
 
 pub const RenderLight = struct {
-    descLayoutFrg: vk.desc.VkDescSetLayout,
+    buffsLights: []vk.buf.VkBuffer,
+    buffsSceneInfo: []vk.buf.VkBuffer,
+    descLayoutAtt: vk.desc.VkDescSetLayout,
+    descLayoutLights: vk.desc.VkDescSetLayout,
+    descLayoutScene: vk.desc.VkDescSetLayout,
     outputAtt: eng.rend.Attachment,
     textSampler: vk.text.VkTextSampler,
     vkPipeline: vk.pipe.VkPipeline,
 
-    pub fn cleanup(self: *RenderLight, vkCtx: *vk.ctx.VkCtx) void {
-        self.descLayoutFrg.cleanup(vkCtx);
+    pub fn cleanup(self: *RenderLight, allocator: std.mem.Allocator, vkCtx: *vk.ctx.VkCtx) void {
+        for (self.buffsLights) |*buffer| {
+            buffer.cleanup(vkCtx);
+        }
+        allocator.free(self.buffsLights);
+        for (self.buffsSceneInfo) |*buffer| {
+            buffer.cleanup(vkCtx);
+        }
+        allocator.free(self.buffsSceneInfo);
+        self.descLayoutAtt.cleanup(vkCtx);
+        self.descLayoutLights.cleanup(vkCtx);
+        self.descLayoutScene.cleanup(vkCtx);
         self.outputAtt.cleanup(vkCtx);
         self.vkPipeline.cleanup(vkCtx);
         self.textSampler.cleanup(vkCtx);
@@ -67,7 +85,7 @@ pub const RenderLight = struct {
         };
         const textSampler = try vk.text.VkTextSampler.create(vkCtx, samplerInfo);
 
-        // Descriptor sets
+        // Descriptor set: Attachments
         const layoutInfos = try allocator.alloc(vk.desc.LayoutInfo, inputAttachments.len);
         defer allocator.free(layoutInfos);
         const imageViews = try allocator.alloc(vk.imv.VkImageView, inputAttachments.len);
@@ -81,7 +99,7 @@ pub const RenderLight = struct {
             };
             imageViews[i] = inputAttachments.ptr[i].vkImageView;
         }
-        const descLayoutFrg = try vk.desc.VkDescSetLayout.create(
+        const descLayoutAtt = try vk.desc.VkDescSetLayout.create(
             allocator,
             vkCtx,
             layoutInfos,
@@ -91,11 +109,49 @@ pub const RenderLight = struct {
             vkCtx.vkPhysDevice,
             vkCtx.vkDevice,
             DESC_ID_LIGHT_TEXT_SAMPLER,
-            descLayoutFrg,
+            descLayoutAtt,
         );
         try attDescSet.setImages(allocator, vkCtx.vkDevice, imageViews, textSampler, 0);
 
-        const descSetLayouts = [_]vulkan.DescriptorSetLayout{descLayoutFrg.descSetLayout};
+        // Descriptor set: Lights
+        const descLayoutLights = try vk.desc.VkDescSetLayout.create(allocator, vkCtx, &[_]vk.desc.LayoutInfo{.{
+            .binding = 0,
+            .descCount = 1,
+            .descType = vulkan.DescriptorType.storage_buffer,
+            .stageFlags = vulkan.ShaderStageFlags{ .fragment_bit = true },
+        }});
+        const buffsLights = try vk.util.createHostVisibleBuffs(
+            allocator,
+            vkCtx,
+            DESC_ID_LIGHTS,
+            com.common.FRAMES_IN_FLIGHT,
+            @sizeOf(eng.scn.Light) * eng.scn.MAX_LIGHTS,
+            .{ .storage_buffer_bit = true },
+            descLayoutLights,
+        );
+
+        // Descriptor set: SceneInfo
+        const descLayoutScene = try vk.desc.VkDescSetLayout.create(allocator, vkCtx, &[_]vk.desc.LayoutInfo{.{
+            .binding = 0,
+            .descCount = 1,
+            .descType = vulkan.DescriptorType.uniform_buffer,
+            .stageFlags = vulkan.ShaderStageFlags{ .fragment_bit = true },
+        }});
+        const buffsSceneInfo = try vk.util.createHostVisibleBuffs(
+            allocator,
+            vkCtx,
+            DESC_ID_SCENE_INFO,
+            com.common.FRAMES_IN_FLIGHT,
+            SCENE_INFO_BYTES_SIZE,
+            .{ .uniform_buffer_bit = true },
+            descLayoutScene,
+        );
+
+        const descSetLayouts = [_]vulkan.DescriptorSetLayout{
+            descLayoutAtt.descSetLayout,
+            descLayoutLights.descSetLayout,
+            descLayoutScene.descSetLayout,
+        };
 
         // Pipeline
         const colorFormats = [_]vulkan.Format{COLOR_ATTACHMENT_FORMAT};
@@ -113,7 +169,11 @@ pub const RenderLight = struct {
         const vkPipeline = try vk.pipe.VkPipeline.create(allocator, vkCtx, &vkPipelineCreateInfo);
 
         return .{
-            .descLayoutFrg = descLayoutFrg,
+            .buffsLights = buffsLights,
+            .buffsSceneInfo = buffsSceneInfo,
+            .descLayoutAtt = descLayoutAtt,
+            .descLayoutLights = descLayoutLights,
+            .descLayoutScene = descLayoutScene,
             .outputAtt = outputAtt,
             .textSampler = textSampler,
             .vkPipeline = vkPipeline,
@@ -141,6 +201,7 @@ pub const RenderLight = struct {
         vkCtx: *const vk.ctx.VkCtx,
         engCtx: *const eng.engine.EngCtx,
         vkCmd: vk.cmd.VkCmdBuff,
+        frameIdx: u8,
     ) !void {
         const allocator = engCtx.allocator;
         const cmdHandle = vkCmd.cmdBuffProxy.handle;
@@ -184,11 +245,20 @@ pub const RenderLight = struct {
         }};
         device.cmdSetScissor(cmdHandle, 0, scissor.len, &scissor);
 
+        try self.updateLights(vkCtx, &engCtx.scene, frameIdx);
+        try self.updateSceneInfo(vkCtx, &engCtx.scene, frameIdx);
+
         // Bind descriptor sets
         const vkDescAllocator = vkCtx.vkDescAllocator;
-        var descSets = try std.ArrayList(vulkan.DescriptorSet).initCapacity(allocator, 1);
+        var descSets = try std.ArrayList(vulkan.DescriptorSet).initCapacity(allocator, 3);
         defer descSets.deinit(allocator);
         try descSets.append(allocator, vkDescAllocator.getDescSet(DESC_ID_LIGHT_TEXT_SAMPLER).?.descSet);
+        const lightDescId = try std.fmt.allocPrint(allocator, "{s}{d}", .{ DESC_ID_LIGHTS, frameIdx });
+        defer allocator.free(lightDescId);
+        try descSets.append(allocator, vkDescAllocator.getDescSet(lightDescId).?.descSet);
+        const sceneDescId = try std.fmt.allocPrint(allocator, "{s}{d}", .{ DESC_ID_SCENE_INFO, frameIdx });
+        defer allocator.free(sceneDescId);
+        try descSets.append(allocator, vkDescAllocator.getDescSet(sceneDescId).?.descSet);
         device.cmdBindDescriptorSets(
             cmdHandle,
             vulkan.PipelineBindPoint.graphics,
@@ -282,5 +352,64 @@ pub const RenderLight = struct {
         try vkDescSetTxt.setImages(allocator, vkCtx.vkDevice, imageViews, self.textSampler, 0);
 
         self.outputAtt = outputAtt;
+    }
+
+    fn updateLights(
+        self: *RenderLight,
+        vkCtx: *const vk.ctx.VkCtx,
+        scene: *const eng.scn.Scene,
+        frameIdx: u8,
+    ) !void {
+        const buffData = try self.buffsLights[frameIdx].map(vkCtx);
+        defer self.buffsLights[frameIdx].unMap(vkCtx);
+        const gpuBytes: [*]u8 = @ptrCast(buffData);
+
+        const numLights = scene.lights.items.len;
+        var offset: usize = 0;
+        for (0..numLights) |i| {
+            const light = scene.lights.items[i];
+
+            // Position
+            const posBytes = std.mem.asBytes(&light.pos);
+            @memcpy(gpuBytes[offset..][0..12], posBytes[0..12]);
+            offset += 12;
+
+            const directionalFloat: f32 = if (light.directional) 1.0 else 0.0;
+            const dirBytes = std.mem.toBytes(directionalFloat);
+            @memcpy(gpuBytes[offset..][0..4], &dirBytes);
+            offset += 4;
+
+            const intensityBytes = std.mem.toBytes(light.intensity);
+            @memcpy(gpuBytes[offset..][0..4], &intensityBytes);
+            offset += 4;
+
+            const colorBytes = std.mem.asBytes(&light.color);
+            @memcpy(gpuBytes[offset..][0..12], colorBytes[0..12]);
+            offset += 12;
+        }
+    }
+
+    fn updateSceneInfo(
+        self: *RenderLight,
+        vkCtx: *const vk.ctx.VkCtx,
+        scene: *const eng.scn.Scene,
+        frameIdx: u8,
+    ) !void {
+        const buffData = try self.buffsSceneInfo[frameIdx].map(vkCtx);
+        defer self.buffsSceneInfo[frameIdx].unMap(vkCtx);
+        const gpuBytes: [*]u8 = @ptrCast(buffData);
+
+        var offset: usize = 0;
+        const ambientLightBytes = std.mem.asBytes(&scene.ambientLight);
+        @memcpy(gpuBytes[offset..], ambientLightBytes);
+        offset += ambientLightBytes.len;
+
+        const posBytes = std.mem.asBytes(&scene.camera.viewData.pos);
+        @memcpy(gpuBytes[offset..][0..12], posBytes[0..12]);
+        offset += 12;
+
+        const numLights = scene.lights.items.len;
+        const numLightsBytes = std.mem.toBytes(numLights);
+        @memcpy(gpuBytes[offset..], &numLightsBytes);
     }
 };
