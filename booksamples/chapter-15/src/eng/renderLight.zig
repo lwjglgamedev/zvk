@@ -374,8 +374,8 @@ pub const RenderLight = struct {
             @memcpy(gpuBytes[offset..][0..12], posBytes[0..12]);
             offset += 12;
 
-            const directionalFloat: f32 = if (light.directional) 1.0 else 0.0;
-            const dirBytes = std.mem.toBytes(directionalFloat);
+            const directional: u32 = if (light.directional) 1.0 else 0.0;
+            const dirBytes = std.mem.toBytes(directional);
             @memcpy(gpuBytes[offset..][0..4], &dirBytes);
             offset += 4;
 

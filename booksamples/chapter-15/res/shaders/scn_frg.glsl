@@ -61,11 +61,12 @@ void main()
 
     // Hack to avoid transparent PBR artifacts
     if (outAlbedo.a < 0.5) {
-        outPos = vec4(0, 0, 0, 0);
-        outAlbedo = vec4(0, 0, 0, 0);
-        outNormal = vec4(0, 0, 0, 0);
-        outPBR = vec4(0, 0, 0, 0);
-        return;
+        discard;
+        //outPos = vec4(0, 0, 0, 0);
+        //outAlbedo = vec4(0, 0, 0, 0);
+        //outNormal = vec4(0, 0, 0, 0);
+        //outPBR = vec4(0, 0, 0, 0);
+        //return;
     }
 
     mat3 TBN = mat3(inTangent, inBitangent, inNormal);

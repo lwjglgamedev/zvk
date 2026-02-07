@@ -70,13 +70,12 @@ vec3 fresnelSchlick(float cosTheta, vec3 F0) {
 
 vec3 calculatePointLight(Light light, vec3 worldPos, vec3 V, vec3 N, vec3 F0, vec3 albedo, float metallic, float roughness) {
     vec3 tmpSub = light.position - worldPos;
-    vec3 L = normalize(tmpSub - worldPos);
+    vec3 L = normalize(tmpSub);
     vec3 H = normalize(V + L);
 
     // Calculate distance and attenuation
     float distance = length(tmpSub);
     float attenuation = 1.0 / (distance * distance);
-    float intensity = 10.0f;
     vec3 radiance = light.color * light.intensity * attenuation;
 
     // Cook-Torrance BRDF
