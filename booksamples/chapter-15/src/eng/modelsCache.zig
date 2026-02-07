@@ -145,7 +145,7 @@ pub const MaterialsCache = struct {
             if (materialData.texturePath.len > 0) {
                 const nullTermPath = try allocator.dupeZ(u8, materialData.texturePath);
                 defer allocator.free(nullTermPath);
-                if (try textureCache.addTextureFromPath(allocator, vkCtx, nullTermPath)) {
+                if (try textureCache.addTextureFromPath(allocator, vkCtx, vulkan.Format.r8g8b8a8_srgb, nullTermPath)) {
                     if (textureCache.textureMap.getIndex(nullTermPath)) |idx| {
                         textureIdx = @as(u32, @intCast(idx));
                         hasTexture = 1;
@@ -160,7 +160,7 @@ pub const MaterialsCache = struct {
             if (materialData.normalMapPath.len > 0) {
                 const nullTermPath = try allocator.dupeZ(u8, materialData.normalMapPath);
                 defer allocator.free(nullTermPath);
-                if (try textureCache.addTextureFromPath(allocator, vkCtx, nullTermPath)) {
+                if (try textureCache.addTextureFromPath(allocator, vkCtx, vulkan.Format.r8g8b8a8_unorm, nullTermPath)) {
                     if (textureCache.textureMap.getIndex(nullTermPath)) |idx| {
                         normalMapIdx = @as(u32, @intCast(idx));
                         hasNormalMap = 1;
@@ -175,7 +175,7 @@ pub const MaterialsCache = struct {
             if (materialData.metalRoughMapPath.len > 0) {
                 const nullTermPath = try allocator.dupeZ(u8, materialData.metalRoughMapPath);
                 defer allocator.free(nullTermPath);
-                if (try textureCache.addTextureFromPath(allocator, vkCtx, nullTermPath)) {
+                if (try textureCache.addTextureFromPath(allocator, vkCtx, vulkan.Format.r8g8b8a8_unorm, nullTermPath)) {
                     if (textureCache.textureMap.getIndex(nullTermPath)) |idx| {
                         roughMapIdx = @as(u32, @intCast(idx));
                         hasRoughMap = 1;

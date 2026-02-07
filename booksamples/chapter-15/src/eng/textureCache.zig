@@ -38,7 +38,7 @@ pub const TextureCache = struct {
         try self.textureMap.put(ownedId, vkTexture);
     }
 
-    pub fn addTextureFromPath(self: *TextureCache, allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx, path: [:0]const u8) !bool {
+    pub fn addTextureFromPath(self: *TextureCache, allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx, format: vulkan.Format, path: [:0]const u8) !bool {
         if (self.textureMap.count() >= MAX_TEXTURES) {
             @panic("Exceeded maximum number of textures");
         }
@@ -49,13 +49,7 @@ pub const TextureCache = struct {
         var image = try zstbi.Image.loadFromFile(path, 4);
         defer image.deinit();
 
-        const textureInfo = TextureInfo{
-            .id = path,
-            .data = image.data,
-            .width = image.width,
-            .height = image.height,
-            .format = vulkan.Format.r8g8b8a8_srgb,
-        };
+        const textureInfo = TextureInfo{ .id = path, .data = image.data, .width = image.width, .height = image.height, .format = format };
 
         try self.addTexture(allocator, vkCtx, &textureInfo);
         return true;
