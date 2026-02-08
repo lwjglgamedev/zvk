@@ -64,7 +64,7 @@ void main()
         //discard;
         outPos = vec4(0, 0, 0, 0);
         outAlbedo = vec4(0, 0, 0, 0);
-        outNormal = vec4(0, 0, 0, 0);
+        outNormal = vec4(0, 0, 1, 0);
         outPBR = vec4(0, 0, 0, 0);
         return;
     }

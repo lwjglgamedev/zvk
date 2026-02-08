@@ -126,6 +126,7 @@ void main() {
     vec3 ambientLightColor = sceneInfo.ambientLight.rgb;
     float ambientLightIntensity = sceneInfo.ambientLight.a;
 
+    float ao = pbr.r;
     float roughness = pbr.g;
     float metallic  = pbr.b;
 
@@ -144,7 +145,7 @@ void main() {
             Lo += calculatePointLight(light, worldPos, V, N, F0, albedo, metallic, roughness);
         }
     }
-    vec3 ambient = ambientLightColor * albedo * ambientLightIntensity;
+    vec3 ambient = ambientLightColor * albedo * ambientLightIntensity * ao;
     vec3 color = ambient + Lo;
 
     outFragColor = vec4(color, 1.0);

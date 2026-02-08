@@ -3,10 +3,12 @@
 > [!NOTE]
 > WORK IN PROGRESS. First chapters available
 
-
 This [online book](bookcontents/) will introduce the main concepts required to write graphics games or any other applications using [Vulkan](https://www.khronos.org/vulkan/) in [Zig](https://ziglang.org). You can view the static site [here](https://lwjglgamedev.github.io/zvk/).
 
 This book is the result of my self learning language, that I think it may help the community.
+
+![Sample screen shot](./bookcontents/chapter-15/rc15-screen-shot.png)
+
 
 > [!NOTE]
 > This is a new version which tries to use modern Vulkan features, such us:
