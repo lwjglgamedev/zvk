@@ -164,7 +164,6 @@ pub const MaterialsCache = struct {
                     if (textureCache.textureMap.getIndex(nullTermPath)) |idx| {
                         normalMapIdx = @as(u32, @intCast(idx));
                         hasNormalMap = 1;
-                        vulkanMaterial.transparent = textureCache.textureMap.get(nullTermPath).?.transparent;
                     } else {
                         log.warn("Could not find normal map texture added to the cache [{s}]", .{materialData.normalMapPath});
                     }
@@ -179,7 +178,6 @@ pub const MaterialsCache = struct {
                     if (textureCache.textureMap.getIndex(nullTermPath)) |idx| {
                         roughMapIdx = @as(u32, @intCast(idx));
                         hasRoughMap = 1;
-                        vulkanMaterial.transparent = textureCache.textureMap.get(nullTermPath).?.transparent;
                     } else {
                         log.warn("Could not find rough metal texture added to the cache [{s}]", .{materialData.metalRoughMapPath});
                     }
