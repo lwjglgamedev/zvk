@@ -98,8 +98,9 @@ pub const RenderLight = struct {
         const descSetLayouts = [_]vulkan.DescriptorSetLayout{descLayoutFrg.descSetLayout};
 
         // Pipeline
+        const colorFormats = [_]vulkan.Format{COLOR_ATTACHMENT_FORMAT};
         const vkPipelineCreateInfo = vk.pipe.VkPipelineCreateInfo{
-            .colorFormat = COLOR_ATTACHMENT_FORMAT,
+            .colorFormats = colorFormats[0..],
             .descSetLayouts = descSetLayouts[0..],
             .modulesInfo = modulesInfo,
             .useBlend = true,

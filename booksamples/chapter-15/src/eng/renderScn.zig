@@ -186,7 +186,6 @@ pub const RenderScn = struct {
             colorFormats[i] = attachments[i].vkImageView.format;
         }
         const vkPipelineCreateInfo = vk.pipe.VkPipelineCreateInfo{
-            .colorAttachments = @as(u32, @intCast(colorFormats.len)),
             .colorFormats = colorFormats,
             .depthFormat = DEPTH_FORMAT,
             .descSetLayouts = descSetLayouts[0..],

@@ -17,3 +17,4 @@ The book is structured in the following chapters:
 - [Chapter 12](chapter-12/chapter-12.md): Render of GUI elements through ImGui.
 - [Chapter 13](chapter-13/chapter-13.md): Sound with zaudio.
 - [Chapter 14](chapter-14/chapter-14.md): Deferred rendering (I).
+- [Chapter 15](chapter-15/chapter-15.md): Deferred rendering (II).

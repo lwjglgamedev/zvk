@@ -159,8 +159,13 @@ pub const RenderScn = struct {
         };
 
         // Pipeline
+        const colorFormats = try allocator.alloc(vulkan.Format, attachments.len);
+        defer allocator.free(colorFormats);
+        for (0..colorFormats.len) |i| {
+            colorFormats[i] = attachments[i].vkImageView.format;
+        }
         const vkPipelineCreateInfo = vk.pipe.VkPipelineCreateInfo{
-            .colorFormat = COLOR_ATTACHMENT_FORMAT,
+            .colorFormats = colorFormats,
             .depthFormat = DEPTH_FORMAT,
             .descSetLayouts = descSetLayouts[0..],
             .modulesInfo = modulesInfo,

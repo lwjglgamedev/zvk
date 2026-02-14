@@ -12,6 +12,7 @@ pub const VkImageViewData = struct {
 };
 
 pub const VkImageView = struct {
+    format: vulkan.Format,
     image: vulkan.Image,
     view: vulkan.ImageView,
 
@@ -33,6 +34,7 @@ pub const VkImageView = struct {
         const imageView = try vkDevice.deviceProxy.createImageView(&createInfo, null);
 
         return .{
+            .format = imageViewData.format,
             .image = image,
             .view = imageView,
         };

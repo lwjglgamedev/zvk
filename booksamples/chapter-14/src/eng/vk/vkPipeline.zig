@@ -9,7 +9,7 @@ pub const ShaderModuleInfo = struct {
 };
 
 pub const VkPipelineCreateInfo = struct {
-    colorFormat: vulkan.Format,
+    colorFormats: []const vulkan.Format,
     depthFormat: vulkan.Format = vulkan.Format.undefined,
     descSetLayouts: ?[]const vulkan.DescriptorSetLayout,
     modulesInfo: []ShaderModuleInfo,
@@ -80,29 +80,33 @@ pub const VkPipeline = struct {
             .p_dynamic_states = &dynstate,
         };
 
-        const pcbas = vulkan.PipelineColorBlendAttachmentState{
-            .blend_enable = if (createInfo.useBlend) vulkan.Bool32.true else vulkan.Bool32.false,
-            .color_blend_op = .add,
-            .src_color_blend_factor = .src_alpha,
-            .dst_color_blend_factor = .one_minus_src_alpha,
-            .alpha_blend_op = .add,
-            .src_alpha_blend_factor = .src_alpha,
-            .dst_alpha_blend_factor = .zero,
-            .color_write_mask = .{ .r_bit = true, .g_bit = true, .b_bit = true, .a_bit = true },
-        };
+        const numAttachments = createInfo.colorFormats.len;
+        const pcbas = try allocator.alloc(vulkan.PipelineColorBlendAttachmentState, numAttachments);
+        defer allocator.free(pcbas);
+        for (0..numAttachments) |i| {
+            pcbas[i] = vulkan.PipelineColorBlendAttachmentState{
+                .blend_enable = if (createInfo.useBlend) vulkan.Bool32.true else vulkan.Bool32.false,
+                .color_blend_op = .add,
+                .src_color_blend_factor = .src_alpha,
+                .dst_color_blend_factor = .one_minus_src_alpha,
+                .alpha_blend_op = .add,
+                .src_alpha_blend_factor = .src_alpha,
+                .dst_alpha_blend_factor = .zero,
+                .color_write_mask = .{ .r_bit = true, .g_bit = true, .b_bit = true, .a_bit = true },
+            };
+        }
 
         const pcbsci = vulkan.PipelineColorBlendStateCreateInfo{
             .logic_op_enable = vulkan.Bool32.false,
             .logic_op = .copy,
-            .attachment_count = 1,
-            .p_attachments = &[_]vulkan.PipelineColorBlendAttachmentState{pcbas},
+            .attachment_count = @as(u32, @intCast(pcbas.len)),
+            .p_attachments = pcbas.ptr,
             .blend_constants = [_]f32{ 0, 0, 0, 0 },
         };
 
-        const formats = [_]vulkan.Format{createInfo.colorFormat};
         const renderCreateInfo = vulkan.PipelineRenderingCreateInfo{
-            .color_attachment_count = 1,
-            .p_color_attachment_formats = &formats,
+            .color_attachment_count = @as(u32, @intCast(createInfo.colorFormats.len)),
+            .p_color_attachment_formats = createInfo.colorFormats.ptr,
             .view_mask = 0,
             .depth_attachment_format = createInfo.depthFormat,
             .stencil_attachment_format = vulkan.Format.undefined,

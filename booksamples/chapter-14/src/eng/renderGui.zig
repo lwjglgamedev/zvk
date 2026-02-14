@@ -114,8 +114,9 @@ pub const RenderGui = struct {
         defer allocator.free(modulesInfo);
 
         // Pipeline
+        const colorFormats = [_]vulkan.Format{vkCtx.vkSwapChain.surfaceFormat.format};
         const vkPipelineCreateInfo = vk.pipe.VkPipelineCreateInfo{
-            .colorFormat = vkCtx.vkSwapChain.surfaceFormat.format,
+            .colorFormats = colorFormats[0..],
             .descSetLayouts = descSetLayouts[0..],
             .pushConstants = pushConstants[0..],
             .modulesInfo = modulesInfo,

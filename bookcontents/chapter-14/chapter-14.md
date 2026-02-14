@@ -29,11 +29,67 @@ information, using lighting, for each fragment using as inputs the attachment ou
 lighting phase, the depth test in the geometry phase will have already removed all the scene data that is not be seen. Hence, the number of
 operations to be done are restricted to what will be displayed on the screen.
 
+## Pipeline modifications
+
+We need to modify the `VkPipeline` struct to be able to use more than one color output attachment. In order to do that, we first need to
+update the `VkPipelineCreateInfo` struct to store an array of color formats, one per color output attachment:
+
+```zig
+pub const VkPipelineCreateInfo = struct {
+    colorFormats: []const vulkan.Format,
+    ...
+};
+```
+
+In the `VkPipeline` struct we need to take into account the fact that we may have more than one attachment:
+
+```zig
+pub const VkPipeline = struct {
+    ...
+    pub fn create(allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx, createInfo: *const VkPipelineCreateInfo) !VkPipeline {
+        ...
+        const numAttachments = createInfo.colorFormats.len;
+        const pcbas = try allocator.alloc(vulkan.PipelineColorBlendAttachmentState, numAttachments);
+        defer allocator.free(pcbas);
+        for (0..numAttachments) |i| {
+            pcbas[i] = vulkan.PipelineColorBlendAttachmentState{
+                .blend_enable = if (createInfo.useBlend) vulkan.Bool32.true else vulkan.Bool32.false,
+                .color_blend_op = .add,
+                .src_color_blend_factor = .src_alpha,
+                .dst_color_blend_factor = .one_minus_src_alpha,
+                .alpha_blend_op = .add,
+                .src_alpha_blend_factor = .src_alpha,
+                .dst_alpha_blend_factor = .zero,
+                .color_write_mask = .{ .r_bit = true, .g_bit = true, .b_bit = true, .a_bit = true },
+            };
+        }
+
+        const pcbsci = vulkan.PipelineColorBlendStateCreateInfo{
+            .logic_op_enable = vulkan.Bool32.false,
+            .logic_op = .copy,
+            .attachment_count = @as(u32, @intCast(pcbas.len)),
+            .p_attachments = pcbas.ptr,
+            .blend_constants = [_]f32{ 0, 0, 0, 0 },
+        };
+
+        const renderCreateInfo = vulkan.PipelineRenderingCreateInfo{
+            .color_attachment_count = @as(u32, @intCast(createInfo.colorFormats.len)),
+            .p_color_attachment_formats = createInfo.colorFormats.ptr,
+            .view_mask = 0,
+            .depth_attachment_format = createInfo.depthFormat,
+            .stencil_attachment_format = vulkan.Format.undefined,
+        };
+        ...
+    }
+    ...
+};
+```
+
 ## Scene render modifications
 
-We need to modify the `RenderScn` struct to be able to use several attachments as color output. In previous chapters, `RenderScn` used,
-a color output attachment that was managed in the `Render` struct, now, we will move that code to the `RenderScn` struct and add
-support for having more than one color output:
+The next step is to modify the `RenderScn` struct to also be able to use several attachments as color output. In previous chapters,
+`RenderScn` used, a color output attachment that was managed in the `Render` struct, now, we will move that code to the `RenderScn` struct
+and add support for having more than one color output:
 
 ```zig
 const COLOR_ATTACHMENT_FORMAT = vulkan.Format.r16g16b16a16_sfloat;
@@ -59,8 +115,13 @@ pub const RenderScn = struct {
         const depthAttachment = try createDepthAttachment(vkCtx);
         ...
         // Pipeline
+        const colorFormats = try allocator.alloc(vulkan.Format, attachments.len);
+        defer allocator.free(colorFormats);
+        for (0..colorFormats.len) |i| {
+            colorFormats[i] = attachments[i].vkImageView.format;
+        }
         const vkPipelineCreateInfo = vk.pipe.VkPipelineCreateInfo{
-            .colorFormat = COLOR_ATTACHMENT_FORMAT,
+            .colorFormats = colorFormats,
             ...
         };
         ...
@@ -479,8 +540,9 @@ pub const RenderLight = struct {
         const descSetLayouts = [_]vulkan.DescriptorSetLayout{descLayoutFrg.descSetLayout};
 
         // Pipeline
+        const colorFormats = [_]vulkan.Format{COLOR_ATTACHMENT_FORMAT};
         const vkPipelineCreateInfo = vk.pipe.VkPipelineCreateInfo{
-            .colorFormat = COLOR_ATTACHMENT_FORMAT,
+            .colorFormats = colorFormats[0..],
             .descSetLayouts = descSetLayouts[0..],
             .modulesInfo = modulesInfo,
             .useBlend = true,
@@ -812,7 +874,7 @@ void main() {
 By now we will not apply lighting, we will just return the albedo color associated to the current coordinates sampling the attachment that
 contains albedo information.
 
-Finally, we just need to update the `Render` struct to use the new `RenderLight` struct:
+The next step is to update the `Render` struct to use the new `RenderLight` struct:
 
 ```zig
 pub const Render = struct {
@@ -891,7 +953,48 @@ We have removed:
 - The `COLOR_ATTACHMENT_FORMAT` constant.
 - The `attColor` attribute.
 - The `createColorAttachment` function:
-- The `renderMainInit` and `renderMainFinish` functions. 
+- The `renderMainInit` and `renderMainFinish` functions.
+
+Finally, we need to update the other render structs to adapt to the changes in the pipeline creation:
+
+```zig
+pub const RenderGui = struct {
+    ...
+    pub fn create(allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx) !RenderGui {
+        ...
+        // Pipeline
+        const colorFormats = [_]vulkan.Format{vkCtx.vkSwapChain.surfaceFormat.format};
+        const vkPipelineCreateInfo = vk.pipe.VkPipelineCreateInfo{
+            .colorFormats = colorFormats[0..],
+            ...
+        };
+        ...
+    }    
+    ...
+};
+```
+
+```zig
+pub const RenderPost = struct {
+    ...
+    pub fn create(
+        allocator: std.mem.Allocator,
+        vkCtx: *vk.ctx.VkCtx,
+        constants: com.common.Constants,
+        attColor: *const eng.rend.Attachment,
+    ) !RenderPost {
+        ...
+        // Pipeline
+        const colorFormats = [_]vulkan.Format{vkCtx.vkSwapChain.surfaceFormat.format};
+        const vkPipelineCreateInfo = vk.pipe.VkPipelineCreateInfo{
+            .colorFormats = colorFormats[0..],
+            ...
+        };
+        ...
+    }    
+    ...
+};
+```
 
 In the `init` function in the `main.zig` file we just remove sound effects code. You need to remove these lines:
 

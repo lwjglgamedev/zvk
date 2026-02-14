@@ -9,7 +9,6 @@ pub const ShaderModuleInfo = struct {
 };
 
 pub const VkPipelineCreateInfo = struct {
-    colorAttachments: u32 = 1,
     colorFormats: []const vulkan.Format,
     depthFormat: vulkan.Format = vulkan.Format.undefined,
     descSetLayouts: ?[]const vulkan.DescriptorSetLayout,
@@ -81,9 +80,10 @@ pub const VkPipeline = struct {
             .p_dynamic_states = &dynstate,
         };
 
-        const pcbas = try allocator.alloc(vulkan.PipelineColorBlendAttachmentState, createInfo.colorAttachments);
+        const numAttachments = createInfo.colorFormats.len;
+        const pcbas = try allocator.alloc(vulkan.PipelineColorBlendAttachmentState, numAttachments);
         defer allocator.free(pcbas);
-        for (0..createInfo.colorAttachments) |i| {
+        for (0..numAttachments) |i| {
             pcbas[i] = vulkan.PipelineColorBlendAttachmentState{
                 .blend_enable = if (createInfo.useBlend) vulkan.Bool32.true else vulkan.Bool32.false,
                 .color_blend_op = .add,
