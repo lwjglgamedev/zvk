@@ -183,7 +183,7 @@ pub fn calcBitangent(normal: [3]f32, tangent: [4]f32) [3]f32 {
     const normalVec = zm.normalize3(zm.loadArr3(normal));
     const tangentVec = zm.normalize3(zm.loadArr3(tangent[0..3].*));
     const crossResult = zm.cross3(normalVec, tangentVec);
-    const bitangent = zm.normalize3(crossResult * @as(@Vector(4, f32), @splat(tangent[3])));
+    const bitangent = crossResult * @as(@Vector(4, f32), @splat(tangent[3]));
     return zm.vecToArr3(bitangent);
 }
 
@@ -224,7 +224,7 @@ fn processMaterial(
     }
     const textRelPath = if (texturePath[0] != 0) try std.fmt.allocPrint(allocator, "{s}/{s}", .{ baseDir, std.mem.span(texturePath) }) else "";
     const normalMapRelPath = if (normalMapPath[0] != 0) try std.fmt.allocPrint(allocator, "{s}/{s}", .{ baseDir, std.mem.span(normalMapPath) }) else "";
-    const metalRoughMapRelPath = if (normalMapPath[0] != 0) try std.fmt.allocPrint(allocator, "{s}/{s}", .{ baseDir, std.mem.span(metalRoughMapPath) }) else "";
+    const metalRoughMapRelPath = if (metalRoughMapPath[0] != 0) try std.fmt.allocPrint(allocator, "{s}/{s}", .{ baseDir, std.mem.span(metalRoughMapPath) }) else "";
     const materialId = try std.fmt.allocPrint(allocator, "{s}-mat-{d}", .{ modelId, pos });
     return eng.mdata.MaterialData{
         .id = materialId,
@@ -274,7 +274,6 @@ fn processMesh(
 
     const numTangents = intTangents.items.len;
     for (0..normals.items.len) |i| {
-        // TODO: Handle no normals case
         const tangent = if (i < numTangents) intTangents.items[i] else [4]f32{ 0, 0, 0, 0 };
         try tangents.append(allocator, tangent[0..3].*);
         const normal = normals.items[i];

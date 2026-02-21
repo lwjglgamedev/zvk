@@ -248,7 +248,7 @@ pub const RenderScn = struct {
         const renderInfo = vulkan.RenderingInfo{
             .render_area = .{ .extent = extent, .offset = .{ .x = 0, .y = 0 } },
             .layer_count = 1,
-            .color_attachment_count = 1,
+            .color_attachment_count = @as(u32, @intCast(renderAttInfos.len)),
             .p_color_attachments = renderAttInfos.ptr,
             .p_depth_attachment = &depthAttInfo,
             .view_mask = 0,

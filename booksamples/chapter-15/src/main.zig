@@ -45,7 +45,7 @@ const Game = struct {
         viewData.pos = zm.Vec{ 0.0, 3.0, -4.0, 0.0 };
         viewData.addRotation(std.math.degreesToRadians(0), std.math.degreesToRadians(90));
 
-        engCtx.scene.ambientLight = zm.Vec{ 1.0, 1.0, 1.0, 1.2 };
+        engCtx.scene.ambientLight = zm.Vec{ 1.0, 1.0, 1.0, 0.9 };
 
         const dirLight = eng.scn.Light{
             .color = zm.Vec{ 1.0, 1.0, 1.0, 1.0 },

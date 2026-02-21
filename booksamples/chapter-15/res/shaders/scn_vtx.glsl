@@ -27,8 +27,8 @@ void main()
     gl_Position   = camUniform.projMatrix * camUniform.viewMatrix * worldPos;
     mat3 mNormal  = transpose(inverse(mat3(push_constants.modelMatrix)));
     outPos        = worldPos;
-    outNormal     = mNormal * normalize(inNormal);
-    outTangent    = mNormal * normalize(inTangent);
-    outBitangent  = mNormal * normalize(inBitangent);
+    outNormal     = normalize(mNormal * inNormal);
+    outTangent    = normalize(mNormal * inTangent);
+    outBitangent  = normalize(mNormal * inBitangent);
     outTextCoords = inTextCoords;
 }

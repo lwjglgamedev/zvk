@@ -163,7 +163,15 @@ pub const RenderScn = struct {
         );
         const descSetLayouts = [_]vulkan.DescriptorSetLayout{ descLayoutVtx.descSetLayout, descLayoutFrgSt.descSetLayout, descLayoutTexture.descSetLayout };
 
-        const buffsCamera = try createCamBuffers(allocator, vkCtx, descLayoutVtx);
+        const buffsCamera = try vk.util.createHostVisibleBuffs(
+            allocator,
+            vkCtx,
+            DESC_ID_CAM,
+            com.common.FRAMES_IN_FLIGHT,
+            vk.util.MATRIX_SIZE * 2,
+            .{ .uniform_buffer_bit = true },
+            descLayoutVtx,
+        );
 
         // Push constants
         const pushConstants = [_]vulkan.PushConstantRange{
@@ -233,24 +241,6 @@ pub const RenderScn = struct {
             attachments[i] = attachment;
         }
         return attachments;
-    }
-
-    // TODO: Use new function in utils
-    fn createCamBuffers(allocator: std.mem.Allocator, vkCtx: *vk.ctx.VkCtx, descLayout: vk.desc.VkDescSetLayout) ![]vk.buf.VkBuffer {
-        const buffers = try allocator.alloc(vk.buf.VkBuffer, com.common.FRAMES_IN_FLIGHT);
-        for (buffers, 0..) |*buffer, i| {
-            const id = try std.fmt.allocPrint(allocator, "{s}{d}", .{ DESC_ID_CAM, i });
-            defer allocator.free(id);
-            buffer.* = try vk.util.createHostVisibleBuff(
-                allocator,
-                vkCtx,
-                id,
-                vk.util.MATRIX_SIZE * 2,
-                .{ .uniform_buffer_bit = true },
-                descLayout,
-            );
-        }
-        return buffers;
     }
 
     fn createDepthAttachment(vkCtx: *const vk.ctx.VkCtx) !eng.rend.Attachment {

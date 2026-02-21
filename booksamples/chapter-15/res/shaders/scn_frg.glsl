@@ -61,19 +61,14 @@ void main()
 
     // Hack to avoid transparent PBR artifacts
     if (outAlbedo.a < 0.5) {
-        //discard;
-        outPos = vec4(0, 0, 0, 0);
-        outAlbedo = vec4(0, 0, 0, 0);
-        outNormal = vec4(0, 0, 1, 0);
-        outPBR = vec4(0, 0, 0, 0);
-        return;
+        discard;
     }
 
     mat3 TBN = mat3(inTangent, inBitangent, inNormal);
     vec3 newNormal = calcNormal(material, inNormal, inTextCoords, TBN);
     outNormal = vec4(newNormal, 1.0);
 
-    float ao = 0.5f;
+    float ao = 1.0f;
     float roughnessFactor = 0.0f;
     float metallicFactor = 0.0f;
     if (material.hasRoughMap > 0) {

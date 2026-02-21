@@ -30,6 +30,7 @@ pub const VkDevice = struct {
 
         const features3 = vulkan.PhysicalDeviceVulkan13Features{
             .dynamic_rendering = vulkan.Bool32.true,
+            .shader_demote_to_helper_invocation = vulkan.Bool32.true,
             .synchronization_2 = vulkan.Bool32.true,
         };
         const features2 = vulkan.PhysicalDeviceVulkan12Features{

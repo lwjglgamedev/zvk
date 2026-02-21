@@ -381,11 +381,11 @@ fn processMaterial(
         }
         color = material.pbr_metallic_roughness.base_color_factor;
     }
-    const materialRelPath = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ baseDir, std.mem.span(texturePath) });
+    const textRelPath = if (texturePath[0] != 0) try std.fmt.allocPrint(allocator, "{s}/{s}", .{ baseDir, std.mem.span(texturePath) }) else "";
     const materialId = try std.fmt.allocPrint(allocator, "{s}-mat-{d}", .{ modelId, pos });
     return eng.mdata.MaterialData{
         .id = materialId,
-        .texturePath = materialRelPath,
+        .texturePath = textRelPath,
         .color = color,
     };
 }
