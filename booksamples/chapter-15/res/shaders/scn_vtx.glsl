@@ -4,13 +4,11 @@ layout(location = 0) in vec3 inPos;
 layout(location = 1) in vec2 inTextCoords;
 layout(location = 2) in vec3 inNormal;
 layout(location = 3) in vec3 inTangent;
-layout(location = 4) in vec3 inBitangent;
 
 layout(location = 0) out vec4 outPos;
 layout(location = 1) out vec3 outNormal;
 layout(location = 2) out vec3 outTangent;
-layout(location = 3) out vec3 outBitangent;
-layout(location = 4) out vec2 outTextCoords;
+layout(location = 3) out vec2 outTextCoords;
 
 layout(set = 0, binding = 0) uniform CamUniform {
     mat4 projMatrix;
@@ -29,6 +27,5 @@ void main()
     outPos        = worldPos;
     outNormal     = normalize(mNormal * inNormal);
     outTangent    = normalize(mNormal * inTangent);
-    outBitangent  = normalize(mNormal * inBitangent);
     outTextCoords = inTextCoords;
 }

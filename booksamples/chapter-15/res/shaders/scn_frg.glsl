@@ -6,8 +6,7 @@ const int MAX_TEXTURES = 100;
 layout(location = 0) in vec4 inPos;
 layout(location = 1) in vec3 inNormal;
 layout(location = 2) in vec3 inTangent;
-layout(location = 3) in vec3 inBitangent;
-layout(location = 4) in vec2 inTextCoords;
+layout(location = 3) in vec2 inTextCoords;
 
 layout(location = 0) out vec4 outPos;
 layout(location = 1) out vec4 outAlbedo;
@@ -64,8 +63,14 @@ void main()
         discard;
     }
 
-    mat3 TBN = mat3(inTangent, inBitangent, inNormal);
-    vec3 newNormal = calcNormal(material, inNormal, inTextCoords, TBN);
+    vec3 N = normalize(inNormal);
+    vec3 T = normalize(inTangent);
+    T = normalize(T - dot(T, N) * N);
+    vec3 B = cross(N, T);
+
+    mat3 TBN = mat3(T, B, N);
+
+    vec3 newNormal = calcNormal(material, N, inTextCoords, TBN);
     outNormal = vec4(newNormal, 1.0);
 
     float ao = 1.0f;

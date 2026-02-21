@@ -37,19 +37,12 @@ const VtxBuffDesc = struct {
             .format = .r32g32b32_sfloat,
             .offset = @offsetOf(VtxBuffDesc, "tangent"),
         },
-        .{
-            .binding = 0,
-            .location = 4,
-            .format = .r32g32b32_sfloat,
-            .offset = @offsetOf(VtxBuffDesc, "bitangent"),
-        },
     };
 
     pos: [3]f32,
     textCoords: [2]f32,
     normal: [3]f32,
     tangent: [3]f32,
-    bitangent: [3]f32,
 };
 
 const PushConstantsVtx = struct {

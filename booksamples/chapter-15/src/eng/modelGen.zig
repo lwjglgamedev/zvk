@@ -11,7 +11,6 @@ const MeshIntData = struct {
     texcoords: std.ArrayListUnmanaged([2]f32),
     normals: std.ArrayListUnmanaged([3]f32),
     tangents: std.ArrayListUnmanaged([3]f32),
-    bitangents: std.ArrayListUnmanaged([3]f32),
 
     pub fn cleanup(self: *MeshIntData, allocator: std.mem.Allocator) void {
         self.indices.deinit(allocator);
@@ -19,7 +18,6 @@ const MeshIntData = struct {
         self.texcoords.deinit(allocator);
         self.normals.deinit(allocator);
         self.tangents.deinit(allocator);
-        self.bitangents.deinit(allocator);
     }
 };
 
@@ -107,13 +105,12 @@ pub fn main() !void {
                 }
                 try vtxFile.writeAll(std.mem.sliceAsBytes(std.mem.asBytes(&meshIntData.normals.items[idx])));
                 try vtxFile.writeAll(std.mem.sliceAsBytes(std.mem.asBytes(&meshIntData.tangents.items[idx])));
-                try vtxFile.writeAll(std.mem.sliceAsBytes(std.mem.asBytes(&meshIntData.bitangents.items[idx])));
             }
 
             const numIndices = meshIntData.indices.items.len;
             // There can be models with no texture coords, but we fill up with empty coords
             const numFloats = meshIntData.positions.items.len * 3 + meshIntData.texcoords.items.len * 2 +
-                meshIntData.normals.items.len * 3 + meshIntData.tangents.items.len * 3 + meshIntData.bitangents.items.len * 3;
+                meshIntData.normals.items.len * 3 + meshIntData.tangents.items.len * 3;
             const meshData = eng.mdata.MeshData{
                 .id = meshIntData.id,
                 .materialId = meshIntData.materialId,
@@ -177,14 +174,6 @@ pub fn main() !void {
     defer fileModel.close();
     try fileModel.writeAll(writerModel.written());
     std.debug.print("Dumped model [{s}]\n", .{fileModelName});
-}
-
-pub fn calcBitangent(normal: [3]f32, tangent: [4]f32) [3]f32 {
-    const normalVec = zm.normalize3(zm.loadArr3(normal));
-    const tangentVec = zm.normalize3(zm.loadArr3(tangent[0..3].*));
-    const crossResult = zm.cross3(normalVec, tangentVec);
-    const bitangent = crossResult * @as(@Vector(4, f32), @splat(tangent[3]));
-    return zm.vecToArr3(bitangent);
 }
 
 pub fn normalizePath(allocator: std.mem.Allocator, input_path: []const u8) ![]const u8 {
@@ -253,7 +242,6 @@ fn processMesh(
     var normals = std.ArrayListUnmanaged([3]f32){};
     var intTangents = std.ArrayListUnmanaged([4]f32){};
     var tangents = std.ArrayListUnmanaged([3]f32){};
-    var bitangents = std.ArrayListUnmanaged([3]f32){};
 
     var materialId: []const u8 = "";
     if (primitive.material) |material| {
@@ -276,9 +264,6 @@ fn processMesh(
     for (0..normals.items.len) |i| {
         const tangent = if (i < numTangents) intTangents.items[i] else [4]f32{ 0, 0, 0, 0 };
         try tangents.append(allocator, tangent[0..3].*);
-        const normal = normals.items[i];
-        const bitangent = calcBitangent(normal, tangent);
-        try bitangents.append(allocator, bitangent);
     }
 
     return MeshIntData{
@@ -289,7 +274,6 @@ fn processMesh(
         .texcoords = texcoords,
         .normals = normals,
         .tangents = tangents,
-        .bitangents = bitangents,
     };
 }
 

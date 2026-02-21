@@ -15,7 +15,7 @@ terms of the [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/legal
 ## Material changes
 
 We will need to modify the model generation code to load normal maps and PBR related material information from the models and dump it to
-the generated files. We first need to update the `MeshIntData` struct to store normals, tangent and bitangent information since they will be
+the generated files. We first need to update the `MeshIntData` struct to store normals and tangent information since they will be
 used for lighting calculations:
 
 ```zig
@@ -26,13 +26,11 @@ const MeshIntData = struct {
     ...
     normals: std.ArrayListUnmanaged([3]f32),
     tangents: std.ArrayListUnmanaged([3]f32),
-    bitangents: std.ArrayListUnmanaged([3]f32),
 
     pub fn cleanup(self: *MeshIntData, allocator: std.mem.Allocator) void {
         ...
         self.normals.deinit(allocator);
         self.tangents.deinit(allocator);
-        self.bitangents.deinit(allocator);
     }
 };
 ```
@@ -121,8 +119,8 @@ pub fn loadMaterials(allocator: std.mem.Allocator, path: []const u8) !std.ArrayL
 
 ## Model changes
 
-Going back to the model generation code, we need also to get the normals of the model and the tangent and bitangent data when processing 
-meshes. Therefore, we will modify the `processMesh` function:
+Going back to the model generation code, we need also to get the normals of the model and the tangent data when processing  meshes.
+Therefore, we will modify the `processMesh` function:
 
 ```zig
 fn processMesh(
@@ -137,7 +135,6 @@ fn processMesh(
     var normals = std.ArrayListUnmanaged([3]f32){};
     var intTangents = std.ArrayListUnmanaged([4]f32){};
     var tangents = std.ArrayListUnmanaged([3]f32){};
-    var bitangents = std.ArrayListUnmanaged([3]f32){};
     ...
     try zmesh.io.zcgltf.appendMeshPrimitive(
         allocator,
@@ -155,9 +152,6 @@ fn processMesh(
     for (0..normals.items.len) |i| {
         const tangent = if (i < numTangents) intTangents.items[i] else [4]f32{ 0, 0, 0, 0 };
         try tangents.append(allocator, tangent[0..3].*);
-        const normal = normals.items[i];
-        const bitangent = calcBitangent(normal, tangent);
-        try bitangents.append(allocator, bitangent);
     }
 
     return MeshIntData{
@@ -168,24 +162,12 @@ fn processMesh(
         .texcoords = texcoords,
         .normals = normals,
         .tangents = tangents,
-        .bitangents = bitangents,
     };    
 }
 ```
 
 We just load the normals when calling the `appendMeshPrimitive` function and process the result. Some models may not have tangents data.
 In this case, we just set a default value. We could calculate tangents for this case, but will leave as it this to not over-complicate code.
-What we do need to calculate are bitangents, which is done in the `calcBitangent` function. 
-
-```zig
-pub fn calcBitangent(normal: [3]f32, tangent: [4]f32) [3]f32 {
-    const normalVec = zm.normalize3(zm.loadArr3(normal));
-    const tangentVec = zm.normalize3(zm.loadArr3(tangent[0..3].*));
-    const crossResult = zm.cross3(normalVec, tangentVec);
-    const bitangent = crossResult * @as(@Vector(4, f32), @splat(tangent[3]));
-    return zm.vecToArr3(bitangent);
-}
-```
 
 Finally, we just need to modify the code that dumps vertices information to a file:
 
@@ -202,13 +184,12 @@ pub fn main() !void {
                 }
                 try vtxFile.writeAll(std.mem.sliceAsBytes(std.mem.asBytes(&meshIntData.normals.items[idx])));
                 try vtxFile.writeAll(std.mem.sliceAsBytes(std.mem.asBytes(&meshIntData.tangents.items[idx])));
-                try vtxFile.writeAll(std.mem.sliceAsBytes(std.mem.asBytes(&meshIntData.bitangents.items[idx])));
             }
 
             const numIndices = meshIntData.indices.items.len;
             // There can be models with no texture coords, but we fill up with empty coords
             const numFloats = meshIntData.positions.items.len * 3 + meshIntData.texcoords.items.len * 2 +
-                meshIntData.normals.items.len * 3 + meshIntData.tangents.items.len * 3 + meshIntData.bitangents.items.len * 3;
+                meshIntData.normals.items.len * 3 + meshIntData.tangents.items.len * 3;
 
     ...
 }
@@ -262,8 +243,8 @@ pub fn loadMaterials(allocator: std.mem.Allocator, path: []const u8) !std.ArrayL
 }
 ```
 
-We need to modify the structure used while rendering the scene to be able to include the normals, tangents and bitangents as new input
-attributes sop they can accessed in shaders:
+We need to modify the structure used while rendering the scene to be able to include the normals and tangents as new input attributes so
+they can accessed in shaders:
 
 ```zig
 const VtxBuffDesc = struct {
@@ -282,17 +263,10 @@ const VtxBuffDesc = struct {
             .format = .r32g32b32_sfloat,
             .offset = @offsetOf(VtxBuffDesc, "tangent"),
         },
-        .{
-            .binding = 0,
-            .location = 4,
-            .format = .r32g32b32_sfloat,
-            .offset = @offsetOf(VtxBuffDesc, "bitangent"),
-        },
     };
     ...
     normal: [3]f32,
     tangent: [3]f32,
-    bitangent: [3]f32,
 };
 ```
 
@@ -561,13 +535,11 @@ layout(location = 0) in vec3 inPos;
 layout(location = 1) in vec2 inTextCoords;
 layout(location = 2) in vec3 inNormal;
 layout(location = 3) in vec3 inTangent;
-layout(location = 4) in vec3 inBitangent;
 
 layout(location = 0) out vec4 outPos;
 layout(location = 1) out vec3 outNormal;
 layout(location = 2) out vec3 outTangent;
-layout(location = 3) out vec3 outBitangent;
-layout(location = 4) out vec2 outTextCoords;
+layout(location = 3) out vec2 outTextCoords;
 
 layout(set = 0, binding = 0) uniform CamUniform {
     mat4 projMatrix;
@@ -586,14 +558,13 @@ void main()
     outPos        = worldPos;
     outNormal     = normalize(mNormal * inNormal);
     outTangent    = normalize(mNormal * inTangent);
-    outBitangent  = normalize(mNormal * inBitangent);
     outTextCoords = inTextCoords;
 }
 ```
 
-As you can see, since we have modified the vertex buffer structure, we need to define the new input attributes for the normal, tangent and
-bitangent coordinates. We will transform these values in this shader and pass them to the fragment shader (to dump them in the output
-attachments). As you can see the normals, tangents and bitangents are transformed transposing and inverting the model matrix since they
+As you can see, since we have modified the vertex buffer structure, we need to define the new input attributes for the normal and tangent
+coordinates. We will transform these values in this shader and pass them to the fragment shader (to dump them in the output
+attachments). As you can see the normals and tangents are transformed transposing and inverting the model matrix since they
 are directional vectors and we need to preserve their orthogonality.
 
 The `scn_frg.glsl` fragment shader is defined like this:
@@ -607,8 +578,7 @@ const int MAX_TEXTURES = 100;
 layout(location = 0) in vec4 inPos;
 layout(location = 1) in vec3 inNormal;
 layout(location = 2) in vec3 inTangent;
-layout(location = 3) in vec3 inBitangent;
-layout(location = 4) in vec2 inTextCoords;
+layout(location = 3) in vec2 inTextCoords;
 
 layout(location = 0) out vec4 outPos;
 layout(location = 1) out vec4 outAlbedo;
@@ -665,8 +635,14 @@ void main()
         discard;
     }
 
-    mat3 TBN = mat3(inTangent, inBitangent, inNormal);
-    vec3 newNormal = calcNormal(material, inNormal, inTextCoords, TBN);
+    vec3 N = normalize(inNormal);
+    vec3 T = normalize(inTangent);
+    T = normalize(T - dot(T, N) * N);
+    vec3 B = cross(N, T);
+
+    mat3 TBN = mat3(T, B, N);
+
+    vec3 newNormal = calcNormal(material, N, inTextCoords, TBN);
     outNormal = vec4(newNormal, 1.0);
 
     float ao = 1.0f;
