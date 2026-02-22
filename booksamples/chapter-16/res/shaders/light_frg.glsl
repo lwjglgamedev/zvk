@@ -1,0 +1,182 @@
+#version 450
+#extension GL_EXT_scalar_block_layout: require
+
+// CREDITS: Most of the functions here have been obtained from this link: https://github.com/SaschaWillems/Vulkan
+// developed by Sascha Willems, https://twitter.com/JoeyDeVriez, and licensed under the terms of the MIT License (MIT)
+
+layout(location = 0) in vec2 inTextCoord;
+
+layout(location = 0) out vec4 outFragColor;
+
+layout(set = 0, binding = 0) uniform sampler2D posSampler;
+layout(set = 0, binding = 1) uniform sampler2D albedoSampler;
+layout(set = 0, binding = 2) uniform sampler2D normalsSampler;
+layout(set = 0, binding = 3) uniform sampler2D pbrSampler;
+
+const float PI = 3.14159265359;
+
+struct Light {
+    vec3 position;
+    uint directional;
+    float intensity;
+    vec3 color;
+};
+
+layout(scalar, set = 1, binding = 0) readonly buffer Lights {
+    Light lights[];
+} lights;
+
+layout(scalar, set = 2, binding = 0) uniform SceneInfo {
+    vec4 ambientLight;
+    vec3 camPos;
+    uint numLights;
+} sceneInfo;
+
+float distributionGGX(vec3 N, vec3 H, float roughness) {
+    float a = roughness * roughness;
+    float a2 = a * a;
+    float NdotH = max(dot(N, H), 0.0);
+    float NdotH2 = NdotH * NdotH;
+
+    float nom = a2;
+    float denom = (NdotH2 * (a2 - 1.0) + 1.0);
+    denom = PI * denom * denom;
+
+    return nom / denom;
+}
+
+float geometrySchlickGGX(float NdotV, float roughness) {
+    float r = (roughness + 1.0);
+    float k = (r * r) / 8.0;
+
+    float nom = NdotV;
+    float denom = NdotV * (1.0 - k) + k;
+
+    return nom / denom;
+}
+
+float geometrySmith(vec3 N, vec3 V, vec3 L, float roughness) {
+    float NdotV = max(dot(N, V), 0.0);
+    float NdotL = max(dot(N, L), 0.0);
+    float ggx2 = geometrySchlickGGX(NdotV, roughness);
+    float ggx1 = geometrySchlickGGX(NdotL, roughness);
+
+    return ggx1 * ggx2;
+}
+
+vec3 fresnelSchlick(float cosTheta, vec3 F0) {
+    return F0 + (1.0 - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
+}
+
+vec3 calculatePointLight(Light light, vec3 worldPos, vec3 V, vec3 N, vec3 F0, vec3 albedo, float metallic, float roughness) {
+    vec3 tmpSub = light.position - worldPos;
+    vec3 L = normalize(tmpSub);
+    vec3 H = normalize(V + L);
+
+    // Calculate distance and attenuation
+    float distance = length(tmpSub);
+    float attenuation = 1.0 / (distance * distance);
+    vec3 radiance = light.color * light.intensity * attenuation;
+
+    // Cook-Torrance BRDF
+    float NDF = distributionGGX(N, H, roughness);
+    float G = geometrySmith(N, V, L, roughness);
+    vec3 F = fresnelSchlick(max(dot(H, V), 0.0), F0);
+
+    vec3 numerator = NDF * G * F;
+    float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001;
+    vec3 specular = numerator / denominator;
+
+    vec3 kS = F;
+    vec3 kD = vec3(1.0) - kS;
+    kD *= 1.0 - metallic;
+
+    float NdotL = max(dot(N, L), 0.0);
+    return (kD * albedo / PI + specular) * radiance * NdotL;
+}
+
+vec3 calculateDirectionalLight(Light light, vec3 V, vec3 N, vec3 F0, vec3 albedo, float metallic, float roughness) {
+    vec3 L = normalize(-light.position);
+    vec3 H = normalize(V + L);
+
+    vec3 radiance = light.color * light.intensity;
+
+    // Cook-Torrance BRDF
+    float NDF = distributionGGX(N, H, roughness);
+    float G = geometrySmith(N, V, L, roughness);
+    vec3 F = fresnelSchlick(max(dot(H, V), 0.0), F0);
+
+    vec3 numerator = NDF * G * F;
+    float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001;
+    vec3 specular = numerator / denominator;
+
+    vec3 kS = F;
+    vec3 kD = vec3(1.0) - kS;
+    kD *= 1.0 - metallic;
+
+    float NdotL = max(dot(N, L), 0.0);
+    return (kD * albedo / PI + specular) * radiance * NdotL;
+}
+
+vec3 calculateEnvironmentReflection(vec3 N, vec3 V, vec3 albedo, float metallic, float roughness) {
+    // Basic reflection vector
+    vec3 R = reflect(-V, N);
+    
+    // For now, use a simple gradient sky
+    float horizon = smoothstep(-0.1, 0.1, R.y);
+    vec3 skyColor = mix(
+        vec3(0.5, 0.7, 1.0),  // Sky blue
+        vec3(0.8, 0.9, 1.0),  // Horizon white
+        horizon
+    );
+    
+    // Ground color
+    vec3 groundColor = vec3(0.2, 0.2, 0.3);
+    
+    // Blend based on reflection direction
+    vec3 envColor = mix(groundColor, skyColor, smoothstep(-0.5, 0.5, R.y));
+    
+    // Fresnel effect for environment
+    vec3 F0 = mix(vec3(0.04), albedo, metallic);
+    vec3 F = F0 + (1.0 - F0) * pow(1.0 - max(dot(N, V), 0.0), 5.0);
+    
+    // Roughness affects blurriness of reflection
+    // Simplified: lower roughness = stronger, clearer reflection
+    float reflectionStrength = (1.0 - roughness) * F.r;
+    
+    return envColor * reflectionStrength;
+}
+
+void main() {
+    vec3 albedo   = texture(albedoSampler, inTextCoord).rgb;
+    vec3 normal   = texture(normalsSampler, inTextCoord).rgb;
+    vec3 worldPos = texture(posSampler, inTextCoord).rgb;
+    vec3 pbr      = texture(pbrSampler, inTextCoord).rgb;
+    vec3 ambientLightColor = sceneInfo.ambientLight.rgb;
+    float ambientLightIntensity = sceneInfo.ambientLight.a;
+
+    float ao = pbr.r;
+    float roughness = pbr.g;
+    float metallic  = pbr.b;
+
+    vec3 N = normalize(normal);
+    vec3 V = normalize(sceneInfo.camPos - worldPos);
+
+    vec3 F0 = vec3(0.04);
+    F0 = mix(F0, albedo, metallic);
+
+    vec3 Lo = vec3(0.0);
+    for (uint i = 0; i < sceneInfo.numLights; i++) {
+        Light light = lights.lights[i];
+        if (light.directional == 1) {
+            Lo += calculateDirectionalLight(light, V, N, F0, albedo, metallic, roughness);
+        } else {
+            Lo += calculatePointLight(light, worldPos, V, N, F0, albedo, metallic, roughness);
+        }
+    }
+    vec3 ambient = ambientLightColor * albedo * ambientLightIntensity * ao;
+    vec3 envReflection = calculateEnvironmentReflection(N, V, albedo, metallic, roughness);
+    vec3 color = ambient + Lo + envReflection;
+
+    outFragColor = vec4(color, 1.0);
+}
