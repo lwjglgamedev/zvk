@@ -60,6 +60,7 @@ pub const Render = struct {
     renderLight: eng.rlgt.RenderLight,
     renderPost: eng.rpst.RenderPost,
     renderScn: eng.rscn.RenderScn,
+    renderShadow: eng.rsha.RenderShadow,
     semsPresComplete: []vk.sync.VkSemaphore,
     semsRenderComplete: []vk.sync.VkSemaphore,
     textureCache: eng.tcach.TextureCache,
@@ -70,6 +71,7 @@ pub const Render = struct {
         self.renderGui.cleanup(allocator, &self.vkCtx);
         self.renderPost.cleanup(&self.vkCtx);
         self.renderScn.cleanup(allocator, &self.vkCtx);
+        self.renderShadow.cleanup(allocator, &self.vkCtx);
         self.renderLight.cleanup(allocator, &self.vkCtx);
 
         self.textureCache.cleanup(allocator, &self.vkCtx);
@@ -137,6 +139,7 @@ pub const Render = struct {
 
         const renderGui = try eng.rgui.RenderGui.create(allocator, &vkCtx);
         const renderScn = try eng.rscn.RenderScn.create(allocator, &vkCtx);
+        const renderShadow = try eng.rsha.RenderShadow.create();
         const renderLight = try eng.rlgt.RenderLight.create(allocator, &vkCtx, &renderScn.attachments);
         const renderPost = try eng.rpst.RenderPost.create(allocator, &vkCtx, constants, &renderLight.outputAtt);
 
@@ -159,6 +162,7 @@ pub const Render = struct {
             .renderLight = renderLight,
             .renderPost = renderPost,
             .renderScn = renderScn,
+            .renderShadow = renderShadow,
             .semsPresComplete = semsPresComplete,
             .semsRenderComplete = semsRenderComplete,
             .textureCache = textureCache,
@@ -228,6 +232,7 @@ pub const Render = struct {
             &self.materialsCache,
             self.currentFrame,
         );
+        try self.renderShadow.render(engCtx);
         try self.renderLight.render(
             &self.vkCtx,
             engCtx,
