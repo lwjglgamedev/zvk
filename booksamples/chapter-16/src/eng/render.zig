@@ -71,7 +71,7 @@ pub const Render = struct {
         self.renderGui.cleanup(allocator, &self.vkCtx);
         self.renderPost.cleanup(&self.vkCtx);
         self.renderScn.cleanup(allocator, &self.vkCtx);
-        self.renderShadow.cleanup(allocator, &self.vkCtx);
+        self.renderShadow.cleanup(&self.vkCtx);
         self.renderLight.cleanup(allocator, &self.vkCtx);
 
         self.textureCache.cleanup(allocator, &self.vkCtx);
@@ -139,7 +139,7 @@ pub const Render = struct {
 
         const renderGui = try eng.rgui.RenderGui.create(allocator, &vkCtx);
         const renderScn = try eng.rscn.RenderScn.create(allocator, &vkCtx);
-        const renderShadow = try eng.rsha.RenderShadow.create();
+        const renderShadow = try eng.rsha.RenderShadow.create(allocator, &vkCtx);
         const renderLight = try eng.rlgt.RenderLight.create(allocator, &vkCtx, &renderScn.attachments);
         const renderPost = try eng.rpst.RenderPost.create(allocator, &vkCtx, constants, &renderLight.outputAtt);
 
@@ -203,6 +203,7 @@ pub const Render = struct {
         try self.modelsCache.init(allocator, &self.vkCtx, &self.cmdPools[0], self.queueGraphics, initData);
 
         try self.renderScn.init(allocator, &self.vkCtx, &self.textureCache, &self.materialsCache);
+        try self.renderShadow.init(allocator, &self.vkCtx, &self.textureCache, &self.materialsCache);
         log.debug("Finished render init", .{});
     }
 
@@ -232,7 +233,13 @@ pub const Render = struct {
             &self.materialsCache,
             self.currentFrame,
         );
-        try self.renderShadow.render(engCtx);
+        try self.renderShadow.render(
+            &self.vkCtx,
+            engCtx,
+            vkCmdBuff,
+            &self.modelsCache,
+            &self.materialsCache,
+        );
         try self.renderLight.render(
             &self.vkCtx,
             engCtx,

@@ -37,6 +37,7 @@ pub const VkDevice = struct {
             .p_next = @constCast(&features3),
         };
         const features = vulkan.PhysicalDeviceFeatures{
+            .geometry_shader = vulkan.Bool32.true,
             .sampler_anisotropy = vkPhysDevice.features.sampler_anisotropy,
         };
 
