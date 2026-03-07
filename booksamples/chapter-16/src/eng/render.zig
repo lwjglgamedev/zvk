@@ -10,13 +10,21 @@ pub const Attachment = struct {
     vkImage: vk.img.VkImage,
     vkImageView: vk.imv.VkImageView,
 
-    pub fn create(vkCtx: *const vk.ctx.VkCtx, width: u32, height: u32, format: vulkan.Format, usage: vulkan.ImageUsageFlags) !Attachment {
+    pub fn create(
+        vkCtx: *const vk.ctx.VkCtx,
+        width: u32,
+        height: u32,
+        format: vulkan.Format,
+        usage: vulkan.ImageUsageFlags,
+        layers: u32,
+    ) !Attachment {
         var currUsage = usage;
         currUsage.sampled_bit = true;
         const vkImageData = vk.img.VkImageData{
             .format = format,
             .width = width,
             .height = height,
+            .arrayLayers = layers,
             .usage = currUsage,
         };
 
@@ -29,6 +37,7 @@ pub const Attachment = struct {
         const imageViewData = vk.imv.VkImageViewData{
             .format = format,
             .aspectmask = aspectMask,
+            .viewType = if (layers > 1) vulkan.ImageViewType.@"2d_array" else vulkan.ImageViewType.@"2d",
         };
         const image: vulkan.Image = @enumFromInt(@intFromPtr(vkImage.image));
         const vkImageView = try vk.imv.VkImageView.create(vkCtx.vkDevice, image, imageViewData);
@@ -140,7 +149,13 @@ pub const Render = struct {
         const renderGui = try eng.rgui.RenderGui.create(allocator, &vkCtx);
         const renderScn = try eng.rscn.RenderScn.create(allocator, &vkCtx);
         const renderShadow = try eng.rsha.RenderShadow.create(allocator, &vkCtx);
-        const renderLight = try eng.rlgt.RenderLight.create(allocator, &vkCtx, &renderScn.attachments);
+        const attachments = try allocator.alloc(eng.rend.Attachment, renderScn.attachments.len + 1);
+        defer allocator.free(attachments);
+        for (0..renderScn.attachments.len) |i| {
+            attachments[i] = renderScn.attachments[i];
+        }
+        attachments[attachments.len - 1] = renderShadow.attColor;
+        const renderLight = try eng.rlgt.RenderLight.create(allocator, &vkCtx, &attachments);
         const renderPost = try eng.rpst.RenderPost.create(allocator, &vkCtx, constants, &renderLight.outputAtt);
 
         const materialsCache = eng.mcach.MaterialsCache.create(allocator);
@@ -245,6 +260,7 @@ pub const Render = struct {
             engCtx,
             vkCmdBuff,
             self.currentFrame,
+            &self.renderShadow.cascadeShadows,
         );
 
         self.renderInitPost(vkCmdBuff, imageIndex);

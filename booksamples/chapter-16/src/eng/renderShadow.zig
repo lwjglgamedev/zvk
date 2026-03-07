@@ -6,7 +6,7 @@ const vulkan = @import("vulkan");
 const zm = @import("zmath");
 
 const LAMBDA: f32 = 0.95;
-const SHADOW_MAP_CASCADE_COUNT: u32 = 3;
+pub const SHADOW_MAP_CASCADE_COUNT: u32 = 3;
 const UP = zm.f32x4(0.0, 1.0, 0.0, 0.0);
 const UP_ALT = zm.f32x4(0.0, 0.0, 1.0, 0.0);
 
@@ -339,6 +339,7 @@ pub const RenderShadow = struct {
             extent.height,
             COLOR_ATTACHMENT_FORMAT,
             flags,
+            SHADOW_MAP_CASCADE_COUNT,
         );
     }
 
@@ -353,6 +354,7 @@ pub const RenderShadow = struct {
             extent.height,
             DEPTH_FORMAT,
             flags,
+            1,
         );
     }
 
@@ -476,10 +478,14 @@ pub const RenderShadow = struct {
             null,
         );
 
+        try self.updateShadowUniforms(vkCtx);
+
         self.renderEntities(vkCtx, engCtx, modelsCache, materialsCache, cmdHandle, false);
         self.renderEntities(vkCtx, engCtx, modelsCache, materialsCache, cmdHandle, true);
 
         device.cmdEndRendering(cmdHandle);
+
+        self.renderFinish(vkCtx, cmdHandle);
     }
 
     fn renderEntities(
@@ -567,6 +573,32 @@ pub const RenderShadow = struct {
         vkCtx.vkDevice.deviceProxy.cmdPipelineBarrier2(cmdHandle, &depInfo);
     }
 
+    fn renderFinish(self: *RenderShadow, vkCtx: *const vk.ctx.VkCtx, cmdHandle: vulkan.CommandBuffer) void {
+        const barriers = [_]vulkan.ImageMemoryBarrier2{.{
+            .old_layout = vulkan.ImageLayout.color_attachment_optimal,
+            .new_layout = vulkan.ImageLayout.read_only_optimal,
+            .src_stage_mask = .{ .color_attachment_output_bit = true },
+            .dst_stage_mask = .{ .fragment_shader_bit = true },
+            .src_access_mask = .{ .color_attachment_write_bit = true },
+            .dst_access_mask = .{ .color_attachment_read_bit = true },
+            .src_queue_family_index = vulkan.QUEUE_FAMILY_IGNORED,
+            .dst_queue_family_index = vulkan.QUEUE_FAMILY_IGNORED,
+            .subresource_range = .{
+                .aspect_mask = .{ .color_bit = true },
+                .base_mip_level = 0,
+                .level_count = vulkan.REMAINING_MIP_LEVELS,
+                .base_array_layer = 0,
+                .layer_count = vulkan.REMAINING_ARRAY_LAYERS,
+            },
+            .image = @enumFromInt(@intFromPtr(self.attColor.vkImage.image)),
+        }};
+        const depInfo = vulkan.DependencyInfo{
+            .image_memory_barrier_count = @as(u32, @intCast(barriers.len)),
+            .p_image_memory_barriers = &barriers,
+        };
+        vkCtx.vkDevice.deviceProxy.cmdPipelineBarrier2(cmdHandle, &depInfo);
+    }
+
     fn setPushConstants(self: *RenderShadow, vkCtx: *const vk.ctx.VkCtx, cmdHandle: vulkan.CommandBuffer, entity: *eng.ent.Entity, materialIdx: u32) void {
         const pushConstantsVtx = PushConstantsVtx{
             .modelMatrix = entity.modelMatrix,
@@ -580,5 +612,25 @@ pub const RenderShadow = struct {
             @sizeOf(PushConstantsVtx),
             &pushConstantsVtx,
         );
+    }
+
+    fn updateShadowUniforms(
+        self: *RenderShadow,
+        vkCtx: *const vk.ctx.VkCtx,
+    ) !void {
+        const buffData = try self.buffShadowCascades.map(vkCtx);
+        defer self.buffShadowCascades.unMap(vkCtx);
+        const gpuBytes: [*]u8 = @ptrCast(buffData);
+
+        var offset: u32 = 0;
+        var dst: u32 = @sizeOf(zm.Mat);
+        for (0..self.cascadeShadows.len) |i| {
+            const matrixBytes = std.mem.asBytes(&self.cascadeShadows[i].projViewMatrix);
+            const matrixPtr: [*]align(16) const u8 = matrixBytes.ptr;
+
+            @memcpy(gpuBytes[offset..dst], matrixPtr[0..@sizeOf(zm.Mat)]);
+            offset = dst;
+            dst = dst + @sizeOf(zm.Mat);
+        }
     }
 };

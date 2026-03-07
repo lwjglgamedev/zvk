@@ -230,6 +230,7 @@ pub const RenderScn = struct {
                 extent.height,
                 COLOR_ATTACHMENT_FORMAT,
                 flags,
+                1,
             );
             attachments[i] = attachment;
         }
@@ -247,6 +248,7 @@ pub const RenderScn = struct {
             extent.height,
             DEPTH_FORMAT,
             flags,
+            1,
         );
     }
 

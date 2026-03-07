@@ -35,6 +35,7 @@ pub const VkDevice = struct {
         };
         const features2 = vulkan.PhysicalDeviceVulkan12Features{
             .p_next = @constCast(&features3),
+            .scalar_block_layout = vulkan.Bool32.true,
         };
         const features = vulkan.PhysicalDeviceFeatures{
             .geometry_shader = vulkan.Bool32.true,

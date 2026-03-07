@@ -3,13 +3,16 @@ const eng = @import("mod.zig");
 const std = @import("std");
 const vk = @import("vk");
 const vulkan = @import("vulkan");
+const zm = @import("zmath");
 
+const CASCADE_INFO_BYTES_SIZE: u32 = 80;
 pub const COLOR_ATTACHMENT_FORMAT = vulkan.Format.r32g32b32a32_sfloat;
+const DESC_ID_CASCADE_SHADOWS = "RENDER_LIGHT_CASCADE_SHADOWS_ID";
 const DESC_ID_LIGHT_TEXT_SAMPLER = "RENDER_LIGHT_DESC_ID_TEXT";
 const DESC_ID_LIGHTS = "RENDER_LIGHT_DESC_ID_LIGHTS";
 const DESC_ID_SCENE_INFO = "RENDER_LIGHT_DESC_ID_SCENE_INFO";
 const LIGHTS_BYTES_SIZE: u32 = 32;
-const SCENE_INFO_BYTES_SIZE: u32 = 32;
+const SCENE_INFO_BYTES_SIZE: u32 = 96;
 
 const EmptyVtxBuffDesc = struct {
     const binding_description = vulkan.VertexInputBindingDescription{
@@ -21,17 +24,23 @@ const EmptyVtxBuffDesc = struct {
     const attribute_description = [_]vulkan.VertexInputAttributeDescription{};
 };
 
+// TODO: Shadow Constants
 pub const RenderLight = struct {
+    buffsCascadeShadows: []vk.buf.VkBuffer,
     buffsLights: []vk.buf.VkBuffer,
     buffsSceneInfo: []vk.buf.VkBuffer,
+    descLayoutArr: vk.desc.VkDescSetLayout,
     descLayoutAtt: vk.desc.VkDescSetLayout,
-    descLayoutLights: vk.desc.VkDescSetLayout,
     descLayoutScene: vk.desc.VkDescSetLayout,
     outputAtt: eng.rend.Attachment,
     textSampler: vk.text.VkTextSampler,
     vkPipeline: vk.pipe.VkPipeline,
 
     pub fn cleanup(self: *RenderLight, allocator: std.mem.Allocator, vkCtx: *vk.ctx.VkCtx) void {
+        for (self.buffsCascadeShadows) |*buffer| {
+            buffer.cleanup(vkCtx);
+        }
+        allocator.free(self.buffsCascadeShadows);
         for (self.buffsLights) |*buffer| {
             buffer.cleanup(vkCtx);
         }
@@ -41,7 +50,7 @@ pub const RenderLight = struct {
         }
         allocator.free(self.buffsSceneInfo);
         self.descLayoutAtt.cleanup(vkCtx);
-        self.descLayoutLights.cleanup(vkCtx);
+        self.descLayoutArr.cleanup(vkCtx);
         self.descLayoutScene.cleanup(vkCtx);
         self.outputAtt.cleanup(vkCtx);
         self.vkPipeline.cleanup(vkCtx);
@@ -114,7 +123,7 @@ pub const RenderLight = struct {
         try attDescSet.setImages(allocator, vkCtx.vkDevice, imageViews, textSampler, 0);
 
         // Descriptor set: Lights
-        const descLayoutLights = try vk.desc.VkDescSetLayout.create(allocator, vkCtx, &[_]vk.desc.LayoutInfo{.{
+        const descLayoutArr = try vk.desc.VkDescSetLayout.create(allocator, vkCtx, &[_]vk.desc.LayoutInfo{.{
             .binding = 0,
             .descCount = 1,
             .descType = vulkan.DescriptorType.storage_buffer,
@@ -127,7 +136,18 @@ pub const RenderLight = struct {
             com.common.FRAMES_IN_FLIGHT,
             @sizeOf(eng.scn.Light) * eng.scn.MAX_LIGHTS,
             .{ .storage_buffer_bit = true },
-            descLayoutLights,
+            descLayoutArr,
+        );
+
+        // Descriptor set: Cascade shadows
+        const buffsCascadeShadows = try vk.util.createHostVisibleBuffs(
+            allocator,
+            vkCtx,
+            DESC_ID_CASCADE_SHADOWS,
+            com.common.FRAMES_IN_FLIGHT,
+            CASCADE_INFO_BYTES_SIZE * eng.rsha.SHADOW_MAP_CASCADE_COUNT,
+            .{ .storage_buffer_bit = true },
+            descLayoutArr,
         );
 
         // Descriptor set: SceneInfo
@@ -149,7 +169,8 @@ pub const RenderLight = struct {
 
         const descSetLayouts = [_]vulkan.DescriptorSetLayout{
             descLayoutAtt.descSetLayout,
-            descLayoutLights.descSetLayout,
+            descLayoutArr.descSetLayout,
+            descLayoutArr.descSetLayout,
             descLayoutScene.descSetLayout,
         };
 
@@ -169,10 +190,11 @@ pub const RenderLight = struct {
         const vkPipeline = try vk.pipe.VkPipeline.create(allocator, vkCtx, &vkPipelineCreateInfo);
 
         return .{
+            .buffsCascadeShadows = buffsCascadeShadows,
             .buffsLights = buffsLights,
             .buffsSceneInfo = buffsSceneInfo,
             .descLayoutAtt = descLayoutAtt,
-            .descLayoutLights = descLayoutLights,
+            .descLayoutArr = descLayoutArr,
             .descLayoutScene = descLayoutScene,
             .outputAtt = outputAtt,
             .textSampler = textSampler,
@@ -192,6 +214,7 @@ pub const RenderLight = struct {
             extent.height,
             COLOR_ATTACHMENT_FORMAT,
             flags,
+            1,
         );
         return attColor;
     }
@@ -202,6 +225,7 @@ pub const RenderLight = struct {
         engCtx: *const eng.engine.EngCtx,
         vkCmd: vk.cmd.VkCmdBuff,
         frameIdx: u8,
+        cascadeDataArr: *const [eng.rsha.SHADOW_MAP_CASCADE_COUNT]eng.rsha.CascadeData,
     ) !void {
         const allocator = engCtx.allocator;
         const cmdHandle = vkCmd.cmdBuffProxy.handle;
@@ -247,15 +271,19 @@ pub const RenderLight = struct {
 
         try self.updateLights(vkCtx, &engCtx.scene, frameIdx);
         try self.updateSceneInfo(vkCtx, &engCtx.scene, frameIdx);
+        try self.updateCascadeShadows(vkCtx, cascadeDataArr, frameIdx);
 
         // Bind descriptor sets
         const vkDescAllocator = vkCtx.vkDescAllocator;
-        var descSets = try std.ArrayList(vulkan.DescriptorSet).initCapacity(allocator, 3);
+        var descSets = try std.ArrayList(vulkan.DescriptorSet).initCapacity(allocator, 4);
         defer descSets.deinit(allocator);
         try descSets.append(allocator, vkDescAllocator.getDescSet(DESC_ID_LIGHT_TEXT_SAMPLER).?.descSet);
         const lightDescId = try std.fmt.allocPrint(allocator, "{s}{d}", .{ DESC_ID_LIGHTS, frameIdx });
         defer allocator.free(lightDescId);
         try descSets.append(allocator, vkDescAllocator.getDescSet(lightDescId).?.descSet);
+        const cascadeDescId = try std.fmt.allocPrint(allocator, "{s}{d}", .{ DESC_ID_CASCADE_SHADOWS, frameIdx });
+        defer allocator.free(cascadeDescId);
+        try descSets.append(allocator, vkDescAllocator.getDescSet(cascadeDescId).?.descSet);
         const sceneDescId = try std.fmt.allocPrint(allocator, "{s}{d}", .{ DESC_ID_SCENE_INFO, frameIdx });
         defer allocator.free(sceneDescId);
         try descSets.append(allocator, vkDescAllocator.getDescSet(sceneDescId).?.descSet);
@@ -354,6 +382,33 @@ pub const RenderLight = struct {
         self.outputAtt = outputAtt;
     }
 
+    fn updateCascadeShadows(
+        self: *RenderLight,
+        vkCtx: *const vk.ctx.VkCtx,
+        cascadeDataArr: *const [eng.rsha.SHADOW_MAP_CASCADE_COUNT]eng.rsha.CascadeData,
+        frameIdx: u8,
+    ) !void {
+        const buffData = try self.buffsCascadeShadows[frameIdx].map(vkCtx);
+        defer self.buffsCascadeShadows[frameIdx].unMap(vkCtx);
+        const gpuBytes: [*]u8 = @ptrCast(buffData);
+
+        const size = cascadeDataArr.len;
+        var offset: usize = 0;
+        for (0..size) |i| {
+            const cascadeData = cascadeDataArr[i];
+
+            const projViewMatrixBytes = std.mem.asBytes(&cascadeData.projViewMatrix);
+            const projViewMatrixPtr: [*]align(16) const u8 = projViewMatrixBytes.ptr;
+
+            @memcpy(gpuBytes[offset..], projViewMatrixPtr[0..@sizeOf(zm.Mat)]);
+            offset += @sizeOf(zm.Mat);
+
+            const splitDistBytes = std.mem.toBytes(cascadeData.floatDistance);
+            @memcpy(gpuBytes[offset..], &splitDistBytes);
+            offset += 4;
+        }
+    }
+
     fn updateLights(
         self: *RenderLight,
         vkCtx: *const vk.ctx.VkCtx,
@@ -411,5 +466,9 @@ pub const RenderLight = struct {
         const numLights = scene.lights.items.len;
         const numLightsBytes = std.mem.toBytes(numLights);
         @memcpy(gpuBytes[offset..], &numLightsBytes);
+        offset += 4;
+
+        const viewMatrixBytes = std.mem.toBytes(scene.camera.viewData.viewMatrix);
+        @memcpy(gpuBytes[offset..], &viewMatrixBytes);
     }
 };
