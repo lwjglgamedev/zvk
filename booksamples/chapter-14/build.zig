@@ -33,10 +33,12 @@ pub fn build(b: *std.Build) void {
     const vmaIncludePath = vmaDep.path("include");
 
     // Vulkan
-    const vulkan_dep = b.dependency("vulkan", .{
-        .registry = b.dependency("vulkan_headers", .{}).path("registry/vk.xml"),
+    const vkHeaders = b.dependency("vulkan_headers", .{});
+    const vkIncludePath = vkHeaders.path("include");
+    const vulkanDep = b.dependency("vulkan", .{
+        .registry = vkHeaders.path("registry/vk.xml"),
     });
-    const vulkan = vulkan_dep.module("vulkan-zig");
+    const vulkan = vulkanDep.module("vulkan-zig");
     exe.root_module.addImport("vulkan", vulkan);
 
     // TOML
@@ -78,6 +80,7 @@ pub fn build(b: *std.Build) void {
     vk.addImport("com", com);
     exe.root_module.addImport("vk", vk);
     vk.addIncludePath(vmaIncludePath);
+    vk.addIncludePath(vkIncludePath);
     vk.addCSourceFile(.{ .file = b.path("src/eng/vk/vma.cpp"), .flags = &.{"-std=c++17"} });
     exe.linkLibCpp();
 

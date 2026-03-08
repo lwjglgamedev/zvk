@@ -44,11 +44,16 @@ We will need to add the VMA dependency in the `build.zig` file:
 ```zig
 pub fn build(b: *std.Build) void {
     ...
+    // Vulkan
+    const vkHeaders = b.dependency("vulkan_headers", .{});
+    const vkIncludePath = vkHeaders.path("include");
+    ...  
     // VMA
     const vmaDep = b.dependency("vma", .{});
     const vmaIncludePath = vmaDep.path("include");
     ...
     vk.addIncludePath(vmaIncludePath);
+    vk.addIncludePath(vkIncludePath);
     vk.addCSourceFile(.{ .file = b.path("src/eng/vk/vma.cpp"), .flags = &.{"-std=c++17"} });
     ...
 }
@@ -56,6 +61,7 @@ pub fn build(b: *std.Build) void {
 
 You will see we add the usual dependency but we need to:
 - Specify that the `include` directory in the VMA dependency shall be added to the path where Zig looks for C headers.
+- Add Vulkan headers to the the `vk` module so it can be accessed by VMA.
 - Add a source file to properly link the symbols defined by the VMA header. This file needs to be created manually and is defined like this:
 
 ```c

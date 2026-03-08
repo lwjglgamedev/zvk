@@ -76,10 +76,11 @@ pub fn build(b: *std.Build) void {
     exe.root_module.addImport("sdl3", sdl3);
 
     // Vulkan
-    const vulkan_dep = b.dependency("vulkan", .{
-        .registry = b.dependency("vulkan_headers", .{}).path("registry/vk.xml"),
+    const vkHeaders = b.dependency("vulkan_headers", .{});
+    const vulkanDep = b.dependency("vulkan", .{
+        .registry = vkHeaders.path("registry/vk.xml"),
     });
-    const vulkan = vulkan_dep.module("vulkan-zig");
+    const vulkan = vulkanDep.module("vulkan-zig");
     exe.root_module.addImport("vulkan", vulkan);
 
     // TOML
