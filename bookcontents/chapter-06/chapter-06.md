@@ -551,6 +551,8 @@ pub fn build(b: *std.Build) void {
 ```
 
 In this chapter we will use to shaders (`scn_vtx.glsl` and `scn_frg-glsl`). We will compile them using `glslc` command.
+If you have already installed Vulkan SDK, you may already have the `glslc` command. If not, you may need to install it.
+For example in Linux (Debian based distribution), just execute `sudo apt install glslc`.
 
 ## Pipeline
 
