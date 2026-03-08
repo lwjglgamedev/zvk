@@ -118,7 +118,8 @@ pub const Render = struct {
         try vkCmdBuff.begin(&self.vkCtx);
 
         const res = try self.vkCtx.vkSwapChain.acquire(self.vkCtx.vkDevice, self.semsPresComplete[self.currentFrame]);
-        if (engCtx.wnd.resized or res == .recreate) {
+        _ = engCtx;
+        if (res == .recreate) {
             try vkCmdBuff.end(&self.vkCtx);
             return;
         }

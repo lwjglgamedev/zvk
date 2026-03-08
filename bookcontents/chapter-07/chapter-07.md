@@ -731,7 +731,7 @@ pub const Render = struct {
 };
 ```
 
-In the `render` function, we check if the `mustResize` flag has been set to true or if the image acquisition fails. If this happens,
+In the `render` function, we check if the `engCtx.wnd.resized` flag has been set to true or if the image acquisition fails. If this happens,
 this will mean that we need to handle window resizing and call the `resize` function. You may also notice that the `RenderScn` struct now
 receives an instance of `EngCtx` also.
 

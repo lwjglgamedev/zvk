@@ -468,7 +468,8 @@ pub const Render = struct {
         try vkCmdBuff.begin(&self.vkCtx);
 
         const res = try self.vkCtx.vkSwapChain.acquire(self.vkCtx.vkDevice, self.semsPresComplete[self.currentFrame]);
-        if (engCtx.wnd.resized or res == .recreate) {
+        _ = engCtx;
+        if (res == .recreate) {
             try vkCmdBuff.end(&self.vkCtx);
             return;
         }
@@ -494,14 +495,15 @@ pub const Render = struct {
 The `render` loop performs the following actions:
 - We first wait for the fence associated to the current frame.
 - After that, we select the command pool and command buffer associated to current frame.
-- We then resets the command pool and set the command buffer in recording mode. Remember that we will not be resetting the command
+- We then reset the command pool and set the command buffer in recording mode. Remember that we will not be resetting the command
 buffers but the pool. After this step we could start recording "A commands".
 - In our case, since we do not have "A commands" yet", we just acquire next swap chain image. We will see the implementation later on, but
 this function returns the index of the image acquired (it may not be just the next image index). The `semsPresComplete` array contains the
 semaphores used to synchronize image acquisition when the image is acquired, this semaphore will be signaled. Any operation depending on
 this image to be acquired, can use this semaphore as a blocking mechanism.
-- If the `acquire` does return an error, this will mean that the operation failed. This could be because the window has been resized. By
-now, we just  finish recording and return.
+- If the `acquire` does return an error, this will mean that the operation failed. By now, we just  finish recording and return. Later on
+we will recreate some assets when resizing is detected (which may be triggered also by SDL3). This is why we pass the `EngCtx` as a
+parameter. Later on, we will use it.
 - Then we can record "B commands" which we will do by calling `renderScn.render`
 - After that we can stop the recording and submit the work to the graphics queue.
 - Finally, we just present the image and increase current frame in the range [0-VkUtils.MAX_IN_FLIGHT].
