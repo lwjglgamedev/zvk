@@ -1,6 +1,7 @@
 fov=60
 fxaa=true
 gpu="NVIDIA GeForce RTX 4060 Laptop GPU"
+shadowMapSize=4096
 swapChainImages=3
 ups=40
 validation=true

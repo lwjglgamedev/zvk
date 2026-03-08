@@ -19,7 +19,11 @@ pub const CascadeData = struct {
 // https://github.com/SaschaWillems/Vulkan/tree/master/examples/shadowmappingcascade, which are based on
 // https://johanmedestrom.wordpress.com/2016/03/18/opengl-cascaded-shadow-maps/
 // combined with this source: https://github.com/TheRealMJP/Shadows
-pub fn updateCascadeShadows(cascadeShadows: *[SHADOW_MAP_CASCADE_COUNT]CascadeData, scene: *eng.scn.Scene) void {
+pub fn updateCascadeShadows(
+    cascadeShadows: *[SHADOW_MAP_CASCADE_COUNT]CascadeData,
+    scene: *eng.scn.Scene,
+    constants: *com.common.Constants,
+) void {
     const viewData = scene.camera.viewData;
     const viewMatrix = viewData.viewMatrix;
     const projData = scene.camera.projData;
@@ -73,7 +77,7 @@ pub fn updateCascadeShadows(cascadeShadows: *[SHADOW_MAP_CASCADE_COUNT]CascadeDa
         const splitDist = cascadeSplits[i];
 
         var frustumCorners = [_]zm.Vec{
-            zm.Vec{ -1.0, 0.0, 0.0, 1.0 },
+            zm.Vec{ -1.0, 1.0, 0.0, 1.0 },
             zm.Vec{ 1.0, 1.0, 0.0, 1.0 },
             zm.Vec{ 1.0, -1.0, 0.0, 1.0 },
             zm.Vec{ -1.0, -1.0, 0.0, 1.0 },
@@ -84,12 +88,16 @@ pub fn updateCascadeShadows(cascadeShadows: *[SHADOW_MAP_CASCADE_COUNT]CascadeDa
         };
 
         // Project frustum corners into world space
-        const invCam: zm.Mat = zm.inverse(zm.mul(projMatrix, viewMatrix));
+        const invCam = zm.inverse(zm.mul(projMatrix, viewMatrix));
         for (0..8) |j| {
-            const invCorner = zm.mul(frustumCorners[j], invCam);
-            frustumCorners[j][0] = invCorner[0] / invCorner[3];
-            frustumCorners[j][1] = invCorner[1] / invCorner[3];
-            frustumCorners[j][2] = invCorner[2] / invCorner[3];
+            const invCorner = zm.mul(invCam, frustumCorners[j]);
+            const invW = 1.0 / invCorner[3];
+            frustumCorners[j] = zm.f32x4(
+                invCorner[0] * invW,
+                invCorner[1] * invW,
+                invCorner[2] * invW,
+                1.0,
+            );
         }
 
         for (0..4) |j| {
@@ -103,9 +111,10 @@ pub fn updateCascadeShadows(cascadeShadows: *[SHADOW_MAP_CASCADE_COUNT]CascadeDa
         // Get frustum center
         var frustumCenter = zm.Vec{ 0, 0, 0, 0 };
         for (frustumCorners) |c| {
-            frustumCenter = frustumCenter + c;
+            frustumCenter += c;
         }
-        frustumCenter = frustumCenter / @as(@Vector(4, f32), @splat(8.0));
+        frustumCenter /= @splat(8.0);
+        frustumCenter[3] = 1.0;
 
         var up = UP;
 
@@ -121,31 +130,31 @@ pub fn updateCascadeShadows(cascadeShadows: *[SHADOW_MAP_CASCADE_COUNT]CascadeDa
         const maxExtents = zm.f32x4(sphereRadius, sphereRadius, sphereRadius, 0);
         const minExtents = maxExtents * @as(@Vector(4, f32), @splat(-1.0));
 
-        const lightDir = lightPos;
+        const lightDir = zm.normalize3(lightPos);
+        const shadowCamPos = frustumCenter + lightDir * @as(@Vector(4, f32), @splat((minExtents[2])));
 
-        const shadow_camera_pos = frustumCenter + lightDir * @as(@Vector(4, f32), @splat((minExtents[3])));
-
-        const dot = @abs(zm.dot3(lightPos, up))[0];
+        const dot = @abs(zm.dot3(zm.normalize3(lightPos), up))[0];
         if (dot == 1.0) {
             up = UP_ALT;
         }
 
-        const lightView = zm.lookAtRh(shadow_camera_pos, frustumCenter, up);
+        const lightView = zm.lookAtRh(shadowCamPos, frustumCenter, up);
 
-        var lightOrtho = zm.orthographicRh(
+        var lightOrtho = zm.orthographicOffCenterRh(
             minExtents[0],
             maxExtents[0],
             minExtents[1],
             maxExtents[1],
+            minExtents[2],
+            maxExtents[2],
         );
 
         // Stabilize shadow
-        // TODO: Configure this
-        const shadowMapSize: f32 = 2024;
+        const shadowMapSize: f32 = @as(f32, @floatFromInt(constants.shadowMapSize));
 
         var shadowOrigin = zm.f32x4(0, 0, 0, 1);
         shadowOrigin = zm.mul(lightView, shadowOrigin);
-        shadowOrigin = shadowOrigin * @as(@Vector(4, f32), @splat(shadowMapSize / 2.0));
+        shadowOrigin = zm.mul(zm.mul(lightOrtho, lightView), shadowOrigin);
 
         const roundedOrigin = zm.round(shadowOrigin);
         var roundOffset = roundedOrigin - shadowOrigin;
@@ -168,6 +177,8 @@ pub fn updateCascadeShadows(cascadeShadows: *[SHADOW_MAP_CASCADE_COUNT]CascadeDa
         cascadeData.projViewMatrix = zm.mul(lightOrtho, lightView);
 
         lastSplitDist = cascadeSplits[i];
+
+        std.debug.print("cascade0 matrix: {any}\n", .{cascadeShadows[0].projViewMatrix});
     }
 }
 
@@ -408,7 +419,7 @@ pub const RenderShadow = struct {
         const device = vkCtx.vkDevice.deviceProxy;
 
         self.renderInit(vkCtx, cmdHandle);
-        updateCascadeShadows(&self.cascadeShadows, scene);
+        updateCascadeShadows(&self.cascadeShadows, scene, &engCtx.constants);
 
         const renderAttInfos = [_]vulkan.RenderingAttachmentInfo{.{
             .image_view = self.attColor.vkImageView.view,
@@ -623,14 +634,18 @@ pub const RenderShadow = struct {
         const gpuBytes: [*]u8 = @ptrCast(buffData);
 
         var offset: u32 = 0;
-        var dst: u32 = @sizeOf(zm.Mat);
         for (0..self.cascadeShadows.len) |i| {
+            //var arr: [16]f32 = undefined;
+            //zm.storeMat(&arr, self.cascadeShadows[i].projViewMatrix);
+            //for (0..arr.len) |j| {
+            //      std.log.debug("### {d}", .{arr[j]});
+            //}
+
             const matrixBytes = std.mem.asBytes(&self.cascadeShadows[i].projViewMatrix);
             const matrixPtr: [*]align(16) const u8 = matrixBytes.ptr;
 
-            @memcpy(gpuBytes[offset..dst], matrixPtr[0..@sizeOf(zm.Mat)]);
-            offset = dst;
-            dst = dst + @sizeOf(zm.Mat);
+            @memcpy(gpuBytes[offset..], matrixPtr[0..@sizeOf(zm.Mat)]);
+            offset = offset + @sizeOf(zm.Mat);
         }
     }
 };
