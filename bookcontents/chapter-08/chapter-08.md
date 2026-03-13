@@ -2009,7 +2009,7 @@ pub const RenderScn = struct {
             allocator,
             vkCtx,
             DESC_ID_CAM,
-            vk.util.MATRIX_SIZE,
+            @sizeOf(zm.Mat),
             .{ .uniform_buffer_bit = true },
             descLayoutVtx,
         );
@@ -2081,8 +2081,6 @@ new file: `src/eng/vk/VkUtils.zig` (Remember to include it in the `mod.zig` file
 const std = @import("std");
 const vulkan = @import("vulkan");
 const vk = @import("mod.zig");
-
-pub const MATRIX_SIZE: u64 = 64;
 
 pub fn createHostVisibleBuff(
     allocator: std.mem.Allocator,

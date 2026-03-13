@@ -295,7 +295,7 @@ pub const RenderShadow = struct {
             allocator,
             vkCtx,
             DESC_ID_PRJ,
-            vk.util.MATRIX_SIZE * SHADOW_MAP_CASCADE_COUNT,
+            @sizeOf(zm.Mat) * SHADOW_MAP_CASCADE_COUNT,
             .{ .uniform_buffer_bit = true },
             descLayoutGeom,
         );

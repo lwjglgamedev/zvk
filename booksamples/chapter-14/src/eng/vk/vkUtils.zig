@@ -2,8 +2,6 @@ const std = @import("std");
 const vulkan = @import("vulkan");
 const vk = @import("mod.zig");
 
-pub const MATRIX_SIZE: u64 = 64;
-
 pub fn createHostVisibleBuff(
     allocator: std.mem.Allocator,
     vkCtx: *vk.ctx.VkCtx,

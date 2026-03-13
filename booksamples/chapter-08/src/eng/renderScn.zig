@@ -137,7 +137,7 @@ pub const RenderScn = struct {
             allocator,
             vkCtx,
             DESC_ID_CAM,
-            vk.util.MATRIX_SIZE,
+            @sizeOf(zm.Mat),
             .{ .uniform_buffer_bit = true },
             descLayoutVtx,
         );

@@ -161,7 +161,7 @@ pub const RenderScn = struct {
             vkCtx,
             DESC_ID_CAM,
             com.common.FRAMES_IN_FLIGHT,
-            vk.util.MATRIX_SIZE * 2,
+            @sizeOf(zm.Mat) * 2,
             .{ .uniform_buffer_bit = true },
             descLayoutVtx,
         );

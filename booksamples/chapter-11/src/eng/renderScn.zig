@@ -187,7 +187,7 @@ pub const RenderScn = struct {
                 allocator,
                 vkCtx,
                 id,
-                vk.util.MATRIX_SIZE * 2,
+                @sizeOf(zm.Mat) * 2,
                 .{ .uniform_buffer_bit = true },
                 descLayout,
             );
