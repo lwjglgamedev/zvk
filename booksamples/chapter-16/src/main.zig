@@ -20,7 +20,8 @@ pub fn main() !void {
 const Game = struct {
     const ENTITY_ID: []const u8 = "SponzaEntity";
 
-    lightAngle: f32 = 140.0,
+    //lightAngle: f32 = 140.0,
+    lightAngle: f32 = 90.0,
 
     pub fn cleanup(self: *Game) void {
         _ = self;
@@ -43,7 +44,8 @@ const Game = struct {
 
         var viewData = &engCtx.scene.camera.viewData;
         viewData.pos = zm.Vec{ 0.0, 3.0, -4.0, 0.0 };
-        viewData.addRotation(std.math.degreesToRadians(0), std.math.degreesToRadians(90));
+        viewData.recalculate();
+        //viewData.addRotation(std.math.degreesToRadians(0), std.math.degreesToRadians(90));
 
         engCtx.scene.ambientLight = zm.Vec{ 1.0, 1.0, 1.0, 0.9 };
 

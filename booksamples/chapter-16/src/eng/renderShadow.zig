@@ -24,10 +24,8 @@ pub fn updateCascadeShadows(
     scene: *eng.scn.Scene,
     constants: *com.common.Constants,
 ) void {
-    //const viewData = scene.camera.viewData;
-    //const viewMatrix = viewData.viewMatrix;
-    // TODO: Remove this (debugging)
-    const viewMatrix = zm.identity();
+    const viewData = scene.camera.viewData;
+    const viewMatrix = viewData.viewMatrix;
     const projData = scene.camera.projData;
     const projMatrix = projData.projMatrix;
 
@@ -90,8 +88,7 @@ pub fn updateCascadeShadows(
         };
 
         // Project frustum corners into world space
-        const projCopy = projMatrix;
-        const invCam = zm.inverse(zm.mul(projCopy, viewMatrix));
+        const invCam = zm.inverse(zm.mul(viewMatrix, projMatrix));
         for (0..8) |j| {
             const invCorner = zm.mul(frustumCorners[j], invCam);
             const w = invCorner[3];
@@ -148,7 +145,7 @@ pub fn updateCascadeShadows(
         const shadowMapSize: f32 = @as(f32, @floatFromInt(constants.shadowMapSize));
 
         var shadowOrigin = zm.f32x4(0, 0, 0, 1);
-        shadowOrigin = zm.mul(shadowOrigin, lightView);
+        shadowOrigin = zm.mul(shadowOrigin, zm.mul(lightOrtho, lightView));
         const scale = shadowMapSize / 2.0;
         shadowOrigin = zm.f32x4(shadowOrigin[0] * scale, shadowOrigin[1] * scale, shadowOrigin[2] * scale, shadowOrigin[3]);
 
@@ -163,10 +160,8 @@ pub fn updateCascadeShadows(
             0,
         );
 
-        var translationRow = lightOrtho[3];
-        translationRow[0] += roundOffset[0];
-        translationRow[1] += roundOffset[1];
-        lightOrtho[3] = translationRow;
+        lightOrtho[3][0] += roundOffset[0];
+        lightOrtho[3][1] += roundOffset[1];
 
         const cascadeData = &cascadeShadows[i];
         cascadeData.floatDistance = (nearClip + splitDist * clipRange) * -1.0;
@@ -185,6 +180,7 @@ fn orthoVulkan(left: f32, right: f32, bottom: f32, top: f32, near: f32, far: f32
         .{ (left + right) / (left - right), (bottom + top) / (bottom - top), near / (near - far), 1.0 },
     };
 }
+
 const PushConstantsVtx = struct {
     modelMatrix: zm.Mat,
     materialIdx: u32,
