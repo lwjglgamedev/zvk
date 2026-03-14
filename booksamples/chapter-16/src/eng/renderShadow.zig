@@ -24,8 +24,10 @@ pub fn updateCascadeShadows(
     scene: *eng.scn.Scene,
     constants: *com.common.Constants,
 ) void {
-    const viewData = scene.camera.viewData;
-    const viewMatrix = viewData.viewMatrix;
+    //const viewData = scene.camera.viewData;
+    //const viewMatrix = viewData.viewMatrix;
+    // TODO: Remove this (debugging)
+    const viewMatrix = zm.identity();
     const projData = scene.camera.projData;
     const projMatrix = projData.projMatrix;
 
@@ -88,14 +90,15 @@ pub fn updateCascadeShadows(
         };
 
         // Project frustum corners into world space
-        const invCam = zm.inverse(zm.mul(projMatrix, viewMatrix));
+        const projCopy = projMatrix;
+        const invCam = zm.inverse(zm.mul(projCopy, viewMatrix));
         for (0..8) |j| {
-            const invCorner = zm.mul(invCam, frustumCorners[j]);
-            const invW = 1.0 / invCorner[3];
+            const invCorner = zm.mul(frustumCorners[j], invCam);
+            const w = invCorner[3];
             frustumCorners[j] = zm.f32x4(
-                invCorner[0] * invW,
-                invCorner[1] * invW,
-                invCorner[2] * invW,
+                invCorner[0] / w,
+                invCorner[1] / w,
+                invCorner[2] / w,
                 1.0,
             );
         }
@@ -131,7 +134,7 @@ pub fn updateCascadeShadows(
         const minExtents = maxExtents * @as(@Vector(4, f32), @splat(-1.0));
 
         const lightDir = zm.normalize3(lightPos);
-        const shadowCamPos = frustumCenter + lightDir * @as(@Vector(4, f32), @splat((minExtents[2])));
+        const shadowCamPos = frustumCenter + lightDir * zm.f32x4s(minExtents[2]);
 
         const dot = @abs(zm.dot3(zm.normalize3(lightPos), up))[0];
         if (dot == 1.0) {
@@ -139,22 +142,15 @@ pub fn updateCascadeShadows(
         }
 
         const lightView = zm.lookAtRh(shadowCamPos, frustumCenter, up);
-
-        var lightOrtho = zm.orthographicOffCenterRh(
-            minExtents[0],
-            maxExtents[0],
-            minExtents[1],
-            maxExtents[1],
-            minExtents[2],
-            maxExtents[2],
-        );
-
+        const far = maxExtents[2] - minExtents[2];
+        var lightOrtho = orthoVulkan(minExtents[0], maxExtents[0], minExtents[1], maxExtents[1], 0.0, far);
         // Stabilize shadow
         const shadowMapSize: f32 = @as(f32, @floatFromInt(constants.shadowMapSize));
 
         var shadowOrigin = zm.f32x4(0, 0, 0, 1);
-        shadowOrigin = zm.mul(lightView, shadowOrigin);
-        shadowOrigin = zm.mul(zm.mul(lightOrtho, lightView), shadowOrigin);
+        shadowOrigin = zm.mul(shadowOrigin, lightView);
+        const scale = shadowMapSize / 2.0;
+        shadowOrigin = zm.f32x4(shadowOrigin[0] * scale, shadowOrigin[1] * scale, shadowOrigin[2] * scale, shadowOrigin[3]);
 
         const roundedOrigin = zm.round(shadowOrigin);
         var roundOffset = roundedOrigin - shadowOrigin;
@@ -167,21 +163,28 @@ pub fn updateCascadeShadows(
             0,
         );
 
-        var lastCol = lightOrtho[3];
-        lastCol += @Vector(4, f32){ roundOffset[0], roundOffset[1], roundOffset[2], 0 };
-        lightOrtho[3] = lastCol;
+        var translationRow = lightOrtho[3];
+        translationRow[0] += roundOffset[0];
+        translationRow[1] += roundOffset[1];
+        lightOrtho[3] = translationRow;
 
         const cascadeData = &cascadeShadows[i];
         cascadeData.floatDistance = (nearClip + splitDist * clipRange) * -1.0;
 
-        cascadeData.projViewMatrix = zm.mul(lightOrtho, lightView);
+        cascadeData.projViewMatrix = zm.mul(lightView, lightOrtho);
 
         lastSplitDist = cascadeSplits[i];
-
-        std.debug.print("cascade0 matrix: {any}\n", .{cascadeShadows[0].projViewMatrix});
     }
 }
 
+fn orthoVulkan(left: f32, right: f32, bottom: f32, top: f32, near: f32, far: f32) zm.Mat {
+    return .{
+        .{ 2.0 / (right - left), 0.0, 0.0, 0.0 },
+        .{ 0.0, 2.0 / (top - bottom), 0.0, 0.0 },
+        .{ 0.0, 0.0, 1.0 / (near - far), 0.0 },
+        .{ (left + right) / (left - right), (bottom + top) / (bottom - top), near / (near - far), 1.0 },
+    };
+}
 const PushConstantsVtx = struct {
     modelMatrix: zm.Mat,
     materialIdx: u32,
@@ -316,7 +319,7 @@ pub const RenderShadow = struct {
             .descSetLayouts = descSetLayouts[0..],
             .modulesInfo = modulesInfo,
             .pushConstants = pushConstants[0..],
-            .useBlend = true,
+            .useBlend = false,
             .vtxBuffDesc = .{
                 .attribute_description = @constCast(&eng.rscn.VtxBuffDesc.attribute_description)[0..],
                 .binding_description = eng.rscn.VtxBuffDesc.binding_description,
@@ -365,7 +368,7 @@ pub const RenderShadow = struct {
             extent.height,
             DEPTH_FORMAT,
             flags,
-            1,
+            SHADOW_MAP_CASCADE_COUNT,
         );
     }
 
@@ -426,7 +429,7 @@ pub const RenderShadow = struct {
             .image_layout = vulkan.ImageLayout.color_attachment_optimal,
             .load_op = vulkan.AttachmentLoadOp.clear,
             .store_op = vulkan.AttachmentStoreOp.store,
-            .clear_value = vulkan.ClearValue{ .color = .{ .float_32 = .{ 0.0, 0.0, 0.0, 1.0 } } },
+            .clear_value = vulkan.ClearValue{ .color = .{ .float_32 = .{ 1.0, 1.0, 0.0, 1.0 } } },
             .resolve_mode = vulkan.ResolveModeFlags{},
             .resolve_image_layout = vulkan.ImageLayout.attachment_optimal,
         }};
@@ -444,7 +447,7 @@ pub const RenderShadow = struct {
         const extent = vkCtx.vkSwapChain.extent;
         const renderInfo = vulkan.RenderingInfo{
             .render_area = .{ .extent = extent, .offset = .{ .x = 0, .y = 0 } },
-            .layer_count = 1,
+            .layer_count = SHADOW_MAP_CASCADE_COUNT,
             .color_attachment_count = @as(u32, @intCast(renderAttInfos.len)),
             .p_color_attachments = &renderAttInfos,
             .p_depth_attachment = &depthAttInfo,
@@ -537,46 +540,49 @@ pub const RenderShadow = struct {
     }
 
     fn renderInit(self: *RenderShadow, vkCtx: *const vk.ctx.VkCtx, cmdHandle: vulkan.CommandBuffer) void {
-        const barriers = [_]vulkan.ImageMemoryBarrier2{ .{
-            .old_layout = vulkan.ImageLayout.undefined,
-            .new_layout = vulkan.ImageLayout.color_attachment_optimal,
-            .src_stage_mask = .{ .color_attachment_output_bit = true },
-            .dst_stage_mask = .{ .color_attachment_output_bit = true },
-            .src_access_mask = .{},
-            .dst_access_mask = .{ .color_attachment_write_bit = true },
-            .src_queue_family_index = vulkan.QUEUE_FAMILY_IGNORED,
-            .dst_queue_family_index = vulkan.QUEUE_FAMILY_IGNORED,
-            .subresource_range = .{
-                .aspect_mask = .{ .color_bit = true },
-                .base_mip_level = 0,
-                .level_count = vulkan.REMAINING_MIP_LEVELS,
-                .base_array_layer = 0,
-                .layer_count = vulkan.REMAINING_ARRAY_LAYERS,
+        const barriers = [_]vulkan.ImageMemoryBarrier2{
+            .{
+                .old_layout = vulkan.ImageLayout.undefined,
+                .new_layout = vulkan.ImageLayout.color_attachment_optimal,
+                .src_stage_mask = .{ .color_attachment_output_bit = true },
+                .dst_stage_mask = .{ .color_attachment_output_bit = true },
+                .src_access_mask = .{},
+                .dst_access_mask = .{ .color_attachment_write_bit = true },
+                .src_queue_family_index = vulkan.QUEUE_FAMILY_IGNORED,
+                .dst_queue_family_index = vulkan.QUEUE_FAMILY_IGNORED,
+                .subresource_range = .{
+                    .aspect_mask = .{ .color_bit = true },
+                    .base_mip_level = 0,
+                    .level_count = vulkan.REMAINING_MIP_LEVELS,
+                    .base_array_layer = 0,
+                    .layer_count = vulkan.REMAINING_ARRAY_LAYERS,
+                },
+                .image = @enumFromInt(@intFromPtr(self.attColor.vkImage.image)),
             },
-            .image = @enumFromInt(@intFromPtr(self.attColor.vkImage.image)),
-        }, .{
-            .old_layout = vulkan.ImageLayout.undefined,
-            .new_layout = vulkan.ImageLayout.depth_attachment_optimal,
-            .src_stage_mask = .{ .early_fragment_tests_bit = true, .late_fragment_tests_bit = true },
-            .dst_stage_mask = .{ .early_fragment_tests_bit = true, .late_fragment_tests_bit = true },
-            .src_access_mask = .{
-                .depth_stencil_attachment_write_bit = true,
+            .{
+                .old_layout = vulkan.ImageLayout.undefined,
+                .new_layout = vulkan.ImageLayout.depth_attachment_optimal,
+                .src_stage_mask = .{ .early_fragment_tests_bit = true, .late_fragment_tests_bit = true },
+                .dst_stage_mask = .{ .early_fragment_tests_bit = true, .late_fragment_tests_bit = true },
+                .src_access_mask = .{
+                    .depth_stencil_attachment_write_bit = true,
+                },
+                .dst_access_mask = .{
+                    .depth_stencil_attachment_read_bit = true,
+                    .depth_stencil_attachment_write_bit = true,
+                },
+                .src_queue_family_index = vulkan.QUEUE_FAMILY_IGNORED,
+                .dst_queue_family_index = vulkan.QUEUE_FAMILY_IGNORED,
+                .subresource_range = .{
+                    .aspect_mask = .{ .depth_bit = true },
+                    .base_mip_level = 0,
+                    .level_count = vulkan.REMAINING_MIP_LEVELS,
+                    .base_array_layer = 0,
+                    .layer_count = vulkan.REMAINING_ARRAY_LAYERS,
+                },
+                .image = @enumFromInt(@intFromPtr(self.attDepth.vkImage.image)),
             },
-            .dst_access_mask = .{
-                .depth_stencil_attachment_read_bit = true,
-                .depth_stencil_attachment_write_bit = true,
-            },
-            .src_queue_family_index = vulkan.QUEUE_FAMILY_IGNORED,
-            .dst_queue_family_index = vulkan.QUEUE_FAMILY_IGNORED,
-            .subresource_range = .{
-                .aspect_mask = .{ .depth_bit = true },
-                .base_mip_level = 0,
-                .level_count = vulkan.REMAINING_MIP_LEVELS,
-                .base_array_layer = 0,
-                .layer_count = vulkan.REMAINING_ARRAY_LAYERS,
-            },
-            .image = @enumFromInt(@intFromPtr(self.attDepth.vkImage.image)),
-        } };
+        };
         const depInfo = vulkan.DependencyInfo{
             .image_memory_barrier_count = @as(u32, @intCast(barriers.len)),
             .p_image_memory_barriers = &barriers,
@@ -633,14 +639,14 @@ pub const RenderShadow = struct {
         defer self.buffShadowCascades.unMap(vkCtx);
         const gpuBytes: [*]u8 = @ptrCast(buffData);
 
+        // TODO: Remove this Temporary debug: make matrices obviously different
+        //for (0..self.cascadeShadows.len) |i| {
+        //    const scale = @as(f32, @floatFromInt(i + 1));
+        //    self.cascadeShadows[i].projViewMatrix = zm.scaling(scale, scale, scale);
+        //}
+
         var offset: u32 = 0;
         for (0..self.cascadeShadows.len) |i| {
-            //var arr: [16]f32 = undefined;
-            //zm.storeMat(&arr, self.cascadeShadows[i].projViewMatrix);
-            //for (0..arr.len) |j| {
-            //      std.log.debug("### {d}", .{arr[j]});
-            //}
-
             const matrixBytes = std.mem.asBytes(&self.cascadeShadows[i].projViewMatrix);
             const matrixPtr: [*]align(16) const u8 = matrixBytes.ptr;
 

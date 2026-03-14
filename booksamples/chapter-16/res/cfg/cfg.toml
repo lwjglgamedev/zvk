@@ -1,10 +1,11 @@
 fov=60
 fxaa=true
 gpu="NVIDIA GeForce RTX 4060 Laptop GPU"
+shadowDebug=false
 shadowMapSize=4096
 swapChainImages=3
 ups=40
 validation=true
 vsync=true
 zFar=50.0
-zNear=1.0
+zNear=0.5

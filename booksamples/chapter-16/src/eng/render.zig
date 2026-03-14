@@ -38,6 +38,7 @@ pub const Attachment = struct {
             .format = format,
             .aspectmask = aspectMask,
             .viewType = if (layers > 1) vulkan.ImageViewType.@"2d_array" else vulkan.ImageViewType.@"2d",
+            .layerCount = layers,
         };
         const image: vulkan.Image = @enumFromInt(@intFromPtr(vkImage.image));
         const vkImageView = try vk.imv.VkImageView.create(vkCtx.vkDevice, image, imageViewData);
@@ -155,7 +156,7 @@ pub const Render = struct {
             attachments[i] = renderScn.attachments[i];
         }
         attachments[attachments.len - 1] = renderShadow.attColor;
-        const renderLight = try eng.rlgt.RenderLight.create(allocator, &vkCtx, &attachments);
+        const renderLight = try eng.rlgt.RenderLight.create(allocator, &vkCtx, constants, &attachments);
         const renderPost = try eng.rpst.RenderPost.create(allocator, &vkCtx, constants, &renderLight.outputAtt);
 
         const materialsCache = eng.mcach.MaterialsCache.create(allocator);

@@ -14,6 +14,11 @@ const DESC_ID_SCENE_INFO = "RENDER_LIGHT_DESC_ID_SCENE_INFO";
 const LIGHTS_BYTES_SIZE: u32 = 32;
 const SCENE_INFO_BYTES_SIZE: u32 = 96;
 
+const LightSpecConstants = struct {
+    cascadeCount: u32,
+    debugShadows: u32,
+};
+
 const EmptyVtxBuffDesc = struct {
     const binding_description = vulkan.VertexInputBindingDescription{
         .binding = 0,
@@ -24,7 +29,6 @@ const EmptyVtxBuffDesc = struct {
     const attribute_description = [_]vulkan.VertexInputAttributeDescription{};
 };
 
-// TODO: Shadow Constants
 pub const RenderLight = struct {
     buffsCascadeShadows: []vk.buf.VkBuffer,
     buffsLights: []vk.buf.VkBuffer,
@@ -60,6 +64,7 @@ pub const RenderLight = struct {
     pub fn create(
         allocator: std.mem.Allocator,
         vkCtx: *vk.ctx.VkCtx,
+        constants: com.common.Constants,
         inputAttachments: *const []eng.rend.Attachment,
     ) !RenderLight {
         const outputAtt = try createColorAttachment(vkCtx);
@@ -67,6 +72,12 @@ pub const RenderLight = struct {
         // Shader modules
         var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
         defer arena.deinit();
+        const lightSpecConsts = LightSpecConstants{
+            .cascadeCount = eng.rsha.SHADOW_MAP_CASCADE_COUNT,
+            .debugShadows = if (constants.shadowDebug) 1 else 0,
+        };
+        const specConstants = try createSpecConsts(arena.allocator(), &lightSpecConsts);
+
         const vertCode align(@alignOf(u32)) = try com.utils.loadFile(arena.allocator(), "res/shaders/light_vtx.glsl.spv");
         const vert = try vkCtx.vkDevice.deviceProxy.createShaderModule(&.{
             .code_size = vertCode.len,
@@ -83,7 +94,7 @@ pub const RenderLight = struct {
 
         const modulesInfo = try allocator.alloc(vk.pipe.ShaderModuleInfo, 2);
         modulesInfo[0] = .{ .module = vert, .stage = .{ .vertex_bit = true } };
-        modulesInfo[1] = .{ .module = frag, .stage = .{ .fragment_bit = true } };
+        modulesInfo[1] = .{ .module = frag, .stage = .{ .fragment_bit = true }, .specInfo = &specConstants };
         defer allocator.free(modulesInfo);
 
         // Textures
@@ -217,6 +228,26 @@ pub const RenderLight = struct {
             1,
         );
         return attColor;
+    }
+
+    fn createSpecConsts(allocator: std.mem.Allocator, lightSpecConstants: *const LightSpecConstants) !vulkan.SpecializationInfo {
+        const mapEntries = try allocator.alloc(vulkan.SpecializationMapEntry, 2);
+        mapEntries[0] = vulkan.SpecializationMapEntry{
+            .constant_id = 0,
+            .offset = @offsetOf(LightSpecConstants, "cascadeCount"),
+            .size = @sizeOf(u32),
+        };
+        mapEntries[1] = vulkan.SpecializationMapEntry{
+            .constant_id = 1,
+            .offset = @offsetOf(LightSpecConstants, "debugShadows"),
+            .size = @sizeOf(u32),
+        };
+        return vulkan.SpecializationInfo{
+            .p_map_entries = mapEntries.ptr,
+            .map_entry_count = @as(u32, @intCast(mapEntries.len)),
+            .p_data = lightSpecConstants,
+            .data_size = @sizeOf(LightSpecConstants),
+        };
     }
 
     pub fn render(
