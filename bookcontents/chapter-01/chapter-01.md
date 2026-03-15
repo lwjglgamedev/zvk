@@ -43,7 +43,7 @@ In order to add the dependency to the `build.zig.zon` file just execute:
 
 > [!WARNING]  
 > If you want to enable Vulkan validation layers, will need the [Vulkan SDK](https://vulkan.lunarg.com/sdk/home). Just download the proper
-> package for your operative system. Once installed, you will need to set up an environment variable named `VULKAN_SDK` which points to the
+> package for your operating system. Once installed, you will need to set up an environment variable named `VULKAN_SDK` which points to the
 > root folder of the Vulkan SDK. We will be dynamically downloading Vulkan headers, so if you are not using validation you may skip
 > Vulkan SDK installation.
 

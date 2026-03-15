@@ -248,7 +248,7 @@ pub const VulkanMesh = struct {
 It is just a record which contains an identifier, the vertices and indices buffers and the number of indices.
 
 We will see later on how we can load that data into the GPU from raw data. That raw data is encapsulated in two structs named `ModelData`
-and `MeshData` which are defined like this (They will be defined in the file `modelData.zig` which you should ad dto the `mod.zig` file like
+and `MeshData` which are defined like this (They will be defined in the file `modelData.zig` which you should add to the `mod.zig` file like
 this: `pub const mdata = @import("modelData.zig");` under the `src/eng` folder):
 
 ```zig
@@ -665,7 +665,7 @@ pub const VkPipeline = struct {
 };
 ```
 
-We will be using dynamic viewports and scissors, therefore, although we ha ve set the count values to `1` we set the `p_viewports` and
+We will be using dynamic viewports and scissors, therefore, although we have set the count values to `1` we set the `p_viewports` and
 `p_scissors` to null. This will allow to set the dimensions for viewport and scissor when recording graphic commands. If we were not using
 dynamic viewports and scissors, any time the viewport size would change we would need to recreate the pipeline.
 
@@ -699,7 +699,7 @@ Description of the parameters:
 
 - `depth_clamp_enable`: It controls if depth values should be clamped or not.
 - `rasterizer_discard_enable`: When set to true it will stop after vertex processing and wil not perform rasterization or fragment
-processing. It can be used when processing vertices ofr geometry calculations. We wil noy use ths feature so we will set up to false. 
+processing. It can be used when processing vertices ofr geometry calculations. We wil not use this feature so we will set up to false. 
 - `polygon_mode`: It specifies how triangles should be rendered: In our case we want the triangles to be filled up with the color assigned
 in the fragments. For example, if we want to draw it as lines (as in OpenGL, the equivalent would be to use this line: `glPolygonMode`
 (`GL_FRONT_AND_BACK, GL_LINE )`) we should use `line` (`VK_POLYGON_MODE_LINE`)).
@@ -1063,7 +1063,7 @@ pub const RenderScn = struct {
 We will store the reference to the pipeline used by this render as an attribute and free it in the `cleanup` function. In the `create`
 function we just gather the compiled shaders and create shader modules for each of them. For the pipeline creation information we set the
 color format as the one used in our surface since we will be rendering directly to swap chain images. We will use the vertex format
-description defined in the the `VtxBuffDesc` struct and create the pipeline.
+description defined in the `VtxBuffDesc` struct and create the pipeline.
 
 We have created a function named `loadFile` in the `src/eng/com/utils.zig` file which needs to be included in `mod.zig`:
 `pub const utils = @import("utils.zig");`. The function just loads the binary contents of a compiled shader:

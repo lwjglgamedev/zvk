@@ -11,8 +11,8 @@ Audio capability is going to be addressed in this chapter with the help of [zaud
 wrapper for [miniaudio](https://github.com/mackron/miniaudio) library. It is a simple C library which provides high level and low level APIs
 to manage sound.
 
-In order to use we first need to include the [zaudio](https://github.com/zig-gamedev/zaudio/) dependency in the `build.zig.zon` file by
-executing the following command: `zig fetch git+https://github.com/zig-gamedev/zaudio/`.
+In order to use it we first need to include the [zaudio](https://github.com/zig-gamedev/zaudio/) dependency in the `build.zig.zon` file by
+executing the following command: `zig fetch --save git+https://github.com/zig-gamedev/zaudio/`.
 
 After that we shall modify the `build.zig` file:
 

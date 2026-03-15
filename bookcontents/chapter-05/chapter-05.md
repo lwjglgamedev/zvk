@@ -41,7 +41,7 @@ Creating a command pool is pretty straightforward, we just set up an initializat
 following main parameter:
 - `queueFamilyIndex`: Selects the queue family index where the commands created in this pool can be submitted to. 
 - `flags`:  It allows to specify the behavior of the command pool. Basically, we have two options, we can get command buffers from the pool
-and return them whenever we have used them (we have submitted them tio a queue), or we can reuse them between several submits. In this later
+and return them whenever we have used them (we have submitted them to a queue), or we can reuse them between several submits. In this later
 case, you need to reset them. In order to do so, you need to explicitly create the command pool to support this behavior, by setting the
 `flags` parameter with the `VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT` value (`reset_command_buffer_bit` flag). This will allow
 commands to be reset individually.
@@ -72,7 +72,7 @@ pub const VkCmdBuff = struct {
 ```
 
 The `create` functions receives, as it first parameter, the Vulkan Context, since we need to access the device. The second parameter is the
-command pool where this command buffer will be allocated to. The third parameter last parameter is a boolean that indicates if the command
+command pool where this command buffer will be allocated to. The third and last parameter is a boolean that indicates if the command
 buffer recordings will be submitted just once or if they can be submitted multiple times (we will see later on what this implies). We need
 to fill a structure named `CommandBufferAllocateInfo`. The parameters are:
 
@@ -116,7 +116,7 @@ pub const VkCmdBuff = struct {
 }
 ```
 
-The `VkCmdBuff` struct is now almost complete, there is still one function missing which basically submits ut to a queue and waits it to be
+The `VkCmdBuff` struct is now almost complete, there is still one function missing which basically submits it to a queue and waits it to be
 processed. But,  prior to showing that function we need to introduce new concepts.
 
 ![CommandBuffer](rc05-yuml-01.svg)
@@ -125,7 +125,7 @@ processed. But,  prior to showing that function we need to introduce new concept
 
 Prior to progress in rendering something on the screen, we need to address a fundamental topic in Vulkan: synchronization. In Vulkan we will
 be in charge of properly control the synchronization of the resources. This imposes certain complexity but allows us to have a full control
-about how operations will be done. In this section we well address two main mechanisms involved in Vulkan synchronization: semaphores and
+about how operations will be done. In this section we will address two main mechanisms involved in Vulkan synchronization: semaphores and
 fences. There are some other elements such as barriers or events, we will explain them once we first use them. 
 
 Fences are the mechanisms used in Vulkan to synchronize operations between the GPU and the CPU (our application). Semaphores are used to
@@ -135,7 +135,7 @@ signaling is always done in the GPU side. In the case of fences, our application
 execution can go on, but we cannot trigger the signaling from the CPU. In the case of semaphores, since they are internal to the GPU,
 waiting can only happen in the GPU.
 
-Before using these elements, we will define some structs to manage them. We will firs start with the `VkSemaphore` struct (defined in the
+Before using these elements, we will define some structs to manage them. We will first start with the `VkSemaphore` struct (defined in the
 file `vkSync.zig`. Remember to include this file in the `mod.zig` file: `pub const sync = @import("vkSync.zig");`):
 
 ```zig
@@ -289,10 +289,10 @@ pub const FRAMES_IN_FLIGHT = 2;
 There is an excellent resource [here](https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/03_Drawing/03_Frames_in_flight.html)
 which provides additional information.
 
-So then just create as many semaphores and fences as frames in flight an that's all, right? Again is not so easy!. We need to take care with
-swap chain image presentation. We will use a semaphore when submitting the work to a queue to be signaled after all the work has been done.
-We will use an array of semaphores for that, called `semsRenderComplete`. When presenting the acquired swap chain image we will use the
-proper index `semsRenderComplete[i]` when calling the `queuePresentKHR` function so presentation cannot start until render work has been
+So then just create as many semaphores and fences as frames in flight an that's all, right? Again, it is not so easy!. We need to take care
+with swap chain image presentation. We will use a semaphore when submitting the work to a queue to be signaled after all the work has been
+done. We will use an array of semaphores for that, called `semsRenderComplete`. When presenting the acquired swap chain image we will use
+the proper index `semsRenderComplete[i]` when calling the `queuePresentKHR` function so presentation cannot start until render work has been
 finished. The issue here is that this will be an asynchronous call that can be processed later on. Imagine that we created as the
 `semsRenderComplete` array is size to contain as many instances as flights in frame, let's say `2` and we will have `3` swap chain images.
 
@@ -556,7 +556,7 @@ for GPU-GPU synchronization. In this case, we are submitting the semaphore used 
 image cannot be presented until the commands have finished, that is, until render has finished. This is why we use the `bottom_of_pipe_bit`
 flag (`VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT`), all the commands need to have finalized their journey through the pipeline.
 
-Please notice that we have different array sizes for the presentation complete semaphores and the render complete semaphores. Later one
+Please notice that we have different array sizes for the presentation complete semaphores and the render complete semaphores. The latter one
 (`semsRenderComplete`) will need to be accessed with the swap chain acquire image index, while the first one (`semsPresComplete`) will
 just need frame in flight index.
 
@@ -658,13 +658,13 @@ The `PresentInfoKHR` structure can be used to present more than one image. In th
 
 ## Dynamic Rendering
 
-In this book we will use Vulkan dynamic rendering vs the traditional approach based on render passes. Dynamic render provides a simpler
+In this book we will use Vulkan dynamic rendering vs the traditional approach based on render passes. Dynamic rendering provides a simpler
 API in which we just refer to the attachments (the images) that we want to render to vs having to specify them upfront through render
-passes and frame buffers. The result is fewer code and reduced setup steps. Dynamic render provides more flexibility and we can change the
-target attachments at runtime without recreating the associated elements (render passes and frame buffers). However, for certain tasks it is
-a little bit more explicit than the traditional approach. For example, with render passes you get som implicit image transitions (which
-basically prepared images from undefined layouts to the proper render one). Dynamic render requires us to explicitly define layout
-transitions and synchronization, which requires a little bit m ore of code, but is not so dramatic. In addition, I personally find more
+passes and frame buffers. The result is fewer code and reduced setup steps. Dynamic rendering provides more flexibility and we can change
+the target attachments at runtime without recreating the associated elements (render passes and frame buffers). However, for certain tasks
+it is a little bit more explicit than the traditional approach. For example, with render passes you get som implicit image transitions
+(which basically prepared images from undefined layouts to the proper render one). Dynamic rendering requires us to explicitly define layout
+transitions and synchronization, which requires a little bit more of code, but is not so dramatic. In addition, I personally find more
 clear the dynamic render approach, where everything is explicit and you do not have to guess what automatic transition or locking is
 applied.
 
@@ -879,12 +879,12 @@ it to state that no subsequent GPU operations depend on it.
 - We set `dst_access_mask` to an empty value (equivalent to `VK_PIPELINE_STAGE_2_NONE`) since , again, no subsequent GPU operations depend
 on it.
 - We use  the `color_bit` flag (`VK_IMAGE_ASPECT_COLOR_BIT`) as `aspect_mask` since we are dealing with color information now. We will not
-be using mip levels or array layers of images so we just them to default values.
+be using mip levels or array layers of images so we just set them to default values.
 
 Synchronization is a complex topic. If you want to have good understanding of it this
 [video](https://youtu.be/GiKbGWI4M-Y?si=lNfBCfV4w6V7GsD5) is the best one you can find. I definitely recommend you to watch it.
 
-We have finished by now! With all that code we are no able to see a wonderful empty  screen with the clear color specified like this:
+We have finished by now! With all that code we are now able to see a wonderful empty  screen with the clear color specified like this:
 
 ![Clear Screen](rc05-clear_screen.png)
 

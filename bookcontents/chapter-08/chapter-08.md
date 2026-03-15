@@ -6,11 +6,11 @@ You can find the complete source code for this chapter [here](../../booksamples/
 
 ## ZMesh and zstbi
 
-In order to load complex mopdels from disk we will use the [ZMesh](https://github.com/zig-gamedev/zmesh) library. Therefore, you will need
-to add the dependency to the `build.zig.zon` using `zig fetch git+https://github.com/zig-gamedev/zmesh`.
+In order to load complex models from disk we will use the [ZMesh](https://github.com/zig-gamedev/zmesh) library. Therefore, you will need
+to add the dependency to the `build.zig.zon` using `zig fetch --save git+https://github.com/zig-gamedev/zmesh`.
 
 We will create a new executable to process 3D models ([GLTF](https://github.com/KhronosGroup/glTF) models in our case). This executable will
-process a 3D model and will generate the required files to load de model data into Vulkan. Therefore, in the `build.zig` file we will add
+process a 3D model and will generate the required files to load the model data into Vulkan. Therefore, in the `build.zig` file we will add
 the following code at the end:
 
 ```zig
@@ -55,7 +55,7 @@ pub fn build(b: *std.Build) void {
 In order to load complex 3D models, we will develop a pre-processing stage to transform models using zmesh into an intermediate format which
 will be ready to be loaded into the GPU. We will create a new struct that loads these models, process them using zmesh and ump the results
 to a JSON file. It is a little bit overkill for a tutorial like this, but it will prevent you to process models again and again and will
-simplify the loading process at the end. The `main` function defined in the `modelGen.zgi` file starts like this (you can skip this part if
+simplify the loading process at the end. The `main` function defined in the `modelGen.zig` file starts like this (you can skip this part if
 you are not interested in preprocessing the models):
 
 ```zig
@@ -233,7 +233,7 @@ const MeshIntData = struct {
 
 It stores the mesh identifier (`id`), the identifier of the material associated to it (`materialId`), the indices, positions and texture
 coordinates. We need this interim structs (that is what `Int` means) to store the data for the vertices and the indices. We will dump that
-that to t he binary files associated to the model and will not need them in the `eng.mdata.MeshData` struct, which will be the one used in
+that to the binary files associated to the model and will not need them in the `eng.mdata.MeshData` struct, which will be the one used in
 the engine. In the `eng.mdata.MeshData` struct we will just store the offsets inside those binary files for the vertices and indices data
 (Remember that this struct is stored in the `src/eng/modelData.zig` file):
 
@@ -249,7 +249,7 @@ pub const MeshData = struct {
 ```
 
 Therefore, after we have dumped the data we just transform from `MeshIntData` to `MeshData`, store in the mesh lists and update the vertices
-and indices offsets accordingly. You may have notices that we check if the number of texture coordinates match the number of positions.
+and indices offsets accordingly. You may have noticed that we check if the number of texture coordinates match the number of positions.
 If we have more positions than texture coordinates we just fill up with zeroes.
 
 
@@ -299,7 +299,7 @@ pub fn main() !void {
 }
 ```
 
-The model data struct has been updated store the path to the vertices and indices files. You will need to modfiy the struct as
+The model data struct has been updated store the path to the vertices and indices files. You will need to modify the struct as
 follows (Remember that this struct is stored in the `src/eng/modelData.zig` file):
 
 ```zig
@@ -549,7 +549,7 @@ We need this, because in our case, we will copy from a staging buffer to the ima
 - `sampled_bit` (`VK_IMAGE_USAGE_SAMPLED_BIT`): The image can be used to occupy a descriptor set (more on this later).
 In our case, the image needs to be used by a sampler in a fragment shader, so we need to set this flag.
 
-The `recorded` attribute will control ig a texture has been recorded (transitioned to ist final layout) or not.
+The `recorded` attribute will control if a texture has been recorded (transitioned to ist final layout) or not.
 
 At the end of the `create` function we just copy the image data to the staging buffer associated to the image by calling a function
 that is located in the `vkBuffer.zig`:
@@ -702,7 +702,7 @@ An important issue to highlight is that we are recording commands that can be su
 associated to several textures and submit them using a single call, instead of going one by one. This should  reduce the loading time when
 dealing with several textures.
 
-Now that the `VkTexture` struct is complete, we are ready to to use it. In 3D models, it is common that multiple meshes share the same
+Now that the `VkTexture` struct is complete, we are ready to use it. In 3D models, it is common that multiple meshes share the same
 texture file, we want to control that to avoid loading the same resource multiple times. We will create a new struct named `TextureCache` to
 control this:
 
@@ -1168,9 +1168,9 @@ pub const MaterialsCache = struct {
 };
 ```
 
-We will alwyas have a default material, to fall back to when rendering if the associated material is not found. Therefore, we create a
+We will always have a default material, to fall back to when rendering if the associated material is not found. Therefore, we create a
 default material, and create a list which stores references of the provided materials and this new default one which be located at position
-`0'. As in the case of the models, we create a staging buffer and a GPU only accessible buffer for the materials. We iterate over the
+`0`. As in the case of the models, we create a staging buffer and a GPU only accessible buffer for the materials. We iterate over the
 materials populating the buffer. We also populate the texture cache with the textures that we find associated to the materials. Keep in mind
 that we may use more textures than the ones strictly used by models. You will see that We need to add padding data, because due to the
 layout rules used in shaders, the minimum size of data will be multiples of `vec4`, therefore since we initially only need 6 bytes, we need
@@ -1310,7 +1310,7 @@ pub const VkDescSetLayout = struct {
 
 We need to create as many `vulkan.DescriptorSetLayoutBinding` instances as `LayoutInfo` elements we have. That information is used to call
 the  `createDescriptorSetLayout` function. The struct is completed by the classical `cleanup` function. In the example above,
-asuuming we will use the descriptors at the vertex stage, we could define the layout information as follows (it is just an example to
+assuming we will use the descriptors at the vertex stage, we could define the layout information as follows (it is just an example to
 understand the usage, not included in the code):
 
 ```zig
@@ -2059,7 +2059,7 @@ pub const RenderScn = struct {
 ```
 
 First we need to modify the push constant used in the vertex shader to hold just the model matrix and then create a new push constant to be
-used in the fragment shader that will contain material infromation. Then we define some constants that will hold the identifiers associated
+used in the fragment shader that will contain material information. Then we define some constants that will hold the identifiers associated
 to the descriptor sets we are going to use:
 - `DESC_ID_MAT`: for the materials.
 - `DESC_ID_CAMERA`: for camera the projection matrix.
@@ -2262,7 +2262,7 @@ Finally, the `updateCamera` function is defined like this:
 pub const RenderScn = struct {
     ...
     fn updateCamera(self: *RenderScn, vkCtx: *const vk.ctx.VkCtx, projMatrix: *const zm.Mat) !void {
-        const buffData = try self.v.map(vkCtx);
+        const buffData = try self.buffCamera.map(vkCtx);
         defer self.buffCamera.unMap(vkCtx);
         const gpuBytes: [*]u8 = @ptrCast(buffData);
 

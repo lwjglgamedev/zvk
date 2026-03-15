@@ -110,7 +110,7 @@ pub const VkSwapChain = struct {
 ```
 
 We will be identifying the purpose of the different arguments of the `create` function while we go through the code. The first thing we do
-to calculate the number of images that our swap chain will have bu calling the `calcNumImages` function. You may be wondering why do we need
+to calculate the number of images that our swap chain will have by calling the `calcNumImages` function. You may be wondering why do we need
 more than one image? The answer is to increase performance, while an image is being presented, we may be using another one to render the
 results of the next frame. We need to have several in order to parallelize the tasks and use both the CPU and GPU at their maximum capacity.
 The most common use cases employ two images (double buffering) or three (triple buffering), as in the figure below.
@@ -125,10 +125,10 @@ Our `SwapChain` `create` function has a parameter named `reqImages` which is use
 should have. The `calcNumImages` function tries to accommodate that request to the surface limits defined by the surface capabilities that
 we obtained at the beginning of the `create` function. We will see the definition later on.
 
-The next thing to do in the `create` function is to calculate the swp chain extent, width and size of the images that compose it, by calling
-the `calcExtent` function (we will see it later). After that we calculate the presentation mode by calling the `calcPresentMode` function
-(again, we will see the implementation later on). We are now ready to create the swap chain by filling up the `SwapchainCreateInfoKHR`
-structure. Let's review the attributes of that structure:
+The next thing to do in the `create` function is to calculate the swap chain extent, width and size of the images that compose it, by
+calling the `calcExtent` function (we will see it later). After that we calculate the presentation mode by calling the `calcPresentMode`
+function (again, we will see the implementation later on). We are now ready to create the swap chain by filling up the
+`SwapchainCreateInfoKHR` structure. Let's review the attributes of that structure:
 
 - `surface`: A reference to our surface.
 - `min_image_count`: The minimum number of images that this swap chain should use. This is the value that we have got calling the
@@ -452,7 +452,7 @@ pub const VkCtx = struct {
 }
 ```
 
-We have also modified also the `Constants` struct to read a new property to configure the usage of vsync and to define the requested number
+We also have modified the `Constants` struct to read a new property to configure the usage of `vsync` and to define the requested number
 of images for the swap chain:
 
 ```zig
@@ -472,10 +472,6 @@ pub const Constants = struct {
             .vsync = tmp.vsync,
         };
         ...
-    }
-    ...
-    public int getRequestedImages() {
-        return requestedImages;
     }
     ...
 }        

@@ -23,7 +23,7 @@ const vulkan = @import("vulkan");
 const sdl3 = @import("sdl3");
 const log = std.log.scoped(.vk);
 
-const VALIDATION_AYER = "VK_LAYER_KHRONOS_validation";
+const VALIDATION_LAYER = "VK_LAYER_KHRONOS_validation";
 
 pub const VkInstance = struct {
     vkb: vulkan.BaseWrapper,
@@ -121,8 +121,8 @@ delivery.
 > to the directory where the validation layers are define: `$VULKAN_SDK/x86_64/share/vulkan/explicit_layer.d` (`VULKAN_SDK` should
 > have the path of the base directory of the Vulkan SDK)
 
-Our `create` function receives a boolean parameter indication if validation should be enabled or not. If validation is requested, we will
-use the `VK_LAYER_KHRONOS_validation` layer (defined in the constant `VALIDATION_AYER`). In addition to that, if we support validation
+Our `create` function receives a boolean parameter indicating if validation should be enabled or not. If validation is requested, we will
+use the `VK_LAYER_KHRONOS_validation` layer (defined in the constant `VALIDATION_LAYER`). In addition to that, if we support validation
 we will add a new layer to be able to use a callback that will be invoked whenever a validation event occurs.
 
 ```zig
@@ -181,7 +181,7 @@ pub const VkInstance = struct {
 
 We first get the number of supported layers by calling the `enumerateInstanceLayerProperties` function which just a pointer to an
 `u32` variable to get the number of supported layers. After that, we call again the `enumerateInstanceLayerProperties` function to get
-the layers themselves passing a preallocated array. If we find the the validation layer, we can enable it.
+the layers themselves passing a preallocated array. If we find the validation layer, we can enable it.
 
 ## Creating the instance
 

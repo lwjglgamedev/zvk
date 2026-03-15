@@ -752,10 +752,10 @@ pub const Render = struct {
 };
 ```
 
-It is identical to the `renderMainINit` function in the previous chapters, since we need to transition the output image to be used by
+It is identical to the `renderMainInit` function in the previous chapters, since we need to transition the output image to be used by
 the post-processing stage, that is, the swap chain image.
 
-Analogously, the `renderFinishPost` will be identical as the the `renderMainFinish` function in the previous chapters:
+Analogously, the `renderFinishPost` will be identical as the `renderMainFinish` function in the previous chapters:
 
 ```zig
 pub const Render = struct {

@@ -1,7 +1,7 @@
 # Chapter 14 - Deferred Rendering (I)
 
 In this chapter we will set up the basis to implement deferred shading. We will split the rendering into two phases, one to render the
-geometry and relevant parameters of the scene and another one to apply lighting. In this chapter we will cove base changes, leaving the
+geometry and relevant parameters of the scene and another one to apply lighting. In this chapter we will cover base changes, leaving the
 changes required to apply lighting for the next chapter. We will not be introducing new Vulkan concepts, just combine the ones we have
 described previously to support deferred shading. Therefore, you will see larger chunks of code with an explanatory overview, focusing on
 the key concepts of Vulkan that need to be applied to implement deferred shading.
@@ -24,7 +24,7 @@ attachments that will contain the following information:
 
 All that information is stored in attachments, as the depth attachment used in previous chapters.
 
-The second step is called the lighting phase. This phase takes a shape that fills up all the screen and generates the final color
+The second step is called the lighting phase. This phase takes a shape that fills the whole screen and generates the final color
 information, using lighting, for each fragment using as inputs the attachment outputs generated in the previous phase. When performing the
 lighting phase, the depth test in the geometry phase will have already removed all the scene data that is not be seen. Hence, the number of
 operations to be done are restricted to what will be displayed on the screen.
@@ -566,7 +566,7 @@ pub const RenderLight = struct {
 
 The `create` function is similar to the one used in `RenderPost` struct. We will be rendering to an image just dumping color. We will use a
 quad to cover the whole clip area and sample from the output attachments used while rendering the scene. This is why we create as many
-descriptor set layouts as attachments we will have. We are using the `setImages` function to link the outout attachments used in the
+descriptor set layouts as attachments we will have. We are using the `setImages` function to link the output attachments used in the
 geometry render phase (which will be inputs in this phase), to the descriptor set we will used for sampling. We will see the implementation
 later on.
 

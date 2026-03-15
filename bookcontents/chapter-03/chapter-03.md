@@ -235,7 +235,7 @@ updated.
 
 As in our previous samples, we will create a new struct, named `VkDevice` to wrap device creation and some utility functions around it
 (Remember to update the `mod.zig` file to include it: `pub const dev = @import("vkDevice.zig");`). It provides a `create` function to
-instantiate it which starts starts like this:
+instantiate it which starts like this:
 
 ```zig
 const std = @import("std");
@@ -299,7 +299,7 @@ pub const VkDevice = struct {
 };
 ```
 
-The struct `VkDevice` is the one that will hold or Vulkan logical device. We will use that structure for the creation of the resources we
+The struct `VkDevice` is the one that will hold our Vulkan logical device. We will use that structure for the creation of the resources we
 will need later on. We start by defining the queues families that this logical device will use. Later on, when we create queues, but now we
 will need to specify the queue family which it belongs to. If that queue family has been not be enabled for the logical device we will get
 an error. In this case we will opt for enabling  the queues families used to present images to the screen and to record graphic commands.
@@ -448,10 +448,10 @@ pub const VkSurface = struct {
 ## Queues
 
 As it was introduced before, the way to submit work to our GPU is by submitting command buffers to queues. These command buffers contain the
-instructions that will be executed when that job is carried on. An important concept to stress out when examining the instructions for
-commands, is that this will not be executed immediately, we are just recording the commands. Commands need to to be submitted to a queue
-to have the chance ofg being executed. Once submitted it is up to the GPU to execute them. We will see later on what is the execution order
-and which synchronization mechanisms ara available.
+instructions that will be executed when that job is carried on. An important concept to emphasize when examining the instructions for
+commands, is that this will not be executed immediately, we are just recording the commands. Commands need to be submitted to a queue
+to have the chance of being executed. Once submitted it is up to the GPU to execute them. We will see later on what is the execution order
+and which synchronization mechanisms are available.
 
 ![UML Diagram](rc03-yuml-04.svg)
 
@@ -479,8 +479,8 @@ In the `VkQueue` `create` function we just invoke the `getDeviceQueue` function 
 
 - The index of the queue family that this queue belongs to. If you remember, when we created the device, we specified the queue families
 allowed, this index should match one of the indices assigned to those queue families.
-- The index of this queue within the queue family itself. When we created the logical device define the queues that were being pre-created.
-With this parameter which one of those queues we want to get its handle.
+- The index of this queue within the queue family itself. When we created the logical device, we defined the queues that were being
+pre-created. With this parameter which one of those queues we want to get its handle.
 
 After calling this function we will get a handle to our queue.
 
@@ -551,7 +551,7 @@ pub const Constants = struct {
 };
 ```
 
-You will need to update the `res7cfg/cfg.toml` file to add a new entry named `gpu`, for example:
+You will need to update the `res/cfg/cfg.toml` file to add a new entry named `gpu`, for example:
 
 ```toml
 gpu="NVIDIA GeForce RTX 4060 Laptop GPU"

@@ -53,7 +53,7 @@ The attributes for creating an image are:
 - `mipLevels`:  Describes the levels of detail available for this image (more on this in later chapters).
 - `sampleCount`:  Specifies the number of texels per sample (more on this in later chapters).
 - `arrayLayers`: Specifies the number of layers of an image (more on this in later chapters).
-- `tiling`: Specifiy the tiling arrangement of the texel blocks of the image in memory.
+- `tiling`: Specify the tiling arrangement of the texel blocks of the image in memory.
 
 
 The `VkImage` struct starts like this:
@@ -285,7 +285,7 @@ attribute definition itself is quite similar to the one used for the positions, 
 
 If we are going to represent 3D scenes, we need to project from the 3D world into a 2D space (the screen). We will need to use a perspective
 projection matrix in order to avoid distortions and to represent far away objects smaller than closer ones. We will create a new struct to
-model world information ina file named `scene.zig` (located in `src/eng` and that shall be added to
+model world information in a file named `scene.zig` (located in `src/eng` and that shall be added to
 `mod.zig`: `pub const scn = @import("scene.zig");`). It will include a new struct named `ProjData` that which is defined like this:
 
 ```zig
@@ -330,7 +330,7 @@ pub const ProjData = struct {
 We will create a 4x4 matrix `projMatrix` that will be created as a projection matrix. It requires the following parameters:
 - `fov`: Field of view in radians.
 - `near`: Z coordinate of the near plane.
-- `near`: Z coordinates of the far plane.
+- `far`: Z coordinates of the far plane.
 - `width`: Width of the render area.
 - `height`: Height of the render area.
 
@@ -1068,7 +1068,7 @@ into the `PushConstantsVtx` struct. Then we call the `cmdPushConstants` function
 `vulkan.ShaderStageFlags` is a combination of flags that states the shader stages that will access this range of push constants. We will use
 this in the vertex buffer so we pass the `vertex_bit` (`VK_SHADER_STAGE_VERTEX_BIT`) flag.
 
-Finally, in the `resize` function, we just clean rup the render info attributes and recreate them again due to the change in size of the
+Finally, in the `resize` function, we just clean up the render info attributes and recreate them again due to the change in size of the
 underlying images.
 
 ```zig

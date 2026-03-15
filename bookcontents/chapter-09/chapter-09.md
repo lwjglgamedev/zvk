@@ -8,8 +8,8 @@ You can find the complete source code for this chapter [here](../../booksamples/
 
 ## Transparent objects
 
-We need to add support to draw transparent objects so the pipeline must use the blending feature. The code for is already present in the
-`VkPipeline` struct, but let's revisit and review carefully the parameters:
+We need to add support to draw transparent objects so the pipeline must use the blending feature. The code for this is already present in
+the `VkPipeline` struct, but let's revisit and review carefully the parameters:
 
 ```zig
 pub const VkPipeline = struct {
@@ -62,7 +62,7 @@ figure shows this effect (It has been exaggerated with a non black background to
 <img src="rc09-transparent-artifact.png" title="" alt="Screen Shot" data-align="center">
 
 In order to solve that, we are going to apply an easy fix, we will first draw non transparent objects to force transparent objects to blend
-with non transparent ones. This fix still can make some artifacts (if we have may transparent objects that overlap between them), but
+with non transparent ones. This fix still can make some artifacts (if we have many transparent objects that overlap between them), but
 it is simple enough and produces good results. In order to apply that, we need first to have a way to check if an object is transparent or
 not. We will add this support in the `VkTexture` struct. We will add a new attribute named `transparent` that will hold `true` if the
 texture has transparent values. We will set up this attribute in the `create` function by calling a new function named `isTransparent`.
@@ -370,7 +370,7 @@ into a destination image and is able to perform format conversions. The paramete
 - The layout where that source image should be.
 - The destination image.
 - The layout where that destination image should be. We are using the same image as a source and as a destination. - The regions to blit.
-- The filter to apply if the blit operation requires scaling. In or case, we select the `linear` (`VK_FILTER_LINEAR`) filter.
+- The filter to apply if the blit operation requires scaling. In our case, we select the `linear` (`VK_FILTER_LINEAR`) filter.
 
 Prior to invoking the `cmdBlitImage` function we need to define the regions by defining a `ImageBlit` array.
 This structure defines the following parameters:

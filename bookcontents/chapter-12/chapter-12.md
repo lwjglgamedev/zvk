@@ -11,7 +11,7 @@ You can find the complete source code for this chapter [here](../../booksamples/
 ## zgui dependencies
 
 We will need to add the [zgui](https://github.com/zig-gamedev/zgui) dependency to the `build.zig.zon` using the command:
-`zig fetch git+https://github.com/zig-gamedev/zgui`.
+`zig fetch --save git+https://github.com/zig-gamedev/zgui`.
 
 We will need to update the `build.zig` file to include the zgui dependency in the `eng` and `root` modules:
 
@@ -36,10 +36,10 @@ pub fn build(b: *std.Build) void {
 
 ## Render the GUI
 
-In this case, we will be rendering the GUI elements over the scene. Since we do not want to apply any kind of filtering and ImGui applies
-gamma correction we will render the GUI after the post-processing stage. We will perform the render in a new struct named `RenderGui` which
-is defined in the `src/eng/renderGui.zig` and you should include in the `mod.zig` file (`pub const rgui = @import("renderGui.zig");`). It
-starts like this:
+In this case, we will be rendering the GUI elements over the scene. Since we do not want to applyany additional filtering, since ImGui
+applies its own gamma correction we will render the GUI after the post-processing stage. We will perform the render in a new struct named
+`RenderGui` which is defined in the `src/eng/renderGui.zig` and you should include in the `mod.zig` file
+(`pub const rgui = @import("renderGui.zig");`). It starts like this:
 
 ```zig
 const com = @import("com");
@@ -281,7 +281,7 @@ for doing that, is that ImGui, by default, will create a file named `imgui.ini` 
 hold the position and size of the GUI elements, so they can be restored to their last positions. We will not be using that feature,
 so we set `null` as the parameter of the `setIniFilename` function to deactivate it. After that, we need to set the `renderer_has_textures`
 flag to true. By setting this we are telling ImGui that our render backend (the render which will be in charge to render to screen) has
-texture capabilities. In addition we will enable dynamic fonts texture which is required by modern ImGui features. After that we set the
+texture capabilities. In addition we will enable dynamic font textures which is required by modern ImGui features. After that we set the
 size of the display to match the render area., in our case, since we will be rendering after the post-processing stage it will
 match swap chain extent.
 

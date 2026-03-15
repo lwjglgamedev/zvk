@@ -7,7 +7,7 @@ You can find the complete source code for this chapter [here](../../booksamples/
 ## Vulkan Memory Allocator (VMA)
 
 [Vulkan Memory Allocator (VMA)](https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator) is a library that will help us to
-allocate memory in Vulkan in an easier and more efficient way. The advantages that this library provides, as stated in the Github page,
+allocate memory in Vulkan in an easier and more efficient way. The advantages that this library provides, as stated in the GitHub page,
 are:
 
 - Reduction of boilerplate code.
@@ -61,7 +61,7 @@ pub fn build(b: *std.Build) void {
 
 You will see we add the usual dependency but we need to:
 - Specify that the `include` directory in the VMA dependency shall be added to the path where Zig looks for C headers.
-- Add Vulkan headers to the the `vk` module so it can be accessed by VMA.
+- Add Vulkan headers to the `vk` module so it can be accessed by VMA.
 - Add a source file to properly link the symbols defined by the VMA header. This file needs to be created manually and is defined like this:
 
 ```c
@@ -267,7 +267,7 @@ pub const VkBuffer = struct {
 
 We need to modify the way the buffer resources are freed. Since the buffer and the associated memory are created in a single call, we can
 now free them by just calling the `vmaDestroyBuffer` function. Map and unmap operations also need to call VMA functions, `vmaMapMemory` for
-mapping the memory and `vmaUnmapMemory` for un-mapping. We have added a new method to flush the contents of CPU mapped buffers if we do not
+mapping the memory and `vmaUnmapMemory` for unmapping. We have added a new method to flush the contents of CPU mapped buffers if we do not
 want to use the coherent flag to do it automatically for us.
 
 
@@ -364,7 +364,7 @@ pub const VkImage = struct {
 ```
 
 The next struct to be modified is the `VkTexture` one. This struct a buffer to store the texture image contents. Since the `VkBuffer`
-`create` function has been modified, we need to update the the code to correctly specify the usage flags.
+`create` function has been modified, we need to update the code to correctly specify the usage flags.
 
 ```zig
 pub const VkTexture = struct {

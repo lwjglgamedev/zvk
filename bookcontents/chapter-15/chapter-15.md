@@ -270,7 +270,7 @@ const VtxBuffDesc = struct {
 };
 ```
 
-We need to modify the `MaterialsCache` struct to to hold the associated information for normal map and metallic-roughness textures and
+We need to modify the `MaterialsCache` struct to hold the associated information for normal map and metallic-roughness textures and
 metallic and roughness factors. First we need to update the `MaterialBuffRecord` struct to include that information:
 
 ```zig
@@ -935,7 +935,7 @@ pub const RenderLight = struct {
 };
 ```
 
-In the `updateSceneInfo` function we e just dump ambient light, camera position, ambient light values and the number of lights that are
+In the `updateSceneInfo` function we just dump ambient light, camera position, ambient light values and the number of lights that are
 active (remember that we have a maximum number of lights, but we can just have just one or two active). 
 
 ```zig
@@ -1156,7 +1156,7 @@ each light contributes to the final color, which is composed by an ambient facto
 
 ## Other modifications
 
-In the `Render` struct, we need to add minimal changes to handle changes in the paremeters of the `cleanup` and `render` functions in the
+In the `Render` struct, we need to add minimal changes to handle changes in the parameters of the `cleanup` and `render` functions in the
 `RenderLight` struct:
 
 ```zig
