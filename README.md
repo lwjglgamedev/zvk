@@ -7,7 +7,7 @@ This [online book](bookcontents/) will introduce the main concepts required to w
 
 This book is the result of my self learning language, that I think it may help the community.
 
-![Sample screen shot](./bookcontents/chapter-15/rc15-screen-shot.png)
+![Sample screen shot](./bookcontents/chapter-16/rc16-screen-shot.png)
 
 
 > [!NOTE]

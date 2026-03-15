@@ -175,8 +175,7 @@ void main() {
         }
     }
     vec3 ambient = ambientLightColor * albedo * ambientLightIntensity * ao;
-    vec3 envReflection = calculateEnvironmentReflection(N, V, albedo, metallic, roughness);
-    vec3 color = ambient + Lo + envReflection;
+    vec3 color = ambient + Lo;
 
     outFragColor = vec4(color, 1.0);
 }

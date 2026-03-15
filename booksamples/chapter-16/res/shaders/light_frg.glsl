@@ -195,35 +195,6 @@ vec3 calculateDirectionalLight(Light light, vec3 V, vec3 N, vec3 F0, vec3 albedo
     return (kD * albedo / PI + specular) * radiance * NdotL;
 }
 
-vec3 calculateEnvironmentReflection(vec3 N, vec3 V, vec3 albedo, float metallic, float roughness) {
-    // Basic reflection vector
-    vec3 R = reflect(-V, N);
-    
-    // For now, use a simple gradient sky
-    float horizon = smoothstep(-0.1, 0.1, R.y);
-    vec3 skyColor = mix(
-        vec3(0.5, 0.7, 1.0),  // Sky blue
-        vec3(0.8, 0.9, 1.0),  // Horizon white
-        horizon
-    );
-    
-    // Ground color
-    vec3 groundColor = vec3(0.2, 0.2, 0.3);
-    
-    // Blend based on reflection direction
-    vec3 envColor = mix(groundColor, skyColor, smoothstep(-0.5, 0.5, R.y));
-    
-    // Fresnel effect for environment
-    vec3 F0 = mix(vec3(0.04), albedo, metallic);
-    vec3 F = F0 + (1.0 - F0) * pow(1.0 - max(dot(N, V), 0.0), 5.0);
-    
-    // Roughness affects blurriness of reflection
-    // Simplified: lower roughness = stronger, clearer reflection
-    float reflectionStrength = (1.0 - roughness) * F.r;
-    
-    return envColor * reflectionStrength;
-}
-
 void main() {
     vec3 albedo   = texture(albedoSampler, inTextCoord).rgb;
     vec3 normal   = texture(normalsSampler, inTextCoord).rgb;
@@ -273,8 +244,7 @@ void main() {
         }
     }
     vec3 ambient = ambientLightColor * albedo * ambientLightIntensity * ao;
-    vec3 envReflection = calculateEnvironmentReflection(N, V, albedo, metallic, roughness);
-    vec3 color = ambient + Lo + envReflection;
+    vec3 color = ambient + Lo;
 
     outFragColor = vec4(color, 1.0);
 
