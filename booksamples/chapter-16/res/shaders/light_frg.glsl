@@ -6,6 +6,7 @@
 
 layout (constant_id = 0) const int SHADOW_MAP_CASCADE_COUNT = 3;
 layout (constant_id = 1) const int DEBUG_SHADOWS = 0;
+layout (constant_id = 2) const int PCF_ENABLED = 1;
 
 layout(location = 0) in vec2 inTextCoord;
 
@@ -18,7 +19,9 @@ layout(set = 0, binding = 3) uniform sampler2D pbrSampler;
 layout(set = 0, binding = 4) uniform sampler2DArray shadowSampler;
 
 const float PI = 3.14159265359;
-const float CASCADE_BLEND_WIDTH = 2.0; // Blend width in view space
+const float CASCADE_BLEND_WIDTH = 2.0;
+const int PCF_SAMPLES = 16;
+const float PCF_NORMAL_BIAS = 0.001;
 
 struct Light {
     vec3 position;
@@ -44,6 +47,25 @@ layout(scalar, set = 3, binding = 0) uniform SceneInfo {
     mat4 viewMatrix;    
 } sceneInfo;
 
+const vec2 poissonDisk[16] = vec2[](
+    vec2(-0.94201624, -0.39906216),
+    vec2(0.94558609, -0.76890725),
+    vec2(-0.094184101, -0.92938870),
+    vec2(0.34495938, 0.29387760),
+    vec2(-0.91588581, 0.45771432),
+    vec2(-0.81544232, -0.87912464),
+    vec2(-0.38277543, 0.27676845),
+    vec2(0.97484398, 0.75648379),
+    vec2(0.44323325, -0.97511554),
+    vec2(0.53742981, -0.47373420),
+    vec2(-0.26496911, -0.41893023),
+    vec2(0.79197514, 0.19090188),
+    vec2(-0.24188840, 0.99706507),
+    vec2(-0.81409955, 0.91437590),
+    vec2(0.19984126, 0.78641367),
+    vec2(0.14383161, -0.14100790)
+);
+
 float chebyshevUpperBound(vec2 moments, float t) {
     // Surface is fully lit if the current fragment is before the light occluder
     if (t <= moments.x)
@@ -63,15 +85,28 @@ float chebyshevUpperBound(vec2 moments, float t) {
     return p_max;
 }
 
-float calcVisibility(vec4 worldPosition, uint cascadeIndex) {
+float calcVisibility(vec4 worldPosition, uint cascadeIndex, vec3 normal) {
     vec4 shadowMapPosition = shadows.cascadeshadows[cascadeIndex].projViewMatrix * worldPosition;
 
     vec2 uv = vec2(shadowMapPosition.x * 0.5 + 0.5, (-shadowMapPosition.y) * 0.5 + 0.5);
     float depth = shadowMapPosition.z;
-    vec2 moments = texture(shadowSampler, vec3(uv, cascadeIndex)).rg;
-
-    float visibility = chebyshevUpperBound(moments, depth);
-    return visibility;
+    
+    if (PCF_ENABLED == 1) {
+        float shadow = 0.0;
+        float depthWithBias = depth - PCF_NORMAL_BIAS;
+        float scale = 1.0 + depth * 0.5;
+        
+        for (int i = 0; i < PCF_SAMPLES; i++) {
+            vec2 offset = poissonDisk[i] * scale / 4096.0;
+            vec2 sampleUv = uv + offset;
+            vec2 moments = texture(shadowSampler, vec3(sampleUv, cascadeIndex)).rg;
+            shadow += chebyshevUpperBound(moments, depthWithBias);
+        }
+        return shadow / float(PCF_SAMPLES);
+    } else {
+        vec2 moments = texture(shadowSampler, vec3(uv, cascadeIndex)).rg;
+        return chebyshevUpperBound(moments, depth);
+    }
 }
 
 float distributionGGX(vec3 N, vec3 H, float roughness) {
@@ -213,16 +248,18 @@ void main() {
     float blendFactor = 0.0;
     vec4 viewPos = sceneInfo.viewMatrix * worldPosW;
     for (uint i = 0; i < SHADOW_MAP_CASCADE_COUNT - 1; ++i) {
-        float nextSplitDist = shadows.cascadeshadows[i].splitDistance - CASCADE_BLEND_WIDTH;
-        if (viewPos.z > nextSplitDist) {
+        if (viewPos.z < shadows.cascadeshadows[i].splitDistance) {
             cascadeIndex = i + 1;
-            blendFactor = clamp((viewPos.z - nextSplitDist) / CASCADE_BLEND_WIDTH, 0.0, 1.0);
+            if (i > 0) {
+                blendFactor = clamp((viewPos.z - shadows.cascadeshadows[i].splitDistance) / 
+                                   (shadows.cascadeshadows[i - 1].splitDistance - shadows.cascadeshadows[i].splitDistance), 0.0, 1.0);
+            }
         }
     }
     
-    shadow = calcVisibility(vec4(worldPos, 1), cascadeIndex);
+    shadow = calcVisibility(vec4(worldPos, 1), cascadeIndex, N);
     if (cascadeIndex > 0 && blendFactor > 0.0) {
-        float shadowPrev = calcVisibility(vec4(worldPos, 1), cascadeIndex - 1);
+        float shadowPrev = calcVisibility(vec4(worldPos, 1), cascadeIndex - 1, N);
         shadow = mix(shadow, shadowPrev, blendFactor);
     }
 
