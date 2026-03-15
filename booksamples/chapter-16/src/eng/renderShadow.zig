@@ -127,6 +127,11 @@ pub fn updateCascadeShadows(
 
         sphereRadius = std.math.ceil(sphereRadius * 16.0) / 16.0;
 
+        const shadowMapSize: f32 = @as(f32, @floatFromInt(constants.shadowMapSize));
+        const texelSize = sphereRadius * 2.0 / shadowMapSize;
+        frustumCenter[0] = @floor(frustumCenter[0] / texelSize) * texelSize;
+        frustumCenter[1] = @floor(frustumCenter[1] / texelSize) * texelSize;
+
         const maxExtents = zm.f32x4(sphereRadius, sphereRadius, sphereRadius, 0);
         const minExtents = maxExtents * @as(@Vector(4, f32), @splat(-1.0));
 
@@ -142,7 +147,6 @@ pub fn updateCascadeShadows(
         const far = maxExtents[2] - minExtents[2];
         var lightOrtho = orthoVulkan(minExtents[0], maxExtents[0], minExtents[1], maxExtents[1], 0.0, far);
         // Stabilize shadow
-        const shadowMapSize: f32 = @as(f32, @floatFromInt(constants.shadowMapSize));
 
         var shadowOrigin = zm.f32x4(0, 0, 0, 1);
         shadowOrigin = zm.mul(shadowOrigin, zm.mul(lightOrtho, lightView));

@@ -18,6 +18,7 @@ layout(set = 0, binding = 3) uniform sampler2D pbrSampler;
 layout(set = 0, binding = 4) uniform sampler2DArray shadowSampler;
 
 const float PI = 3.14159265359;
+const float CASCADE_BLEND_WIDTH = 2.0; // Blend width in view space
 
 struct Light {
     vec3 position;
@@ -208,13 +209,22 @@ void main() {
     F0 = mix(F0, albedo, metallic);
 
     uint cascadeIndex = 0;
+    float shadow = 0.0;
+    float blendFactor = 0.0;
     vec4 viewPos = sceneInfo.viewMatrix * worldPosW;
     for (uint i = 0; i < SHADOW_MAP_CASCADE_COUNT - 1; ++i) {
-        if (viewPos.z < shadows.cascadeshadows[i].splitDistance) {
+        float nextSplitDist = shadows.cascadeshadows[i].splitDistance - CASCADE_BLEND_WIDTH;
+        if (viewPos.z > nextSplitDist) {
             cascadeIndex = i + 1;
+            blendFactor = clamp((viewPos.z - nextSplitDist) / CASCADE_BLEND_WIDTH, 0.0, 1.0);
         }
     }
-    float shadow = calcVisibility(vec4(worldPos, 1), cascadeIndex);
+    
+    shadow = calcVisibility(vec4(worldPos, 1), cascadeIndex);
+    if (cascadeIndex > 0 && blendFactor > 0.0) {
+        float shadowPrev = calcVisibility(vec4(worldPos, 1), cascadeIndex - 1);
+        shadow = mix(shadow, shadowPrev, blendFactor);
+    }
 
     vec3 Lo = vec3(0.0);
     for (uint i = 0; i < sceneInfo.numLights; i++) {
