@@ -1,4 +1,7 @@
 #version 450
+#extension GL_EXT_multiview : enable
+
+#define SHADOW_MAP_CASCADE_COUNT 3
 
 layout(location = 0) in vec3 entityPos;
 layout(location = 1) in vec3 entityNormal;
@@ -13,10 +16,15 @@ layout(push_constant) uniform matrices {
 layout (location = 0) out vec2 outTextCoord;
 layout (location = 1) out flat uint outMaterialIdx;
 
+layout(set = 0, binding = 0) uniform ProjUniforms {
+    mat4 projViewMatrices[SHADOW_MAP_CASCADE_COUNT];
+} projUniforms;
+
 void main()
 {
     outTextCoord   = entityTextCoords;
     outMaterialIdx = push_constants.materialIdx;
 
-    gl_Position = push_constants.modelMatrix * vec4(entityPos, 1.0f);
+    vec4 worldPos = push_constants.modelMatrix * vec4(entityPos, 1.0f);
+    gl_Position = projUniforms.projViewMatrices[gl_ViewIndex] * worldPos;
 }

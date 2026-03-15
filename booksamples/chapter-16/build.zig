@@ -112,7 +112,6 @@ pub fn build(b: *std.Build) void {
         .{ .path = "res/shaders/gui_vtx.glsl", .stage = "vertex" },
         .{ .path = "res/shaders/gui_frg.glsl", .stage = "fragment" },
         .{ .path = "res/shaders/shadow_vtx.glsl", .stage = "vertex" },
-        .{ .path = "res/shaders/shadow_geom.glsl", .stage = "geometry" },
         .{ .path = "res/shaders/shadow_frg.glsl", .stage = "fragment" },
     };
     for (shaders) |shader| {

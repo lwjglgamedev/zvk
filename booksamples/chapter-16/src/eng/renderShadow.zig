@@ -233,13 +233,6 @@ pub const RenderShadow = struct {
         }, null);
         defer vkCtx.vkDevice.deviceProxy.destroyShaderModule(vert, null);
 
-        const geomCode align(@alignOf(u32)) = try com.utils.loadFile(arena.allocator(), "res/shaders/shadow_geom.glsl.spv");
-        const geom = try vkCtx.vkDevice.deviceProxy.createShaderModule(&.{
-            .code_size = geomCode.len,
-            .p_code = @ptrCast(@alignCast(geomCode)),
-        }, null);
-        defer vkCtx.vkDevice.deviceProxy.destroyShaderModule(geom, null);
-
         const fragCode align(@alignOf(u32)) = try com.utils.loadFile(arena.allocator(), "res/shaders/shadow_frg.glsl.spv");
         const frag = try vkCtx.vkDevice.deviceProxy.createShaderModule(&.{
             .code_size = fragCode.len,
@@ -247,10 +240,9 @@ pub const RenderShadow = struct {
         }, null);
         defer vkCtx.vkDevice.deviceProxy.destroyShaderModule(frag, null);
 
-        const modulesInfo = try allocator.alloc(vk.pipe.ShaderModuleInfo, 3);
+        const modulesInfo = try allocator.alloc(vk.pipe.ShaderModuleInfo, 2);
         modulesInfo[0] = .{ .module = vert, .stage = .{ .vertex_bit = true } };
-        modulesInfo[1] = .{ .module = geom, .stage = .{ .geometry_bit = true } };
-        modulesInfo[2] = .{ .module = frag, .stage = .{ .fragment_bit = true } };
+        modulesInfo[1] = .{ .module = frag, .stage = .{ .fragment_bit = true } };
         defer allocator.free(modulesInfo);
 
         // Textures
@@ -269,7 +261,7 @@ pub const RenderShadow = struct {
                 .binding = 0,
                 .descCount = 1,
                 .descType = vulkan.DescriptorType.uniform_buffer,
-                .stageFlags = vulkan.ShaderStageFlags{ .geometry_bit = true },
+                .stageFlags = vulkan.ShaderStageFlags{ .vertex_bit = true },
             }},
         );
         const descLayoutFrgSt = try vk.desc.VkDescSetLayout.create(
@@ -324,6 +316,7 @@ pub const RenderShadow = struct {
                 .attribute_description = @constCast(&eng.rscn.VtxBuffDesc.attribute_description)[0..],
                 .binding_description = eng.rscn.VtxBuffDesc.binding_description,
             },
+            .viewMask = 0b111, // 3 cascades = bits 0,1,2 set
         };
 
         const vkPipeline = try vk.pipe.VkPipeline.create(allocator, vkCtx, &vkPipelineCreateInfo);
@@ -445,11 +438,11 @@ pub const RenderShadow = struct {
         const extent = vulkan.Extent2D{ .width = self.attColor.vkImage.width, .height = self.attColor.vkImage.height };
         const renderInfo = vulkan.RenderingInfo{
             .render_area = .{ .extent = extent, .offset = .{ .x = 0, .y = 0 } },
-            .layer_count = SHADOW_MAP_CASCADE_COUNT,
+            .layer_count = 1,
             .color_attachment_count = @as(u32, @intCast(renderAttInfos.len)),
             .p_color_attachments = &renderAttInfos,
             .p_depth_attachment = &depthAttInfo,
-            .view_mask = 0,
+            .view_mask = 0b111,
         };
 
         device.cmdBeginRendering(cmdHandle, @ptrCast(&renderInfo));

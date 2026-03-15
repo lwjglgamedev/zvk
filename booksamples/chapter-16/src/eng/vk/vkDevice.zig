@@ -28,7 +28,11 @@ pub const VkDevice = struct {
         else
             2;
 
+        const featuresMultiview = vulkan.PhysicalDeviceMultiviewFeatures{
+            .multiview = vulkan.Bool32.true,
+        };
         const features3 = vulkan.PhysicalDeviceVulkan13Features{
+            .p_next = @constCast(&featuresMultiview),
             .dynamic_rendering = vulkan.Bool32.true,
             .shader_demote_to_helper_invocation = vulkan.Bool32.true,
             .synchronization_2 = vulkan.Bool32.true,

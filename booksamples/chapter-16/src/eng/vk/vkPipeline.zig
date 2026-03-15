@@ -16,6 +16,7 @@ pub const VkPipelineCreateInfo = struct {
     pushConstants: ?[]const vulkan.PushConstantRange,
     useBlend: bool,
     vtxBuffDesc: VtxBuffDesc,
+    viewMask: u32 = 0,
 };
 
 const VtxBuffDesc = struct {
@@ -107,7 +108,7 @@ pub const VkPipeline = struct {
         const renderCreateInfo = vulkan.PipelineRenderingCreateInfo{
             .color_attachment_count = @as(u32, @intCast(createInfo.colorFormats.len)),
             .p_color_attachment_formats = createInfo.colorFormats.ptr,
-            .view_mask = 0,
+            .view_mask = createInfo.viewMask,
             .depth_attachment_format = createInfo.depthFormat,
             .stencil_attachment_format = vulkan.Format.undefined,
         };
