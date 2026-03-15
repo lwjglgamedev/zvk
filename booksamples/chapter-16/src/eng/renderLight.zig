@@ -5,7 +5,7 @@ const vk = @import("vk");
 const vulkan = @import("vulkan");
 const zm = @import("zmath");
 
-const CASCADE_INFO_BYTES_SIZE: u32 = 80;
+const CASCADE_INFO_BYTES_SIZE: u32 = @sizeOf(zm.Mat) + @sizeOf(f32);
 pub const COLOR_ATTACHMENT_FORMAT = vulkan.Format.r32g32b32a32_sfloat;
 const DESC_ID_CASCADE_SHADOWS = "RENDER_LIGHT_CASCADE_SHADOWS_ID";
 const DESC_ID_LIGHT_TEXT_SAMPLER = "RENDER_LIGHT_DESC_ID_TEXT";

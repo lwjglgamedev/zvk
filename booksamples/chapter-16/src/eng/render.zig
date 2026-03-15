@@ -149,7 +149,7 @@ pub const Render = struct {
 
         const renderGui = try eng.rgui.RenderGui.create(allocator, &vkCtx);
         const renderScn = try eng.rscn.RenderScn.create(allocator, &vkCtx);
-        const renderShadow = try eng.rsha.RenderShadow.create(allocator, &vkCtx);
+        const renderShadow = try eng.rsha.RenderShadow.create(allocator, &vkCtx, constants);
         const attachments = try allocator.alloc(eng.rend.Attachment, renderScn.attachments.len + 1);
         defer allocator.free(attachments);
         for (0..renderScn.attachments.len) |i| {

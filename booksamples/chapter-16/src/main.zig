@@ -20,7 +20,6 @@ pub fn main() !void {
 const Game = struct {
     const ENTITY_ID: []const u8 = "SponzaEntity";
 
-    //lightAngle: f32 = 140.0,
     lightAngle: f32 = 90.0,
 
     pub fn cleanup(self: *Game) void {
@@ -44,8 +43,7 @@ const Game = struct {
 
         var viewData = &engCtx.scene.camera.viewData;
         viewData.pos = zm.Vec{ 0.0, 3.0, -4.0, 0.0 };
-        viewData.recalculate();
-        //viewData.addRotation(std.math.degreesToRadians(0), std.math.degreesToRadians(90));
+        viewData.addRotation(std.math.degreesToRadians(0), std.math.degreesToRadians(90));
 
         engCtx.scene.ambientLight = zm.Vec{ 1.0, 1.0, 1.0, 0.9 };
 
@@ -121,7 +119,7 @@ const Game = struct {
             if (light.directional) {
                 var buf3: [32:0]u8 = undefined;
                 const posId = try std.fmt.bufPrintZ(&buf3, "Angle-{d}", .{i});
-                if (zgui.dragFloat(posId, .{ .v = &self.lightAngle, .speed = 1.00 })) {
+                if (zgui.dragFloat(posId, .{ .v = &self.lightAngle, .speed = 0.50 })) {
                     if (self.lightAngle < 0) {
                         self.lightAngle = 0;
                     } else if (self.lightAngle > 180) {

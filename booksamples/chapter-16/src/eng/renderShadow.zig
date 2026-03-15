@@ -214,9 +214,9 @@ pub const RenderShadow = struct {
         self.buffShadowCascades.cleanup(vkCtx);
     }
 
-    pub fn create(allocator: std.mem.Allocator, vkCtx: *vk.ctx.VkCtx) !RenderShadow {
-        const attColor = try createColorAttachment(vkCtx);
-        const attDepth = try createDepthAttachment(vkCtx);
+    pub fn create(allocator: std.mem.Allocator, vkCtx: *vk.ctx.VkCtx, constants: com.common.Constants) !RenderShadow {
+        const attColor = try createColorAttachment(vkCtx, constants.shadowMapSize);
+        const attDepth = try createDepthAttachment(vkCtx, constants.shadowMapSize);
         const cascadeShadows = [SHADOW_MAP_CASCADE_COUNT]CascadeData{ .{}, .{}, .{} };
 
         // Shader modules
@@ -336,8 +336,7 @@ pub const RenderShadow = struct {
         };
     }
 
-    fn createColorAttachment(vkCtx: *const vk.ctx.VkCtx) !eng.rend.Attachment {
-        const extent = vkCtx.vkSwapChain.extent;
+    fn createColorAttachment(vkCtx: *const vk.ctx.VkCtx, shadowMapSize: u32) !eng.rend.Attachment {
         const flags = vulkan.ImageUsageFlags{
             .color_attachment_bit = true,
             .sampled_bit = true,
@@ -345,23 +344,22 @@ pub const RenderShadow = struct {
 
         return try eng.rend.Attachment.create(
             vkCtx,
-            extent.width,
-            extent.height,
+            shadowMapSize,
+            shadowMapSize,
             COLOR_ATTACHMENT_FORMAT,
             flags,
             SHADOW_MAP_CASCADE_COUNT,
         );
     }
 
-    fn createDepthAttachment(vkCtx: *const vk.ctx.VkCtx) !eng.rend.Attachment {
-        const extent = vkCtx.vkSwapChain.extent;
+    fn createDepthAttachment(vkCtx: *const vk.ctx.VkCtx, shadowMapSize: u32) !eng.rend.Attachment {
         const flags = vulkan.ImageUsageFlags{
             .depth_stencil_attachment_bit = true,
         };
         return try eng.rend.Attachment.create(
             vkCtx,
-            extent.width,
-            extent.height,
+            shadowMapSize,
+            shadowMapSize,
             DEPTH_FORMAT,
             flags,
             SHADOW_MAP_CASCADE_COUNT,
@@ -440,7 +438,7 @@ pub const RenderShadow = struct {
             .resolve_image_layout = vulkan.ImageLayout.undefined,
         };
 
-        const extent = vkCtx.vkSwapChain.extent;
+        const extent = vulkan.Extent2D{ .width = self.attColor.vkImage.width, .height = self.attColor.vkImage.height };
         const renderInfo = vulkan.RenderingInfo{
             .render_area = .{ .extent = extent, .offset = .{ .x = 0, .y = 0 } },
             .layer_count = SHADOW_MAP_CASCADE_COUNT,

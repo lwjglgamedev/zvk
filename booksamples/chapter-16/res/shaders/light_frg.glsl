@@ -220,14 +220,14 @@ void main() {
     for (uint i = 0; i < sceneInfo.numLights; i++) {
         Light light = lights.lights[i];
         if (light.directional == 1) {
-            Lo += calculateDirectionalLight(light, V, N, F0, albedo, metallic, roughness);
+            Lo += calculateDirectionalLight(light, V, N, F0, albedo, metallic, roughness) * shadow;
         } else {
             Lo += calculatePointLight(light, worldPos, V, N, F0, albedo, metallic, roughness);
         }
     }
     vec3 ambient = ambientLightColor * albedo * ambientLightIntensity * ao;
     vec3 envReflection = calculateEnvironmentReflection(N, V, albedo, metallic, roughness);
-    vec3 color = ambient + Lo * shadow + envReflection;
+    vec3 color = ambient + Lo + envReflection;
 
     outFragColor = vec4(color, 1.0);
 
