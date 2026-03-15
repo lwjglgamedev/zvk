@@ -834,14 +834,15 @@ pub const TextureCache = struct {
 
         try cmd.begin(vkCtx);
         const cmdHandle = cmd.cmdBuffProxy.handle;
-        var it = self.textureMap.iterator();
-        while (it.next()) |entry| {
+        var it1 = self.textureMap.iterator();
+        while (it1.next()) |entry| {
             entry.value_ptr.*.recordTransition(vkCtx, cmdHandle);
         }
         try cmd.end(vkCtx);
         try cmd.submitAndWait(vkCtx, vkQueue);
 
-        while (it.next()) |entry| {
+        var it2 = self.textureMap.iterator();
+        while (it2.next()) |entry| {
             entry.value_ptr.*.cleanupStgBuffer(vkCtx);
         }
         log.debug("Recorded [{d}] texture(s)", .{numTextures});
