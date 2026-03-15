@@ -305,7 +305,7 @@ pub const VkDesSet = struct {
 
         const descSets = [_]vulkan.WriteDescriptorSet{.{
             .dst_set = self.descSet,
-            .descriptor_count = @as(u23, @intCast(imageInfos.len)),
+            .descriptor_count = @as(u32, @intCast(imageInfos.len)),
             .dst_binding = binding,
             .descriptor_type = vulkan.DescriptorType.combined_image_sampler,
             .p_buffer_info = &bufferInfo,

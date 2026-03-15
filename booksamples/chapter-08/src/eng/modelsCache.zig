@@ -249,7 +249,7 @@ pub const ModelsCache = struct {
                     .buffVtx = dstVtxBuffer,
                     .id = try allocator.dupe(u8, meshData.id),
                     .materialId = try allocator.dupe(u8, meshData.materialId),
-                    .numIndices = indicesSize / @sizeOf(u23),
+                    .numIndices = indicesSize / @sizeOf(u32),
                 };
                 try vulkanMeshes.append(allocator, vulkanMesh);
 
