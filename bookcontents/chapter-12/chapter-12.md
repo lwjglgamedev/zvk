@@ -11,7 +11,7 @@ You can find the complete source code for this chapter [here](../../booksamples/
 ## zgui dependencies
 
 We will need to add the [zgui](https://github.com/zig-gamedev/zgui) dependency to the `build.zig.zon` using the command:
-`zig fetch --save git+https://github.com/zig-gamedev/zgui`.
+`zig fetch --save git+https://github.com/zig-gamedev/zgui#d6c4f53c2fbd54673790dc2a5208160a3586ef29`.
 
 We will need to update the `build.zig` file to include the zgui dependency in the `eng` and `root` modules:
 

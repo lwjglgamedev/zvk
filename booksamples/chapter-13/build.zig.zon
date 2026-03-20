@@ -29,19 +29,19 @@
             .hash = "zmath-0.11.0-dev-wjwivdMsAwD-xaLj76YHUq3t9JDH-X16xuMTmnDzqbu2",
         },
         .zmesh = .{
-            .url = "git+https://github.com/zig-gamedev/zmesh#36ec42e7e77b2cade7776eb3e91e3e290293a864",
+            .url = "git+https://github.com/zig-gamedev/zmesh#a9c23ba7440b8c03cbc2bec89a3285fe84cbb50f",
             .hash = "zmesh-0.11.0-dev-oO3A5rR7CgCTMzfdKOhWW-OIyL4-7mlxXzBef_62fbHb",
         },
         .zstbi = .{
-            .url = "git+https://github.com/zig-gamedev/zstbi#2c4b3100ccb7aed90ecc9439030899764e2a8d47",
+            .url = "git+https://github.com/zig-gamedev/zstbi#664305dd52640be15cbebd7cd73d1199679933e1",
             .hash = "zstbi-0.11.0-dev-L0Ea_yaWBwAHwFoCuyjkFyaiSsbjt4UOrkntR0c_nmzz",
         },
         .zgui = .{
-            .url = "git+https://github.com/zig-gamedev/zgui#f1c6c5bab3e580bf4dafdae186edaba6717ff89f",
+            .url = "git+https://github.com/zig-gamedev/zgui#d6c4f53c2fbd54673790dc2a5208160a3586ef29",
             .hash = "zgui-0.6.0-dev--L6sZCLzbQBM1I4oIbtd5_ClKk9rNExPOCYkCMP_TZad",
         },
         .zaudio = .{
-            .url = "git+https://github.com/zig-gamedev/zaudio#bb93ad665b89e302d4515a36b44cb8e73eaf6766",
+            .url = "git+https://github.com/zig-gamedev/zaudio#e5b89fde58be72de359089e9b8f5c4d5126fb159",
             .hash = "zaudio-0.11.0-dev-_M-91kHvPwAlW8MCRI4XiTbTeihqB8Zspgiuw-6Gqgdz",
         },
     },

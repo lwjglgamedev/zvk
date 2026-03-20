@@ -29,11 +29,11 @@
             .hash = "zmath-0.11.0-dev-wjwivdMsAwD-xaLj76YHUq3t9JDH-X16xuMTmnDzqbu2",
         },
         .zmesh = .{
-            .url = "git+https://github.com/zig-gamedev/zmesh#36ec42e7e77b2cade7776eb3e91e3e290293a864",
+            .url = "git+https://github.com/zig-gamedev/zmesh#a9c23ba7440b8c03cbc2bec89a3285fe84cbb50f",
             .hash = "zmesh-0.11.0-dev-oO3A5rR7CgCTMzfdKOhWW-OIyL4-7mlxXzBef_62fbHb",
         },
         .zstbi = .{
-            .url = "git+https://github.com/zig-gamedev/zstbi#2c4b3100ccb7aed90ecc9439030899764e2a8d47",
+            .url = "git+https://github.com/zig-gamedev/zstbi#664305dd52640be15cbebd7cd73d1199679933e1",
             .hash = "zstbi-0.11.0-dev-L0Ea_yaWBwAHwFoCuyjkFyaiSsbjt4UOrkntR0c_nmzz",
         },
     },

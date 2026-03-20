@@ -7,7 +7,7 @@ You can find the complete source code for this chapter [here](../../booksamples/
 ## ZMesh and zstbi
 
 In order to load complex models from disk we will use the [ZMesh](https://github.com/zig-gamedev/zmesh) library. Therefore, you will need
-to add the dependency to the `build.zig.zon` using `zig fetch --save git+https://github.com/zig-gamedev/zmesh`.
+to add the dependency to the `build.zig.zon` using `zig fetch --save git+https://github.com/zig-gamedev/zmesh#a9c23ba7440b8c03cbc2bec89a3285fe84cbb50f`.
 
 We will create a new executable to process 3D models ([GLTF](https://github.com/KhronosGroup/glTF) models in our case). This executable will
 process a 3D model and will generate the required files to load the model data into Vulkan. Therefore, in the `build.zig` file we will add
@@ -34,7 +34,7 @@ pub fn build(b: *std.Build) void {
 The code for that executable will be located in the `src/eng/modelGen.zig` file.
 
 Since we will also need to load textures, we will use the [Zstbi](https://github.com/zig-gamedev/zstbi) library. Therefore, you will need to
-add the dependency to the `build-.zig.zon` using `zig fetch --save git+https://github.com/zig-gamedev/zstbi`.
+add the dependency to the `build-.zig.zon` using `zig fetch --save git+https://github.com/zig-gamedev/zstbi#664305dd52640be15cbebd7cd73d1199679933e1`.
 
 In the `build.zig` file we need to define the zstbi dependency and add it to the `eng` and the root modules:
 
