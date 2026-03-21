@@ -5,14 +5,14 @@ const vk = @import("vk");
 const vulkan = @import("vulkan");
 const zm = @import("zmath");
 
-const VtxBuffDesc = struct {
-    const binding_description = vulkan.VertexInputBindingDescription{
+pub const VtxBuffDesc = struct {
+    pub const binding_description = vulkan.VertexInputBindingDescription{
         .binding = 0,
         .stride = @sizeOf(VtxBuffDesc),
         .input_rate = .vertex,
     };
 
-    const attribute_description = [_]vulkan.VertexInputAttributeDescription{
+    pub const attribute_description = [_]vulkan.VertexInputAttributeDescription{
         .{
             .binding = 0,
             .location = 0,

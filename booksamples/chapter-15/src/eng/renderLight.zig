@@ -25,7 +25,7 @@ pub const RenderLight = struct {
     buffsLights: []vk.buf.VkBuffer,
     buffsSceneInfo: []vk.buf.VkBuffer,
     descLayoutAtt: vk.desc.VkDescSetLayout,
-    descLayoutLights: vk.desc.VkDescSetLayout,
+    descLayoutArr: vk.desc.VkDescSetLayout,
     descLayoutScene: vk.desc.VkDescSetLayout,
     outputAtt: eng.rend.Attachment,
     textSampler: vk.text.VkTextSampler,
@@ -41,7 +41,7 @@ pub const RenderLight = struct {
         }
         allocator.free(self.buffsSceneInfo);
         self.descLayoutAtt.cleanup(vkCtx);
-        self.descLayoutLights.cleanup(vkCtx);
+        self.descLayoutArr.cleanup(vkCtx);
         self.descLayoutScene.cleanup(vkCtx);
         self.outputAtt.cleanup(vkCtx);
         self.vkPipeline.cleanup(vkCtx);
@@ -114,7 +114,7 @@ pub const RenderLight = struct {
         try attDescSet.setImages(allocator, vkCtx.vkDevice, imageViews, textSampler, 0);
 
         // Descriptor set: Lights
-        const descLayoutLights = try vk.desc.VkDescSetLayout.create(allocator, vkCtx, &[_]vk.desc.LayoutInfo{.{
+        const descLayoutArr = try vk.desc.VkDescSetLayout.create(allocator, vkCtx, &[_]vk.desc.LayoutInfo{.{
             .binding = 0,
             .descCount = 1,
             .descType = vulkan.DescriptorType.storage_buffer,
@@ -127,7 +127,7 @@ pub const RenderLight = struct {
             com.common.FRAMES_IN_FLIGHT,
             @sizeOf(eng.scn.Light) * eng.scn.MAX_LIGHTS,
             .{ .storage_buffer_bit = true },
-            descLayoutLights,
+            descLayoutArr,
         );
 
         // Descriptor set: SceneInfo
@@ -149,7 +149,7 @@ pub const RenderLight = struct {
 
         const descSetLayouts = [_]vulkan.DescriptorSetLayout{
             descLayoutAtt.descSetLayout,
-            descLayoutLights.descSetLayout,
+            descLayoutArr.descSetLayout,
             descLayoutScene.descSetLayout,
         };
 
@@ -172,7 +172,7 @@ pub const RenderLight = struct {
             .buffsLights = buffsLights,
             .buffsSceneInfo = buffsSceneInfo,
             .descLayoutAtt = descLayoutAtt,
-            .descLayoutLights = descLayoutLights,
+            .descLayoutArr = descLayoutArr,
             .descLayoutScene = descLayoutScene,
             .outputAtt = outputAtt,
             .textSampler = textSampler,

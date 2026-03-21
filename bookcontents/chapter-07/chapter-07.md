@@ -251,14 +251,14 @@ we will reuse in next chapters, we will add texture coordinates. Although we wil
 components to pass some color information (at lest for two color channels). We need to modify the `VtxBuffDesc` struct in this way:
 
 ```zig
-const VtxBuffDesc = struct {
-    const binding_description = vulkan.VertexInputBindingDescription{
+pub const VtxBuffDesc = struct {
+    pub const binding_description = vulkan.VertexInputBindingDescription{
         .binding = 0,
         .stride = @sizeOf(VtxBuffDesc),
         .input_rate = .vertex,
     };
 
-    const attribute_description = [_]vulkan.VertexInputAttributeDescription{
+    pub const attribute_description = [_]vulkan.VertexInputAttributeDescription{
         .{
             .binding = 0,
             .location = 0,

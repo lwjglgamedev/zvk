@@ -34,8 +34,8 @@ pub const RenderLight = struct {
     buffsCascadeShadows: []vk.buf.VkBuffer,
     buffsLights: []vk.buf.VkBuffer,
     buffsSceneInfo: []vk.buf.VkBuffer,
-    descLayoutArr: vk.desc.VkDescSetLayout,
     descLayoutAtt: vk.desc.VkDescSetLayout,
+    descLayoutArr: vk.desc.VkDescSetLayout,
     descLayoutScene: vk.desc.VkDescSetLayout,
     outputAtt: eng.rend.Attachment,
     textSampler: vk.text.VkTextSampler,
@@ -441,7 +441,7 @@ pub const RenderLight = struct {
             @memcpy(gpuBytes[offset..], projViewMatrixPtr[0..@sizeOf(zm.Mat)]);
             offset += @sizeOf(zm.Mat);
 
-            const splitDistBytes = std.mem.toBytes(cascadeData.floatDistance);
+            const splitDistBytes = std.mem.toBytes(cascadeData.splitDist);
             @memcpy(gpuBytes[offset..], &splitDistBytes);
             offset += 4;
         }

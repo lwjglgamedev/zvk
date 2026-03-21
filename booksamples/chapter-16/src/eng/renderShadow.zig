@@ -5,15 +5,15 @@ const vk = @import("vk");
 const vulkan = @import("vulkan");
 const zm = @import("zmath");
 
+pub const CascadeData = struct {
+    splitDist: f32 = 0,
+    projViewMatrix: zm.Mat = zm.identity(),
+};
+
 const LAMBDA: f32 = 0.95;
 pub const SHADOW_MAP_CASCADE_COUNT: u32 = 3;
 const UP = zm.f32x4(0.0, 1.0, 0.0, 0.0);
 const UP_ALT = zm.f32x4(0.0, 0.0, 1.0, 0.0);
-
-pub const CascadeData = struct {
-    floatDistance: f32 = 0,
-    projViewMatrix: zm.Mat = zm.identity(),
-};
 
 // Function are derived from Vulkan examples from Sascha Willems, and licensed under the MIT License:
 // https://github.com/SaschaWillems/Vulkan/tree/master/examples/shadowmappingcascade, which are based on
@@ -57,7 +57,6 @@ pub fn updateCascadeShadows(
     const ratio = maxZ / minZ;
 
     const numCascades = cascadeShadows.len;
-
     // Calculate split depths based on view camera frustum
     // Based on method presented in https://developer.nvidia.com/gpugems/GPUGems3/gpugems3_ch10.html
     for (0..numCascades) |i| {
@@ -146,8 +145,8 @@ pub fn updateCascadeShadows(
         const lightView = zm.lookAtRh(shadowCamPos, frustumCenter, up);
         const far = maxExtents[2] - minExtents[2];
         var lightOrtho = orthoVulkan(minExtents[0], maxExtents[0], minExtents[1], maxExtents[1], 0.0, far);
-        // Stabilize shadow
 
+        // Stabilize shadow
         var shadowOrigin = zm.f32x4(0, 0, 0, 1);
         shadowOrigin = zm.mul(shadowOrigin, zm.mul(lightOrtho, lightView));
         const scale = shadowMapSize / 2.0;
@@ -168,7 +167,7 @@ pub fn updateCascadeShadows(
         lightOrtho[3][1] += roundOffset[1];
 
         const cascadeData = &cascadeShadows[i];
-        cascadeData.floatDistance = (nearClip + splitDist * clipRange) * -1.0;
+        cascadeData.splitDist = (nearClip + splitDist * clipRange) * -1.0;
 
         cascadeData.projViewMatrix = zm.mul(lightView, lightOrtho);
 
@@ -191,7 +190,7 @@ const PushConstantsVtx = struct {
 };
 
 const COLOR_ATTACHMENT_FORMAT = vulkan.Format.r32g32_sfloat;
-const DEPTH_FORMAT = vulkan.Format.d16_unorm;
+const DEPTH_FORMAT = vulkan.Format.d32_sfloat;
 const DESC_ID_MAT = "SHADOW_DESC_ID_MAT";
 const DESC_ID_PRJ = "SHADOW_DESC_ID_PRJ";
 const DESC_ID_TEXTS = "SHADOW_DESC_ID_TEXTS";
@@ -485,8 +484,7 @@ pub const RenderShadow = struct {
 
         try self.updateShadowUniforms(vkCtx);
 
-        self.renderEntities(vkCtx, engCtx, modelsCache, materialsCache, cmdHandle, false);
-        self.renderEntities(vkCtx, engCtx, modelsCache, materialsCache, cmdHandle, true);
+        self.renderEntities(vkCtx, engCtx, modelsCache, materialsCache, cmdHandle);
 
         device.cmdEndRendering(cmdHandle);
 
@@ -500,7 +498,6 @@ pub const RenderShadow = struct {
         modelsCache: *const eng.mcach.ModelsCache,
         materialsCache: *const eng.mcach.MaterialsCache,
         cmdHandle: vulkan.CommandBuffer,
-        transparent: bool,
     ) void {
         const device = vkCtx.vkDevice.deviceProxy;
         const offset = [_]vulkan.DeviceSize{0};
@@ -514,10 +511,6 @@ pub const RenderShadow = struct {
                     var materialIdx: u32 = 0;
                     if (materialsCache.materialsMap.getIndex(mesh.materialId)) |idx| {
                         materialIdx = @as(u32, @intCast(idx));
-                        const material = materialsCache.materialsMap.get(mesh.materialId).?;
-                        if (material.transparent != transparent) {
-                            continue;
-                        }
                     }
                     self.setPushConstants(vkCtx, cmdHandle, entity, materialIdx);
                     device.cmdBindIndexBuffer(cmdHandle, mesh.buffIdx.buffer, 0, vulkan.IndexType.uint32);
@@ -629,12 +622,6 @@ pub const RenderShadow = struct {
         const buffData = try self.buffShadowCascades.map(vkCtx);
         defer self.buffShadowCascades.unMap(vkCtx);
         const gpuBytes: [*]u8 = @ptrCast(buffData);
-
-        // TODO: Remove this Temporary debug: make matrices obviously different
-        //for (0..self.cascadeShadows.len) |i| {
-        //    const scale = @as(f32, @floatFromInt(i + 1));
-        //    self.cascadeShadows[i].projViewMatrix = zm.scaling(scale, scale, scale);
-        //}
 
         var offset: u32 = 0;
         for (0..self.cascadeShadows.len) |i| {

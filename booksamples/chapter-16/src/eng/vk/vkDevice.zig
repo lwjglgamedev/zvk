@@ -42,7 +42,6 @@ pub const VkDevice = struct {
             .scalar_block_layout = vulkan.Bool32.true,
         };
         const features = vulkan.PhysicalDeviceFeatures{
-            .geometry_shader = vulkan.Bool32.true,
             .sampler_anisotropy = vkPhysDevice.features.sampler_anisotropy,
         };
 

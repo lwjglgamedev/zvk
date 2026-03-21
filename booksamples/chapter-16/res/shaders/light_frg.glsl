@@ -6,7 +6,7 @@
 
 layout (constant_id = 0) const int SHADOW_MAP_CASCADE_COUNT = 3;
 layout (constant_id = 1) const int DEBUG_SHADOWS = 0;
-layout (constant_id = 2) const int PCF_ENABLED = 1;
+layout (constant_id = 2) const int SAMPLING = 1;
 
 layout(location = 0) in vec2 inTextCoord;
 
@@ -91,7 +91,7 @@ float calcVisibility(vec4 worldPosition, uint cascadeIndex, vec3 normal) {
     vec2 uv = vec2(shadowMapPosition.x * 0.5 + 0.5, (-shadowMapPosition.y) * 0.5 + 0.5);
     float depth = shadowMapPosition.z;
     
-    if (PCF_ENABLED == 1) {
+    if (SAMPLING == 1) {
         float shadow = 0.0;
         float depthWithBias = depth - PCF_NORMAL_BIAS;
         float scale = 1.0 + depth * 0.5;

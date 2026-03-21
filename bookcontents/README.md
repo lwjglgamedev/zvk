@@ -18,3 +18,5 @@ The book is structured in the following chapters:
 - [Chapter 13](chapter-13/chapter-13.md): Sound with zaudio.
 - [Chapter 14](chapter-14/chapter-14.md): Deferred rendering (I).
 - [Chapter 15](chapter-15/chapter-15.md): Deferred rendering (II).
+- [Chapter 16](chapter-16/chapter-16.md): Cascade shadows.
+- [Chapter 17](chapter-17/chapter-17.md): Animations.

@@ -142,14 +142,14 @@ with texture coordinates and normals, etc. Some of the vulkan elements that we w
 In order to support this, we will create a struct named `VtxBuffDesc` which is defined like this (inside the `renderScn.zig` file):
 
 ```zig
-const VtxBuffDesc = struct {
-    const binding_description = vulkan.VertexInputBindingDescription{
+pub const VtxBuffDesc = struct {
+    pub const binding_description = vulkan.VertexInputBindingDescription{
         .binding = 0,
         .stride = @sizeOf(VtxBuffDesc),
         .input_rate = .vertex,
     };
 
-    const attribute_description = [_]vulkan.VertexInputAttributeDescription{
+    pub const attribute_description = [_]vulkan.VertexInputAttributeDescription{
         .{
             .binding = 0,
             .location = 0,
@@ -160,7 +160,6 @@ const VtxBuffDesc = struct {
 
     pos: [3]f32,
 };
-
 ```
 
 We define several structures required for Vulkan to understand how our vertices will be used:

@@ -247,9 +247,9 @@ We need to modify the structure used while rendering the scene to be able to inc
 they can accessed in shaders:
 
 ```zig
-const VtxBuffDesc = struct {
+pub const VtxBuffDesc = struct {
     ...
-    const attribute_description = [_]vulkan.VertexInputAttributeDescription{
+    pub const attribute_description = [_]vulkan.VertexInputAttributeDescription{
         ...  
         .{
             .binding = 0,
@@ -688,8 +688,9 @@ separate render stage with a "forward" render approach.
 
 Since we are using Vulkan 1.3 (and compiling the shaders for that version), in order to use the `discard` keyword we need to enable the
 shader demote helper invocation feature. The reason for that is that the shader compiler may translate discard into
-OpDemoteToHelperInvocation opperation. In this case, the fragment is not usually killed immediately, it ends up into a call to a helper
-demote function invocation. We need to enable this in the device creation function:
+OpDemoteToHelperInvocation operation. In this case, the fragment is not usually killed immediately, it ends up into a call to a helper
+demote function invocation. We need to enable this, as a feature, in the device creation function. We need also to enable the feature to be
+able to use the scalar layout (we will see where we use it later on):
 
 ```zig
 pub const VkDevice = struct {
@@ -700,7 +701,11 @@ pub const VkDevice = struct {
             ...
             .shader_demote_to_helper_invocation = vulkan.Bool32.true,
             ...
-        };        
+        };    
+        const features2 = vulkan.PhysicalDeviceVulkan12Features{
+            ...
+            .scalar_block_layout = vulkan.Bool32.true,
+        };
         ...
     }
     ...
@@ -725,7 +730,7 @@ pub const RenderLight = struct {
     buffsLights: []vk.buf.VkBuffer,
     buffsSceneInfo: []vk.buf.VkBuffer,
     descLayoutAtt: vk.desc.VkDescSetLayout,
-    descLayoutLights: vk.desc.VkDescSetLayout,
+    descLayoutArr: vk.desc.VkDescSetLayout,
     descLayoutScene: vk.desc.VkDescSetLayout,
     ...
     pub fn cleanup(self: *RenderLight, allocator: std.mem.Allocator, vkCtx: *vk.ctx.VkCtx) void {
@@ -738,7 +743,7 @@ pub const RenderLight = struct {
         }
         allocator.free(self.buffsSceneInfo);
         self.descLayoutAtt.cleanup(vkCtx);
-        self.descLayoutLights.cleanup(vkCtx);
+        self.descLayoutArr.cleanup(vkCtx);
         self.descLayoutScene.cleanup(vkCtx);
         ....
     }
@@ -778,7 +783,7 @@ pub const RenderLight = struct {
         try attDescSet.setImages(allocator, vkCtx.vkDevice, imageViews, textSampler, 0);
 
         // Descriptor set: Lights
-        const descLayoutLights = try vk.desc.VkDescSetLayout.create(allocator, vkCtx, &[_]vk.desc.LayoutInfo{.{
+        const descLayoutArr = try vk.desc.VkDescSetLayout.create(allocator, vkCtx, &[_]vk.desc.LayoutInfo{.{
             .binding = 0,
             .descCount = 1,
             .descType = vulkan.DescriptorType.storage_buffer,
@@ -791,7 +796,7 @@ pub const RenderLight = struct {
             com.common.FRAMES_IN_FLIGHT,
             @sizeOf(eng.scn.Light) * eng.scn.MAX_LIGHTS,
             .{ .storage_buffer_bit = true },
-            descLayoutLights,
+            descLayoutArr,
         );
 
         // Descriptor set: SceneInfo
@@ -813,7 +818,7 @@ pub const RenderLight = struct {
 
         const descSetLayouts = [_]vulkan.DescriptorSetLayout{
             descLayoutAtt.descSetLayout,
-            descLayoutLights.descSetLayout,
+            descLayoutArr.descSetLayout,
             descLayoutScene.descSetLayout,
         };
         ...
@@ -821,7 +826,7 @@ pub const RenderLight = struct {
             .buffsLights = buffsLights,
             .buffsSceneInfo = buffsSceneInfo,
             .descLayoutAtt = descLayoutAtt,
-            .descLayoutLights = descLayoutLights,
+            .descLayoutArr = descLayoutArr,
             .descLayoutScene = descLayoutScene,
             .outputAtt = outputAtt,
             .textSampler = textSampler,
@@ -1193,7 +1198,7 @@ const zgui = @import("zgui");
 ...
 const Game = struct {
     ...
-    lightAngle: f32 = 140.0,
+    lightAngle: f32 = 90.0,
     ...
     pub fn init(self: *Game, engCtx: *eng.engine.EngCtx, arenaAlloc: std.mem.Allocator) !eng.engine.InitData {
         ...
@@ -1270,7 +1275,7 @@ const Game = struct {
             if (light.directional) {
                 var buf3: [32:0]u8 = undefined;
                 const posId = try std.fmt.bufPrintZ(&buf3, "Angle-{d}", .{i});
-                if (zgui.dragFloat(posId, .{ .v = &self.lightAngle, .speed = 1.00 })) {
+                if (zgui.dragFloat(posId, .{ .v = &self.lightAngle, .speed = 0.50 })) {
                     if (self.lightAngle < 0) {
                         self.lightAngle = 0;
                     } else if (self.lightAngle > 180) {
