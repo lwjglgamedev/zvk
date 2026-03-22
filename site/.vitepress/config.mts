@@ -76,7 +76,8 @@ export default defineConfig({
           if (
             (source.endsWith(".png") ||
               source.endsWith(".jpg") ||
-              source.endsWith(".webp")) &&
+              source.endsWith(".webp") ||
+              source.endsWith(".svg")) &&
             !source.startsWith(".") &&
             !source.startsWith("/") &&
             importer
