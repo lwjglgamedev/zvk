@@ -17,13 +17,13 @@ We will use the following dependencies:
 
 - [SDL3](https://github.com/Gota7/zig-sdl3) Zig bindings. We will use SDL3 to create windows and handle user input.
 In order to add the dependency to the `build.zig.zon` file just execute:
-`zig fetch --save git+https://github.com/Gota7/zig-sdl3#v0.1.5`
+`zig fetch --save https://codeberg.org/7Games/zig-sdl3/archive/v0.1.9.tar.gz`
 - [TOML](https://github.com/sam701/zig-toml) to be able to parse configuration files.
 In order to add the dependency to the `build.zig.zon` file just execute:
-`zig fetch --save git+https://github.com/sam701/zig-toml#zig-0.15`
+`zig fetch --save https://github.com/sam701/zig-toml/archive/58ac681fb63b18c01ffbbbd67d12a404fef8687d.tar.gz`
 - [Vulkan](https://github.com/Snektron/vulkan-zig) Zig bindings.
 In order to add the dependency to the `build.zig.zon` file just execute:
-`zig fetch --save git+https://github.com/Snektron/vulkan-zig#zig-0.15-compat`
+`zig fetch --save https://github.com/Snektron/vulkan-zig/archive/3ada9e2989bab70090a55f0f6fac19ea90d06357.tar.gz`
 - [Vulkan Headers](https://github.com/KhronosGroup/Vulkan-Headers) we will need to add to the `build.zig.zon` file the following entry
 
 ```zig
@@ -69,7 +69,6 @@ pub fn build(b: *std.Build) void {
     const sdl3Dep = b.dependency("sdl3", .{
         .target = target,
         .optimize = optimize,
-        .callbacks = false,
         .ext_image = true,
     });
     const sdl3 = sdl3Dep.module("sdl3");

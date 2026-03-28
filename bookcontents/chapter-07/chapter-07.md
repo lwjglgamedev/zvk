@@ -6,7 +6,7 @@ information, a depth image. In addition to that, we will add support for window 
 chapter [here](../../booksamples/chapter-07).
 
 We will be using the [zmath](https://github.com/zig-gamedev/zmath) so you will need to include it in the `build.zig.zon` file by executing:
-`zig fetch --save git+https://github.com/zig-gamedev/zmath#3a5955b2b72cd081563fbb084eff05bffd1e3fbb`. In addition, you will need to include it in the `build.zig` file:
+`zig fetch --save https://github.com/zig-gamedev/zmath/archive/3a5955b2b72cd081563fbb084eff05bffd1e3fbb.tar.gz`. In addition, you will need to include it in the `build.zig` file:
 
 ```zig
 pub fn build(b: *std.Build) void {
