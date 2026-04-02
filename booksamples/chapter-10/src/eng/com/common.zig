@@ -36,7 +36,7 @@ pub const Constants = struct {
         return constants;
     }
 
-    pub fn cleanup(self: *Constants, allocator: std.mem.Allocator) void {
+    pub fn cleanup(self: *const Constants, allocator: std.mem.Allocator) void {
         allocator.free(self.gpu);
     }
 };

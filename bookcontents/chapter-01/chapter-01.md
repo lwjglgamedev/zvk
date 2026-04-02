@@ -209,9 +209,12 @@ pub fn Engine(comptime GameLogic: type) type {
         }
 
         pub fn create(allocator: std.mem.Allocator, gameLogic: *GameLogic, wndTitle: [:0]const u8) !Engine(GameLogic) {
+            const constants = try com.common.Constants.load(allocator);
+            errdefer constants.cleanup(allocator);
+
             const engCtx = EngCtx{
                 .allocator = allocator,
-                .constants = try com.common.Constants.load(allocator),
+                .constants = constants,
                 .wnd = try eng.wnd.Wnd.create(wndTitle),
             };
 
@@ -305,7 +308,7 @@ pub const Constants = struct {
         return constants;
     }
 
-    pub fn cleanup(self: *Constants, allocator: std.mem.Allocator) void {
+    pub fn cleanup(self: *const Constants, allocator: std.mem.Allocator) void {
         _ = self;
         _ = allocator;
     }
