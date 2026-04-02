@@ -545,7 +545,7 @@ pub const Constants = struct {
         ...
     }
 
-    pub fn cleanup(self: *const Constants, allocator: std.mem.Allocator) void {
+    pub fn cleanup(self: *Constants, allocator: std.mem.Allocator) void {
         allocator.free(self.gpu);
     }
 };

@@ -30,7 +30,7 @@ pub fn Engine(comptime GameLogic: type) type {
         }
 
         pub fn create(allocator: std.mem.Allocator, gameLogic: *GameLogic, wndTitle: [:0]const u8) !Engine(GameLogic) {
-            const constants = try com.common.Constants.load(allocator);
+            var constants = try com.common.Constants.load(allocator);
             errdefer constants.cleanup(allocator);
 
             const engCtx = EngCtx{
