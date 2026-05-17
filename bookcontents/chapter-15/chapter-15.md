@@ -172,7 +172,7 @@ In this case, we just set a default value. We could calculate tangents for this 
 Finally, we just need to modify the code that dumps vertices information to a file:
 
 ```zig
-pub fn main() !void {
+pub fn main(init: std.process.Init) !void {
     ...
             // Dump to vertices file
             for (meshIntData.positions.items, 0..) |_, idx| {
@@ -515,7 +515,7 @@ pub const RenderScn = struct {
             vkCtx,
             DESC_ID_CAM,
             com.common.FRAMES_IN_FLIGHT,
-            vk.util.MATRIX_SIZE * 2,
+            @sizeOf(zm.Mat) * 2,
             .{ .uniform_buffer_bit = true },
             descLayoutVtx,
         );        

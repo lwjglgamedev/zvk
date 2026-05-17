@@ -830,7 +830,7 @@ pub const VkDesSet = struct {
             };
         }
 
-        vkDevice.deviceProxy.updateDescriptorSets( writeDesSets.ptr, null);
+        vkDevice.deviceProxy.updateDescriptorSets(writeDesSets, null);
     }
     ...
 };

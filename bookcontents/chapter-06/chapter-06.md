@@ -350,7 +350,6 @@ pub const ModelsCache = struct {
     pub fn init(
         self: *ModelsCache,
         allocator: std.mem.Allocator,
-        io: std.Io,
         vkCtx: *const vk.ctx.VkCtx,
         cmdPool: *vk.cmd.VkCmdPool,
         vkQueue: vk.queue.VkQueue,
@@ -951,7 +950,7 @@ pub fn Engine(comptime GameLogic: type) type {
             defer arena.deinit();
 
             const initData = try self.gameLogic.init(&self.engCtx, arenaAlloc);
-            try self.render.init(allocator, &initData);
+            try self.render.init(self.engCtx.allocator, &initData);
         }
 
         pub fn run(self: *Engine(GameLogic)) !void {

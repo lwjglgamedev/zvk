@@ -1376,7 +1376,7 @@ pub const VkTextSampler = struct {
             .border_color = samplerInfo.borderColor,
             .mipmap_mode = vulkan.SamplerMipmapMode.nearest,
             .min_lod = 0.0,
-            .max_lod = 0.0,
+            .max_lod = vulkan.LOD_CLAMP_NONE,
             .mip_lod_bias = 0.0,
             .compare_enable = vulkan.Bool32.false,
             .compare_op = vulkan.CompareOp.never,
@@ -2184,13 +2184,14 @@ pub const RenderScn = struct {
         try descSets.append(allocator, vkDescAllocator.getDescSet(DESC_ID_MAT).?.descSet);
         try descSets.append(allocator, vkDescAllocator.getDescSet(DESC_ID_TEXTS).?.descSet);
 
-device.cmdBindDescriptorSets(
-    cmdHandle,
-    vulkan.PipelineBindPoint.graphics,
-    self.vkPipeline.pipelineLayout,
-    descSets.items,
-    null,
-);
+        device.cmdBindDescriptorSets(
+            cmdHandle,
+            vulkan.PipelineBindPoint.graphics,
+            self.vkPipeline.pipelineLayout,
+            0,
+            descSets.items,
+            null,
+        );
         ...
         while (iter.next()) |entityRef| {
             const entity = entityRef.*;
@@ -2393,15 +2394,18 @@ pub fn Engine(comptime GameLogic: type) type {
 In the `src/eng/modelData.zig` we will add to functions to load models and materials from the JSON files:
 
 ```zig
-pub fn loadMaterials(allocator: std.mem.Allocator, io:std.Io, path: []const u8) !std.ArrayList(MaterialData) {
+pub fn loadMaterials(allocator: std.mem.Allocator, io: std.Io, path: []const u8) !std.ArrayList(MaterialData) {
     log.debug("Loading materials from [{s}]", .{path});
 
     const file = try std.Io.Dir.cwd().openFile(io, path, .{});
     defer file.close(io);
 
+    const metadata = try file.stat(io);
+    const fileSize = metadata.size;
+
     var buffer: [8192]u8 = undefined;
     var fileReader = file.reader(io, &buffer);
-    const bytes = try fileReader.interface.readAlloc(allocator, std.math.maxInt(usize));
+    const bytes = try fileReader.interface.readAlloc(allocator, fileSize);
     defer allocator.free(bytes);
 
     const parsed = try std.json.parseFromSlice(std.ArrayListUnmanaged(MaterialData), allocator, bytes, .{});

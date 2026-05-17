@@ -824,7 +824,8 @@ pub const Render = struct {
     ...
     fn resize(self: *Render, engCtx: *eng.engine.EngCtx) !void {
         ...
-        guiRender.resize(vkCtx, postRender.getAttachment());
+        try self.renderScn.resize(&self.vkCtx, engCtx);
+        try self.renderPost.resize(&self.vkCtx, &self.attColor);
         try self.renderGui.resize(&self.vkCtx);
     }
 }

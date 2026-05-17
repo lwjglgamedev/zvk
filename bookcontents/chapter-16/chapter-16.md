@@ -47,15 +47,15 @@ const vk = @import("vk");
 const vulkan = @import("vulkan");
 const zm = @import("zmath");
 
-const LAMBDA: f32 = 0.95;
-pub const SHADOW_MAP_CASCADE_COUNT: u32 = 3;
-const UP = zm.f32x4(0.0, 1.0, 0.0, 0.0);
-const UP_ALT = zm.f32x4(0.0, 0.0, 1.0, 0.0);
-
 pub const CascadeData = struct {
     splitDist: f32 = 0,
     projViewMatrix: zm.Mat = zm.identity(),
 };
+
+const LAMBDA: f32 = 0.95;
+pub const SHADOW_MAP_CASCADE_COUNT: u32 = 3;
+const UP = zm.f32x4(0.0, 1.0, 0.0, 0.0);
+const UP_ALT = zm.f32x4(0.0, 0.0, 1.0, 0.0);
 ...
 ```
 Shadow cascades calculation is done in a function named `updateCascadeShadows` which starts like this:
@@ -350,7 +350,7 @@ The `RenderShadow` struct (defined also in the `src/eng/renderShadow.zig` file) 
 
 ```zig
 const COLOR_ATTACHMENT_FORMAT = vulkan.Format.r32g32_sfloat;
-const DEPTH_FORMAT = vulkan.Format.d16_unorm;
+const DEPTH_FORMAT = vulkan.Format.d32_sfloat;
 const DESC_ID_MAT = "SHADOW_DESC_ID_MAT";
 const DESC_ID_PRJ = "SHADOW_DESC_ID_PRJ";
 const DESC_ID_TEXTS = "SHADOW_DESC_ID_TEXTS";

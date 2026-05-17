@@ -351,13 +351,14 @@ pub const RenderPost = struct {
         var descSets = try std.ArrayList(vulkan.DescriptorSet).initCapacity(allocator, 1);
         defer descSets.deinit(allocator);
         try descSets.append(allocator, vkDescAllocator.getDescSet(DESC_ID_POST_TEXT_SAMPLER).?.descSet);
-device.cmdBindDescriptorSets(
-    cmdHandle,
-    vulkan.PipelineBindPoint.graphics,
-    self.vkPipeline.pipelineLayout,
-    descSets.items,
-    null,
-);
+        device.cmdBindDescriptorSets(
+            cmdHandle,
+            vulkan.PipelineBindPoint.graphics,
+            self.vkPipeline.pipelineLayout,
+            0,
+            descSets.items,
+            null,
+        );
 
         self.setPushConstants(vkCtx, cmdHandle);
 
@@ -458,9 +459,10 @@ layout (location = 0) in vec2 inTextCoord;
 layout (location = 0) out vec4 outFragColor;
 
 layout (set = 0, binding = 0) uniform sampler2D inputTexture;
-layout (set = 1, binding = 0) uniform ScreenSize {
-    vec2 size;
-} screenSize;
+
+layout(push_constant) uniform pc {
+    layout(offset = 0) vec2 screenSize;
+} push_constants;
 
 vec4 gamma(vec4 color) {
     return color = vec4(pow(color.rgb, vec3(GAMMA_CONST)), color.a);
@@ -468,7 +470,7 @@ vec4 gamma(vec4 color) {
 
 // Credit: https://mini.gmshaders.com/p/gm-shaders-mini-fxaa
 vec4 fxaa(sampler2D tex, vec2 uv) {
-    vec2 u_texel = 1.0 / screenSize.size;
+    vec2 u_texel = 1.0 / push_constants.screenSize;
 
 	//Sample center and 4 corners
     vec3 rgbCC = texture(tex, uv).rgb;
