@@ -1,16 +1,14 @@
 const eng = @import("eng");
 const std = @import("std");
 
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer if (gpa.deinit() == .leak) @panic("memory leaked");
-
-    const allocator = gpa.allocator();
+pub fn main(init: std.process.Init) !void {
+    const allocator = init.gpa;
+    const io = init.io;
 
     const wndTitle = "Vulkan Book";
     var game = Game{};
-    var engine = try eng.engine.Engine(Game).create(allocator, &game, wndTitle);
-    try engine.run(allocator);
+    var engine = try eng.engine.Engine(Game).create(allocator, io, &game, wndTitle);
+    try engine.run();
 }
 
 const Game = struct {

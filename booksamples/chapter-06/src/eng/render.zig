@@ -53,7 +53,7 @@ pub const Render = struct {
         defer allocator.free(self.semsPresComplete);
     }
 
-    pub fn create(allocator: std.mem.Allocator, constants: com.common.Constants, window: sdl3.video.Window) !Render {
+    pub fn create(allocator: std.mem.Allocator, io: std.Io, constants: com.common.Constants, window: sdl3.video.Window) !Render {
         const vkCtx = try vk.ctx.VkCtx.create(allocator, constants, window);
 
         const fences = try allocator.alloc(vk.sync.VkFence, com.common.FRAMES_IN_FLIGHT);
@@ -84,7 +84,7 @@ pub const Render = struct {
         const queueGraphics = vk.queue.VkQueue.create(&vkCtx, vkCtx.vkPhysDevice.queuesInfo.graphics_family);
         const queuePresent = vk.queue.VkQueue.create(&vkCtx, vkCtx.vkPhysDevice.queuesInfo.present_family);
 
-        const renderScn = try eng.rscn.RenderScn.create(allocator, &vkCtx);
+        const renderScn = try eng.rscn.RenderScn.create(allocator, io, &vkCtx);
 
         const modelsCache = eng.mcach.ModelsCache.create(allocator);
 

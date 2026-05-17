@@ -12,7 +12,7 @@ wrapper for [miniaudio](https://github.com/mackron/miniaudio) library. It is a s
 to manage sound.
 
 In order to use it we first need to include the [zaudio](https://github.com/zig-gamedev/zaudio/) dependency in the `build.zig.zon` file by
-executing the following command: `zig fetch --save https://github.com/zig-gamedev/zaudio/archive/e5b89fde58be72de359089e9b8f5c4d5126fb159.tar.gz`.
+executing the following command: `zig fetch --save=zaudio https://github.com/fourlexboehm/zaudio/archive/557f8fcdf0c26e86a57f83e2a67affd09aa6498b.tar.gz`.
 
 After that we shall modify the `build.zig` file:
 
@@ -26,7 +26,8 @@ pub fn build(b: *std.Build) void {
     // Engine
     ...
     eng.addImport("zaudio", zaudio);
-    exe.linkLibrary(zaudioDep.artifact("miniaudio"));
+    ...
+    exe.root_module.linkLibrary(zaudioDep.artifact("miniaudio"));
     ...
 }
 ```
@@ -123,8 +124,8 @@ pub const EngCtx = struct {
 
 pub fn Engine(comptime GameLogic: type) type {
     ...
-        pub fn create(allocator: std.mem.Allocator, gameLogic: *GameLogic, wndTitle: [:0]const u8) !Engine(GameLogic) {
-            var constants = try com.common.Constants.load(allocator);
+        pub fn create(allocator: std.mem.Allocator, io: std.Io, gameLogic: *GameLogic, wndTitle: [:0]const u8) !Engine(GameLogic) {
+            var constants = try com.common.Constants.load(allocator, io);
             errdefer constants.cleanup(allocator);
 
             var soundMgr = try eng.snd.SoundMgr.create(allocator);

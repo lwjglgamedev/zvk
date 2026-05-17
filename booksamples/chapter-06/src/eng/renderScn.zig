@@ -31,18 +31,18 @@ pub const RenderScn = struct {
         self.vkPipeline.cleanup(vkCtx);
     }
 
-    pub fn create(allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx) !RenderScn {
+    pub fn create(allocator: std.mem.Allocator, io: std.Io, vkCtx: *const vk.ctx.VkCtx) !RenderScn {
         // Shader modules
         var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
         defer arena.deinit();
-        const vertCode align(@alignOf(u32)) = try com.utils.loadFile(arena.allocator(), "res/shaders/scn_vtx.glsl.spv");
+        const vertCode align(@alignOf(u32)) = try com.utils.loadFile(arena.allocator(), io, "res/shaders/scn_vtx.glsl.spv");
         const vert = try vkCtx.vkDevice.deviceProxy.createShaderModule(&.{
             .code_size = vertCode.len,
             .p_code = @ptrCast(@alignCast(vertCode)),
         }, null);
         defer vkCtx.vkDevice.deviceProxy.destroyShaderModule(vert, null);
 
-        const fragCode align(@alignOf(u32)) = try com.utils.loadFile(arena.allocator(), "res/shaders/scn_frg.glsl.spv");
+        const fragCode align(@alignOf(u32)) = try com.utils.loadFile(arena.allocator(), io, "res/shaders/scn_frg.glsl.spv");
         const frag = try vkCtx.vkDevice.deviceProxy.createShaderModule(&.{
             .code_size = fragCode.len,
             .p_code = @ptrCast(@alignCast(fragCode)),
@@ -106,19 +106,19 @@ pub const RenderScn = struct {
             .min_depth = 0,
             .max_depth = 1,
         }};
-        device.cmdSetViewport(cmdHandle, 0, viewPort.len, &viewPort);
+        device.cmdSetViewport(cmdHandle, 0, &viewPort);
         const scissor = [_]vulkan.Rect2D{.{
             .offset = vulkan.Offset2D{ .x = 0, .y = 0 },
             .extent = vulkan.Extent2D{ .width = extent.width, .height = extent.height },
         }};
-        device.cmdSetScissor(cmdHandle, 0, scissor.len, &scissor);
+        device.cmdSetScissor(cmdHandle, 0, &scissor);
 
         const offset = [_]vulkan.DeviceSize{0};
         var iter = modelsCache.modelsMap.valueIterator();
         while (iter.next()) |vulkanRef| {
             for (vulkanRef.meshes.items) |mesh| {
                 device.cmdBindIndexBuffer(cmdHandle, mesh.buffIdx.buffer, 0, vulkan.IndexType.uint32);
-                device.cmdBindVertexBuffers(cmdHandle, 0, 1, @ptrCast(&mesh.buffVtx.buffer), &offset);
+                device.cmdBindVertexBuffers(cmdHandle, 0, @ptrCast(&mesh.buffVtx.buffer), &offset);
                 device.cmdDrawIndexed(cmdHandle, @as(u32, @intCast(mesh.numIndices)), 1, 0, 0, 0);
             }
         }

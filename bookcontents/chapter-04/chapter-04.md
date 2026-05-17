@@ -462,7 +462,7 @@ pub const Constants = struct {
     ...
     vsync: bool,
 
-    pub fn load(allocator: std.mem.Allocator) !Constants {
+    pub fn load(allocator: std.mem.Allocator, io: std.Io) !Constants {
         ...
         const constants = Constants{
             .gpu = try allocator.dupe(u8, tmp.gpu),

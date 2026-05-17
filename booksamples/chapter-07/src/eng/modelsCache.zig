@@ -147,5 +147,5 @@ fn recordTransfer(
         .dst_offset = 0,
         .size = srcBuff.size,
     }};
-    vkCtx.vkDevice.deviceProxy.cmdCopyBuffer(cmdHandle, srcBuff.buffer, dstBuff.buffer, copyRegion.len, &copyRegion);
+    vkCtx.vkDevice.deviceProxy.cmdCopyBuffer(cmdHandle, srcBuff.buffer, dstBuff.buffer, &copyRegion);
 }

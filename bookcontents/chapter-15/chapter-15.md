@@ -99,7 +99,7 @@ pub const MaterialData = struct {
 In the same file we also need to update the `loadMaterials` function to handle the new data:
 
 ```zig
-pub fn loadMaterials(allocator: std.mem.Allocator, path: []const u8) !std.ArrayList(MaterialData) {
+pub fn loadMaterials(allocator: std.mem.Allocator, io:std.Io, path: []const u8) !std.ArrayList(MaterialData) {
     ...
     for (parsed.value.items) |materialData| {
         const ownedMaterialData = MaterialData{
@@ -132,9 +132,9 @@ fn processMesh(
     materialList: std.ArrayListUnmanaged(eng.mdata.MaterialData),
 ) !MeshIntData {
     ...
-    var normals = std.ArrayListUnmanaged([3]f32){};
-    var intTangents = std.ArrayListUnmanaged([4]f32){};
-    var tangents = std.ArrayListUnmanaged([3]f32){};
+    var normals:  std.ArrayListUnmanaged([3]f32) = .empty;
+    var intTangents: std.ArrayListUnmanaged([4]f32) = .empty;
+    var tangents: std.ArrayListUnmanaged([3]f32) = .empty;
     ...
     try zmesh.io.zcgltf.appendMeshPrimitive(
         allocator,
@@ -176,14 +176,14 @@ pub fn main() !void {
     ...
             // Dump to vertices file
             for (meshIntData.positions.items, 0..) |_, idx| {
-                try vtxFile.writeAll(std.mem.sliceAsBytes(std.mem.asBytes(&meshIntData.positions.items[idx])));
+                try vtxFile.writeStreamingAll(io, std.mem.sliceAsBytes(std.mem.asBytes(&meshIntData.positions.items[idx])));
                 if (idx < meshIntData.texcoords.items.len) {
-                    try vtxFile.writeAll(std.mem.sliceAsBytes(std.mem.asBytes(&meshIntData.texcoords.items[idx])));
+                    try vtxFile.writeStreamingAll(io, std.mem.sliceAsBytes(std.mem.asBytes(&meshIntData.texcoords.items[idx])));
                 } else {
-                    try vtxFile.writeAll(std.mem.sliceAsBytes(std.mem.asBytes(&defText)));
+                    try vtxFile.writeStreamingAll(io, std.mem.sliceAsBytes(std.mem.asBytes(&defText)));
                 }
-                try vtxFile.writeAll(std.mem.sliceAsBytes(std.mem.asBytes(&meshIntData.normals.items[idx])));
-                try vtxFile.writeAll(std.mem.sliceAsBytes(std.mem.asBytes(&meshIntData.tangents.items[idx])));
+                try vtxFile.writeStreamingAll(io, std.mem.sliceAsBytes(std.mem.asBytes(&meshIntData.normals.items[idx])));
+                try vtxFile.writeStreamingAll(io, std.mem.sliceAsBytes(std.mem.asBytes(&meshIntData.tangents.items[idx])));
             }
 
             const numIndices = meshIntData.indices.items.len;
@@ -202,7 +202,7 @@ pub fn build(b: *std.Build) void {
     ...
     const zmesh = b.dependency("zmesh", .{});
     modelGen.root_module.addImport("zmesh", zmesh.module("root"));
-    modelGen.linkLibrary(zmesh.artifact("zmesh"));
+    modelGen.root_module.linkLibrary(zmesh.artifact("zmesh"));
     modelGen.root_module.addImport("zmath", zmath);
     b.installArtifact(modelGen);
 }
@@ -225,7 +225,7 @@ pub const MaterialData = struct {
 And also modify the `loadMaterials` function:
 
 ```zig
-pub fn loadMaterials(allocator: std.mem.Allocator, path: []const u8) !std.ArrayList(MaterialData) {
+pub fn loadMaterials(allocator: std.mem.Allocator, io:std.Io, path: []const u8) !std.ArrayList(MaterialData) {
     ...
     for (parsed.value.items) |materialData| {
         const ownedMaterialData = MaterialData{
@@ -294,6 +294,7 @@ pub const MaterialsCache = struct {
     pub fn init(
         self: *MaterialsCache,
         allocator: std.mem.Allocator,
+        io: std.Io,
         vkCtx: *const vk.ctx.VkCtx,
         textureCache: *eng.tcach.TextureCache,
         cmdPool: *vk.cmd.VkCmdPool,
@@ -315,7 +316,7 @@ pub const MaterialsCache = struct {
             ...
             if (materialData.texturePath.len > 0) {
                 ...
-                if (try textureCache.addTextureFromPath(allocator, vkCtx, vulkan.Format.r8g8b8a8_srgb, nullTermPath)) {
+                if (try textureCache.addTextureFromPath(allocator, io, vkCtx, vulkan.Format.r8g8b8a8_srgb, nullTermPath)) {
                     ...
                 }
             }
@@ -324,7 +325,7 @@ pub const MaterialsCache = struct {
             if (materialData.normalMapPath.len > 0) {
                 const nullTermPath = try allocator.dupeZ(u8, materialData.normalMapPath);
                 defer allocator.free(nullTermPath);
-                if (try textureCache.addTextureFromPath(allocator, vkCtx, vulkan.Format.r8g8b8a8_unorm, nullTermPath)) {
+                if (try textureCache.addTextureFromPath(allocator, io, vkCtx, vulkan.Format.r8g8b8a8_unorm, nullTermPath)) {
                     if (textureCache.textureMap.getIndex(nullTermPath)) |idx| {
                         normalMapIdx = @as(u32, @intCast(idx));
                         hasNormalMap = 1;
@@ -338,7 +339,7 @@ pub const MaterialsCache = struct {
             if (materialData.metalRoughMapPath.len > 0) {
                 const nullTermPath = try allocator.dupeZ(u8, materialData.metalRoughMapPath);
                 defer allocator.free(nullTermPath);
-                if (try textureCache.addTextureFromPath(allocator, vkCtx, vulkan.Format.r8g8b8a8_unorm, nullTermPath)) {
+                if (try textureCache.addTextureFromPath(allocator, io, vkCtx, vulkan.Format.r8g8b8a8_unorm, nullTermPath)) {
                     if (textureCache.textureMap.getIndex(nullTermPath)) |idx| {
                         roughMapIdx = @as(u32, @intCast(idx));
                         hasRoughMap = 1;
@@ -359,7 +360,7 @@ pub const MaterialsCache = struct {
                 .roughFactor = materialData.roughFactor,
             };
             mappedData[i] = atBuffRecord;
-            try self.materialsMap.put(materialId, vulkanMaterial);
+            try self.materialsMap.put(allocator, materialId, vulkanMaterial);
         }
     }    
     ...
@@ -378,7 +379,7 @@ The changes in the `TextureCache` struct are quite straightforward:
 ```zig
 pub const TextureCache = struct {
     ...
-    pub fn addTextureFromPath(self: *TextureCache, allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx, format: vulkan.Format, path: [:0]const u8) !bool {
+    pub fn addTextureFromPath(self: *TextureCache, allocator: std.mem.Allocator, io: std.Io, vkCtx: *const vk.ctx.VkCtx, format: vulkan.Format, path: [:0]const u8) !bool {
         ...
         const textureInfo = TextureInfo{ .id = path, .data = image.data, .width = image.width, .height = image.height, .format = format };
         ...
@@ -507,7 +508,7 @@ associated to camera information:
 ```zig
 pub const RenderScn = struct {
     ...
-    pub fn create(allocator: std.mem.Allocator, vkCtx: *vk.ctx.VkCtx) !RenderScn {
+    pub fn create(allocator: std.mem.Allocator, io: std.Io, vkCtx: *const vk.ctx.VkCtx) !RenderScn {
         ...
         const buffsCamera = try vk.util.createHostVisibleBuffs(
             allocator,
@@ -750,6 +751,7 @@ pub const RenderLight = struct {
 
     pub fn create(
         allocator: std.mem.Allocator,
+        io: std.Io,
         vkCtx: *vk.ctx.VkCtx,
         inputAttachments: *const []eng.rend.Attachment,
     ) !RenderLight {

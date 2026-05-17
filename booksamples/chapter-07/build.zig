@@ -57,7 +57,6 @@ pub fn build(b: *std.Build) void {
     vk.addImport("sdl3", sdl3);
     vk.addImport("com", com);
     exe.root_module.addImport("vk", vk);
-    exe.linkLibCpp();
 
     // Engine
     const eng = b.addModule("eng", .{ .root_source_file = b.path("src/eng/mod.zig") });

@@ -4,11 +4,11 @@ const vk = @import("mod.zig");
 const log = std.log.scoped(.vk);
 
 const PoolInfo = struct {
-    descCount: std.AutoArrayHashMap(vulkan.DescriptorType, u32),
+    descCount: std.AutoArrayHashMapUnmanaged(vulkan.DescriptorType, u32),
     vkDescPool: VkDescPool,
 
-    pub fn cleanup(self: *PoolInfo, vkDevice: vk.dev.VkDevice) void {
-        self.descCount.deinit();
+    pub fn cleanup(self: *PoolInfo, allocator: std.mem.Allocator, vkDevice: vk.dev.VkDevice) void {
+        self.descCount.deinit(allocator);
         self.vkDescPool.cleanup(vkDevice);
     }
 
@@ -24,9 +24,9 @@ const PoolInfo = struct {
             .descriptor_count = try getLimits(vkPhysDevice, vulkan.DescriptorType.storage_buffer),
         } };
         const vkDescPool = try VkDescPool.create(vkDevice, &descPoolSize);
-        var descCount = std.AutoArrayHashMap(vulkan.DescriptorType, u32).init(allocator);
+        var descCount: std.AutoArrayHashMapUnmanaged(vulkan.DescriptorType, u32) = .empty;
         for (descPoolSize) |item| {
-            try descCount.put(item.type, item.descriptor_count);
+            try descCount.put(allocator, item.type, item.descriptor_count);
         }
 
         return .{
@@ -105,6 +105,7 @@ pub const VkDescAllocator = struct {
                 const available = poolInfo.descCount.get(layoutInfo.descType) orelse return error.KeyNotFound;
 
                 try poolInfo.descCount.put(
+                    allocator,
                     layoutInfo.descType,
                     available - count,
                 );
@@ -120,7 +121,7 @@ pub const VkDescAllocator = struct {
 
     pub fn cleanup(self: *VkDescAllocator, allocator: std.mem.Allocator, vkDevice: vk.dev.VkDevice) void {
         for (self.poolInfoList.items) |poolInfo| {
-            poolInfo.cleanup(vkDevice);
+            poolInfo.cleanup(allocator, vkDevice);
             allocator.destroy(poolInfo);
         }
         self.poolInfoList.deinit(allocator);
@@ -254,7 +255,7 @@ pub const VkDesSet = struct {
             .dst_array_element = 0,
         }};
 
-        vkDevice.deviceProxy.updateDescriptorSets(descSets.len, &descSets, 0, null);
+        vkDevice.deviceProxy.updateDescriptorSets(&descSets, null);
     }
 
     pub fn setImage(self: *const VkDesSet, vkDevice: vk.dev.VkDevice, vkImageView: vk.imv.VkImageView, vkTextSampler: vk.text.VkTextSampler, binding: u32) void {
@@ -278,7 +279,7 @@ pub const VkDesSet = struct {
             .dst_array_element = 0,
         }};
 
-        vkDevice.deviceProxy.updateDescriptorSets(descSets.len, &descSets, 0, null);
+        vkDevice.deviceProxy.updateDescriptorSets(&descSets, null);
     }
 
     pub fn setImageArr(
@@ -314,6 +315,6 @@ pub const VkDesSet = struct {
             .dst_array_element = 0,
         }};
 
-        vkDevice.deviceProxy.updateDescriptorSets(descSets.len, &descSets, 0, null);
+        vkDevice.deviceProxy.updateDescriptorSets(&descSets, null);
     }
 };

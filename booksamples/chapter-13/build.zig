@@ -30,6 +30,7 @@ pub fn build(b: *std.Build) void {
     // VMA
     const vmaDep = b.dependency("vma", .{});
     const vmaIncludePath = vmaDep.path("include");
+    exe.root_module.link_libcpp = true;
 
     // Vulkan
     const vkHeaders = b.dependency("vulkan_headers", .{});
@@ -81,7 +82,6 @@ pub fn build(b: *std.Build) void {
     vk.addIncludePath(vmaIncludePath);
     vk.addIncludePath(vkIncludePath);
     vk.addCSourceFile(.{ .file = b.path("src/eng/vk/vma.cpp"), .flags = &.{"-std=c++17"} });
-    exe.linkLibCpp();
 
     // Engine
     const eng = b.addModule("eng", .{ .root_source_file = b.path("src/eng/mod.zig") });
@@ -94,7 +94,7 @@ pub fn build(b: *std.Build) void {
     eng.addImport("zmath", zmath);
     eng.addImport("zstbi", zstbi);
     eng.linkLibrary(zguiDep.artifact("imgui"));
-    exe.linkLibrary(zaudioDep.artifact("miniaudio"));
+    exe.root_module.linkLibrary(zaudioDep.artifact("miniaudio"));
 
     exe.root_module.addImport("eng", eng);
     exe.root_module.addImport("zgui", zgui);
@@ -148,6 +148,6 @@ pub fn build(b: *std.Build) void {
     });
     const zmesh = b.dependency("zmesh", .{});
     modelGen.root_module.addImport("zmesh", zmesh.module("root"));
-    modelGen.linkLibrary(zmesh.artifact("zmesh"));
+    modelGen.root_module.linkLibrary(zmesh.artifact("zmesh"));
     b.installArtifact(modelGen);
 }

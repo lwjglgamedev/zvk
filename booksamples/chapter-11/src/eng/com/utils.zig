@@ -3,9 +3,9 @@ const std = @import("std");
 
 const log = std.log.scoped(.utils);
 
-pub fn generateUuid(allocator: std.mem.Allocator) ![]const u8 {
+pub fn generateUuid(allocator: std.mem.Allocator, io: std.Io) ![]const u8 {
     var bytes: [16]u8 = undefined;
-    std.crypto.random.bytes(&bytes);
+    io.random(&bytes);
 
     // Set version (4) and variant bits (RFC 4122)
     bytes[6] = (bytes[6] & 0x0F) | 0x40;
@@ -33,11 +33,7 @@ pub fn generateUuid(allocator: std.mem.Allocator) ![]const u8 {
     return uuid;
 }
 
-pub fn loadFile(allocator: std.mem.Allocator, filePath: []const u8) ![]u8 {
-    const file = try std.fs.cwd().openFile(filePath, .{});
-    defer file.close();
-
-    const stat = try file.stat();
-    const buf: []u8 = try file.readToEndAlloc(allocator, stat.size);
+pub fn loadFile(allocator: std.mem.Allocator, io: std.Io, filePath: []const u8) ![]u8 {
+    const buf = try std.Io.Dir.cwd().readFileAlloc(io, filePath, allocator, .unlimited);
     return buf;
 }

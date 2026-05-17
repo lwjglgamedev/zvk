@@ -11,6 +11,7 @@ pub const InitData = struct {
 pub const EngCtx = struct {
     allocator: std.mem.Allocator,
     constants: com.common.Constants,
+    io: std.Io,
     scene: eng.scn.Scene,
     wnd: eng.wnd.Wnd,
 
@@ -34,8 +35,8 @@ pub fn Engine(comptime GameLogic: type) type {
             try self.engCtx.cleanup();
         }
 
-        pub fn create(allocator: std.mem.Allocator, gameLogic: *GameLogic, wndTitle: [:0]const u8) !Engine(GameLogic) {
-            var constants = try com.common.Constants.load(allocator);
+        pub fn create(allocator: std.mem.Allocator, io: std.Io, gameLogic: *GameLogic, wndTitle: [:0]const u8) !Engine(GameLogic) {
+            var constants = try com.common.Constants.load(allocator, io);
             errdefer constants.cleanup(allocator);
 
             var scene = try eng.scn.Scene.create(allocator);
@@ -44,13 +45,14 @@ pub fn Engine(comptime GameLogic: type) type {
             const engCtx = EngCtx{
                 .allocator = allocator,
                 .constants = constants,
+                .io = io,
                 .scene = scene,
                 .wnd = try eng.wnd.Wnd.create(wndTitle),
             };
 
-            zstbi.init(allocator);
+            zstbi.init(io, allocator);
 
-            const render = try eng.rend.Render.create(allocator, engCtx.constants, engCtx.wnd.window);
+            const render = try eng.rend.Render.create(allocator, io, engCtx.constants, engCtx.wnd.window);
 
             return .{
                 .engCtx = engCtx,
@@ -59,43 +61,41 @@ pub fn Engine(comptime GameLogic: type) type {
             };
         }
 
-        fn init(self: *Engine(GameLogic), allocator: std.mem.Allocator) !void {
+        fn init(self: *Engine(GameLogic)) !void {
             var arena = std.heap.ArenaAllocator.init(self.engCtx.allocator);
             const arenaAlloc = arena.allocator();
             defer arena.deinit();
 
             const initData = try self.gameLogic.init(&self.engCtx, arenaAlloc);
-            try self.render.init(allocator, &self.engCtx, &initData);
+            try self.render.init(&self.engCtx, &initData);
         }
 
-        pub fn run(self: *Engine(GameLogic), allocator: std.mem.Allocator) !void {
-            try self.init(allocator);
+        pub fn run(self: *Engine(GameLogic)) !void {
+            try self.init();
 
-            var timer = try std.time.Timer.start();
-            var lastTime = timer.read();
+            const timeU: f32 = 1.0 / self.engCtx.constants.ups;
+            var lastTime = std.Io.Clock.now(.awake, self.engCtx.io);
             var updateTime = lastTime;
             var deltaUpdate: f32 = 0.0;
-            const timeU: f32 = 1.0 / self.engCtx.constants.ups;
 
             while (!self.engCtx.wnd.closed) {
-                const now = timer.read();
-                const deltaNs = now - lastTime;
+                const now = std.Io.Clock.now(.awake, self.engCtx.io);
+                const deltaNs = lastTime.durationTo(now).toNanoseconds();
                 const deltaSec = @as(f32, @floatFromInt(deltaNs)) / 1_000_000_000.0;
                 deltaUpdate += deltaSec / timeU;
 
                 try self.engCtx.wnd.pollEvents();
-
                 self.gameLogic.input(&self.engCtx, deltaSec);
 
                 if (deltaUpdate >= 1) {
-                    const difUpdateSecs = @as(f32, @floatFromInt(now - updateTime)) / 1_000_000_000.0;
+                    const difNs = updateTime.durationTo(now).toNanoseconds();
+                    const difUpdateSecs = @as(f32, @floatFromInt(difNs)) / 1_000_000_000.0;
                     self.gameLogic.update(&self.engCtx, difUpdateSecs);
                     deltaUpdate -= 1;
                     updateTime = now;
                 }
 
                 try self.render.render(&self.engCtx);
-
                 lastTime = now;
             }
 

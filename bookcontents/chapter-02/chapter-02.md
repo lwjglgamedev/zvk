@@ -364,7 +364,7 @@ pub const Constants = struct {
     ...
     validation: bool,
 
-    pub fn load(allocator: std.mem.Allocator) !Constants {
+    pub fn load(allocator: std.mem.Allocator, io: std.Io) !Constants {
         ...
         const constants = Constants{
             .ups = tmp.ups,
@@ -386,7 +386,7 @@ We will also need to modify the `Engine` type to properly instantiate the `Rende
 ```zig
 pub fn Engine(comptime GameLogic: type) type {
     ...
-        pub fn create(allocator: std.mem.Allocator, gameLogic: *GameLogic, wndTitle: [:0]const u8) !Engine(GameLogic) {
+        pub fn create(allocator: std.mem.Allocator, io: std.Io, gameLogic: *GameLogic, wndTitle: [:0]const u8) !Engine(GameLogic) {
             ...
             const render = try eng.rend.Render.create(allocator, engCtx.constants);
             ...

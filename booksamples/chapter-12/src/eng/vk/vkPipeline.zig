@@ -175,7 +175,6 @@ pub const VkPipeline = struct {
         var pipeline: vulkan.Pipeline = undefined;
         _ = try vkCtx.vkDevice.deviceProxy.createGraphicsPipelines(
             .null_handle,
-            1,
             @ptrCast(&gpci),
             null,
             @ptrCast(&pipeline),

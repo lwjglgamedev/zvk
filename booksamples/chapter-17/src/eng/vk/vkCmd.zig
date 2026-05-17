@@ -39,7 +39,7 @@ pub const VkCmdBuff = struct {
 
     pub fn cleanup(self: *const VkCmdBuff, vkCtx: *const vk.ctx.VkCtx, vkCmdPool: *vk.cmd.VkCmdPool) void {
         const cmds = [_]vulkan.CommandBuffer{self.cmdBuffProxy.handle};
-        vkCtx.vkDevice.deviceProxy.freeCommandBuffers(vkCmdPool.commandPool, cmds.len, &cmds);
+        vkCtx.vkDevice.deviceProxy.freeCommandBuffers(vkCmdPool.commandPool, &cmds);
     }
 
     pub fn begin(self: *const VkCmdBuff, vkCtx: *const vk.ctx.VkCtx) !void {

@@ -350,6 +350,7 @@ pub const ModelsCache = struct {
     pub fn init(
         self: *ModelsCache,
         allocator: std.mem.Allocator,
+        io: std.Io,
         vkCtx: *const vk.ctx.VkCtx,
         cmdPool: *vk.cmd.VkCmdPool,
         vkQueue: vk.queue.VkQueue,
@@ -467,7 +468,7 @@ fn recordTransfer(
         .dst_offset = 0,
         .size = srcBuff.size,
     }};
-    vkCtx.vkDevice.deviceProxy.cmdCopyBuffer(cmdHandle, srcBuff.buffer, dstBuff.buffer, copyRegion.len, &copyRegion);
+    vkCtx.vkDevice.deviceProxy.cmdCopyBuffer(cmdHandle, srcBuff.buffer, dstBuff.buffer, &copyRegion);
 }
 ```
 
@@ -549,7 +550,7 @@ pub fn build(b: *std.Build) void {
 }
 ```
 
-In this chapter we will use to shaders (`scn_vtx.glsl` and `scn_frg-glsl`). We will compile them using `glslc` command.
+In this chapter we will use two shaders (`scn_vtx.glsl` and `scn_frg.glsl`). We will compile them using `glslc` command.
 If you have already installed Vulkan SDK, you may already have the `glslc` command. If not, you may need to install it.
 For example in Linux (Debian based distribution), just execute `sudo apt install glslc`.
 
@@ -875,7 +876,6 @@ pub const VkPipeline = struct {
         var pipeline: vulkan.Pipeline = undefined;
         _ = try vkCtx.vkDevice.deviceProxy.createGraphicsPipelines(
             .null_handle,
-            1,
             @ptrCast(&gpci),
             null,
             @ptrCast(&pipeline),
@@ -945,7 +945,7 @@ We will modify the `Engine` struct to retrieve the `InitData` instance and pass 
 ```zig
 pub fn Engine(comptime GameLogic: type) type {
     ...
-        fn init(self: *Engine(GameLogic), allocator: std.mem.Allocator) !void {
+        fn init(self: *Engine(GameLogic)) !void {
             var arena = std.heap.ArenaAllocator.init(self.engCtx.allocator);
             const arenaAlloc = arena.allocator();
             defer arena.deinit();
@@ -954,8 +954,8 @@ pub fn Engine(comptime GameLogic: type) type {
             try self.render.init(allocator, &initData);
         }
 
-        pub fn run(self: *Engine(GameLogic), allocator: std.mem.Allocator) !void {
-            try self.init(allocator);
+        pub fn run(self: *Engine(GameLogic)) !void {
+            try self.init();
             ...
         }
     ...
@@ -975,7 +975,7 @@ pub const Render = struct {
         ...
     }
 
-    pub fn create(allocator: std.mem.Allocator, constants: com.common.Constants, window: sdl3.video.Window) !Render {
+    pub fn create(allocator: std.mem.Allocator, io: std.Io, constants: com.common.Constants, window: sdl3.video.Window) !Render {
         ...
         const modelsCache = eng.mcach.ModelsCache.create(allocator);
 
@@ -1016,18 +1016,18 @@ pub const RenderScn = struct {
         self.vkPipeline.cleanup(vkCtx);
     }
 
-    pub fn create(allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx) !RenderScn {
+    pub fn create(allocator: std.mem.Allocator, io: std.Io, vkCtx: *const vk.ctx.VkCtx) !RenderScn {
         // Shader modules
         var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
         defer arena.deinit();
-        const vertCode align(@alignOf(u32)) = try com.utils.loadFile(arena.allocator(), "res/shaders/scn_vtx.glsl.spv");
+        const vertCode align(@alignOf(u32)) = try com.utils.loadFile(arena.allocator(), io, "res/shaders/scn_vtx.glsl.spv");
         const vert = try vkCtx.vkDevice.deviceProxy.createShaderModule(&.{
             .code_size = vertCode.len,
             .p_code = @ptrCast(@alignCast(vertCode)),
         }, null);
         defer vkCtx.vkDevice.deviceProxy.destroyShaderModule(vert, null);
 
-        const fragCode align(@alignOf(u32)) = try com.utils.loadFile(arena.allocator(), "res/shaders/scn_frg.glsl.spv");
+        const fragCode align(@alignOf(u32)) = try com.utils.loadFile(arena.allocator(), io, "res/shaders/scn_frg.glsl.spv");
         const frag = try vkCtx.vkDevice.deviceProxy.createShaderModule(&.{
             .code_size = fragCode.len,
             .p_code = @ptrCast(@alignCast(fragCode)),
@@ -1073,12 +1073,8 @@ const std = @import("std");
 
 const log = std.log.scoped(.utils);
 
-pub fn loadFile(allocator: std.mem.Allocator, filePath: []const u8) ![]u8 {
-    const file = try std.fs.cwd().openFile(filePath, .{});
-    defer file.close();
-
-    const stat = try file.stat();
-    const buf: []u8 = try file.readToEndAlloc(allocator, stat.size);
+pub fn loadFile(allocator: std.mem.Allocator, io: std.Io, filePath: []const u8) ![]u8 {
+    const buf = try std.Io.Dir.cwd().readFileAlloc(io, filePath, allocator, .unlimited);
     return buf;
 }
 ```
@@ -1123,19 +1119,19 @@ pub const RenderScn = struct {
             .min_depth = 0,
             .max_depth = 1,
         }};
-        device.cmdSetViewport(cmdHandle, 0, viewPort.len, &viewPort);
+        device.cmdSetViewport(cmdHandle, 0, &viewPort);
         const scissor = [_]vulkan.Rect2D{.{
             .offset = vulkan.Offset2D{ .x = 0, .y = 0 },
             .extent = vulkan.Extent2D{ .width = extent.width, .height = extent.height },
         }};
-        device.cmdSetScissor(cmdHandle, 0, scissor.len, &scissor);
+        device.cmdSetScissor(cmdHandle, 0,  &scissor);
 
         const offset = [_]vulkan.DeviceSize{0};
         var iter = modelsCache.modelsMap.valueIterator();
         while (iter.next()) |vulkanRef| {
             for (vulkanRef.meshes.items) |mesh| {
                 device.cmdBindIndexBuffer(cmdHandle, mesh.buffIdx.buffer, 0, vulkan.IndexType.uint32);
-                device.cmdBindVertexBuffers(cmdHandle, 0, 1, @ptrCast(&mesh.buffVtx.buffer), &offset);
+                device.cmdBindVertexBuffers(cmdHandle, 0, @ptrCast(&mesh.buffVtx.buffer), &offset);
                 device.cmdDrawIndexed(cmdHandle, @as(u32, @intCast(mesh.numIndices)), 1, 0, 0, 0);
             }
         }

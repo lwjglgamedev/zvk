@@ -6,7 +6,7 @@ information, a depth image. In addition to that, we will add support for window 
 chapter [here](../../booksamples/chapter-07).
 
 We will be using the [zmath](https://github.com/zig-gamedev/zmath) so you will need to include it in the `build.zig.zon` file by executing:
-`zig fetch --save https://github.com/zig-gamedev/zmath/archive/3a5955b2b72cd081563fbb084eff05bffd1e3fbb.tar.gz`. In addition, you will need to include it in the `build.zig` file:
+`zig fetch --save https://github.com/zig-gamedev/zmath/archive/9e42b04a24c970a297b365f3d3022f92dbf3219d.tar.gz`. In addition, you will need to include it in the `build.zig` file:
 
 ```zig
 pub fn build(b: *std.Build) void {
@@ -14,10 +14,10 @@ pub fn build(b: *std.Build) void {
     // Zmath
     const zmathDep = b.dependency("zmath", .{});
     const zmath = zmathDep.module("root");
-    exe.root_module.addImport("zm", zmath);    
-    ...
+    exe.root_module.addImport("zm", zmath);
+    ..
     eng.addImport("zmath", zmath);
-    ... 
+    ...
 }
 ```
 
@@ -358,7 +358,7 @@ pub const Constants = struct {
     zFar: f32,
     zNear: f32,
 
-    pub fn load(allocator: std.mem.Allocator) !Constants {
+    pub fn load(allocator: std.mem.Allocator, io: std.Io) !Constants {
         ...
         const constants = Constants{
             .fov = tmp.fov * std.math.pi / 180.0,
@@ -645,7 +645,7 @@ pub const Render = struct {
     ...
     mustResize: bool,
 
-    pub fn create(allocator: std.mem.Allocator, constants: com.common.Constants, window: sdl3.video.Window) !Render {
+    pub fn create(allocator: std.mem.Allocator, io: std.Io, constants: com.common.Constants, window: sdl3.video.Window) !Render {
         ...
         return .{
             ...
@@ -654,7 +654,7 @@ pub const Render = struct {
         };
     }
 
-    pub fn init(self: *Render, allocator: std.mem.Allocator, engCtx: *eng.engine.EngCtx, initData: *const eng.engine.InitData) !void {
+    pub fn init(self: *Render, engCtx: *eng.engine.EngCtx, initData: *const eng.engine.InitData) !void {
         const constants = engCtx.constants;
         const extent = self.vkCtx.vkSwapChain.extent;
         engCtx.scene.camera.projData.update(
@@ -664,22 +664,40 @@ pub const Render = struct {
             @as(f32, @floatFromInt(extent.width)),
             @as(f32, @floatFromInt(extent.height)),
         );
-        try self.modelsCache.init(allocator, &self.vkCtx, &self.cmdPools[0], self.queueGraphics, initData);
+        try self.modelsCache.init(engCtx.allocator, &self.vkCtx, &self.cmdPools[0], self.queueGraphics, initData);
     }
     
     pub fn render(self: *Render, engCtx: *eng.engine.EngCtx) !void {
-        ...
+        const fence = self.fences[self.currentFrame];
+        try fence.wait(&self.vkCtx);
+
+        const vkCmdPool = self.cmdPools[self.currentFrame];
+        try vkCmdPool.reset(&self.vkCtx);
+
+        const vkCmdBuff = self.cmdBuffs[self.currentFrame];
+        try vkCmdBuff.begin(&self.vkCtx);
+
         const res = try self.vkCtx.vkSwapChain.acquire(self.vkCtx.vkDevice, self.semsPresComplete[self.currentFrame]);
         if (engCtx.wnd.resized or self.mustResize or res == .recreate) {
             try vkCmdBuff.end(&self.vkCtx);
             try self.resize(engCtx);
             return;
         }
-        ...
+        const imageIndex = res.ok;
+
+        self.renderMainInit(vkCmdBuff, imageIndex);
+
         try self.renderScn.render(&self.vkCtx, engCtx, vkCmdBuff, &self.modelsCache, imageIndex);
-        ...
+
+        self.renderMainFinish(vkCmdBuff, imageIndex);
+
+        try vkCmdBuff.end(&self.vkCtx);
+
+        try self.submit(&vkCmdBuff, imageIndex);
+
         self.mustResize = !self.vkCtx.vkSwapChain.present(self.vkCtx.vkDevice, self.queuePresent, self.semsRenderComplete[imageIndex], imageIndex);
-        ...
+
+        self.currentFrame = (self.currentFrame + 1) % com.common.FRAMES_IN_FLIGHT;
     }
     ...
     fn resize(self: *Render, engCtx: *eng.engine.EngCtx) !void {
@@ -786,65 +804,31 @@ pub const RenderScn = struct {
     depthAttachments: []eng.rend.Attachment,
     vkPipeline: vk.pipe.VkPipeline,
 
-    pub fn create(allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx) !RenderScn {
+    pub fn create(allocator: std.mem.Allocator, io: std.Io, vkCtx: *const vk.ctx.VkCtx) !RenderScn {
         const depthAttachments = try createDepthAttachments(allocator, vkCtx);
-        ...
-    }
-    ...
-};
-```
 
-We need to create a new attribute named `depthAttachments` which will hold the attachments that will contain depth data (image view and 
-mage). We will need as many attachments as swap chain images.
+        // Shader modules
+        var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+        defer arena.deinit();
+        const vertCode align(@alignOf(u32)) = try com.utils.loadFile(arena.allocator(), io, "res/shaders/scn_vtx.glsl.spv");
+        const vert = try vkCtx.vkDevice.deviceProxy.createShaderModule(&.{
+            .code_size = vertCode.len,
+            .p_code = @ptrCast(@alignCast(vertCode)),
+        }, null);
+        defer vkCtx.vkDevice.deviceProxy.destroyShaderModule(vert, null);
 
-We have also defined a new struct to store push constants information: `PushConstantsVtx` which will have an attribute for the model matrix
-associated to an entity (`modelMatrix`) and the projection matrix (`projMatrix`).
+        const fragCode align(@alignOf(u32)) = try com.utils.loadFile(arena.allocator(), io, "res/shaders/scn_frg.glsl.spv");
+        const frag = try vkCtx.vkDevice.deviceProxy.createShaderModule(&.{
+            .code_size = fragCode.len,
+            .p_code = @ptrCast(@alignCast(fragCode)),
+        }, null);
+        defer vkCtx.vkDevice.deviceProxy.destroyShaderModule(frag, null);
 
-In some other tutorials, you will see that they use a single image and image view for the depth data. The argument used to justify this is,
-in some cases, that since the depth images are only used internally, while rendering, there's no need to use separate resources. This
-argument is not correct, render operations in different frames may overlap, so we need to use separate resources or use the proper
-synchronization mechanisms to prevent that. Probably, the samples used in those tutorials work, because they have a different
-synchronization schema that prevent this from happening, but the argument to justify that is not correct. There's an excellent analysis of
-this in this [Stack overflow](https://stackoverflow.com/questions/62371266/why-is-a-single-depth-buffer-sufficient-for-this-vulkan-swapchain-render-loop) question.
+        const modulesInfo = try allocator.alloc(vk.pipe.ShaderModuleInfo, 2);
+        modulesInfo[0] = .{ .module = vert, .stage = .{ .vertex_bit = true } };
+        modulesInfo[1] = .{ .module = frag, .stage = .{ .fragment_bit = true } };
+        defer allocator.free(modulesInfo);
 
-
-The `depthAttachments` attribute is initialized by using some new utility functions. Let's review it.
-
-```zig
-pub const RenderScn = struct {
-    ...
-    fn createDepthAttachments(allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx) ![]eng.rend.Attachment {
-        const numImages = vkCtx.vkSwapChain.imageViews.len;
-        const extent = vkCtx.vkSwapChain.extent;
-        const depthAttachments = try allocator.alloc(eng.rend.Attachment, numImages);
-        const flags = vulkan.ImageUsageFlags{
-            .depth_stencil_attachment_bit = true,
-        };
-        for (depthAttachments) |*attachment| {
-            attachment.* = try eng.rend.Attachment.create(
-                vkCtx,
-                extent.width,
-                extent.height,
-                DEPTH_FORMAT,
-                flags,
-            );
-        }
-        return depthAttachments;
-    }
-    ...
-};
-```
-
-We create as many depth attachments (as many images and image views) as images are in the swap chain. We use the format `vulkan.Format.d16_unorm`
-(`VK_FORMAT_D16_UNORM`) for the depth values (16-bit unsigned normalized format that has a single 16-bit depth component).
-
-The `create` function also needs to be updated to set the push constants range:
-
-```zig
-pub const RenderScn = struct {
-    ...
-    pub fn create(allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx) !RenderScn {
-        ...
         // Push constants
         const pushConstants = [_]vulkan.PushConstantRange{.{
             .stage_flags = vulkan.ShaderStageFlags{ .vertex_bit = true },
@@ -1022,7 +1006,7 @@ pub const RenderScn = struct {
             if (vulkanModel) |*vm| {
                 for (vm.meshes.items) |mesh| {
                     device.cmdBindIndexBuffer(cmdHandle, mesh.buffIdx.buffer, 0, vulkan.IndexType.uint32);
-                    device.cmdBindVertexBuffers(cmdHandle, 0, 1, @ptrCast(&mesh.buffVtx.buffer), &offset);
+                    device.cmdBindVertexBuffers(cmdHandle, 0, @ptrCast(&mesh.buffVtx.buffer), &offset);
                     device.cmdDrawIndexed(cmdHandle, @as(u32, @intCast(mesh.numIndices)), 1, 0, 0, 0);
                 }
             } else {
@@ -1090,12 +1074,9 @@ pub const RenderScn = struct {
 }
 ```
 
-The next step missing now is to modify the `init` function in our `Game` struct:
+The next step missing now is to modify the `init` function in our `Game` struct. We also need to add the `main` function to tie everything together:
 
 ```zig
-const zm = @import("zm");
-
-const log = std.log.scoped(.main);
 ...
 const Game = struct {
     const ENTITY_ID: []const u8 = "CubeEntity";
@@ -1231,8 +1212,8 @@ pub const EngCtx = struct {
 
 pub fn Engine(comptime GameLogic: type) type {
     ...
-        pub fn create(allocator: std.mem.Allocator, gameLogic: *GameLogic, wndTitle: [:0]const u8) !Engine(GameLogic) {
-            var constants = try com.common.Constants.load(allocator);
+        pub fn create(allocator: std.mem.Allocator, io: std.Io, gameLogic: *GameLogic, wndTitle: [:0]const u8) !Engine(GameLogic) {
+            var constants = try com.common.Constants.load(allocator, io);
             errdefer constants.cleanup(allocator);
 
             var scene = try eng.scn.Scene.create(allocator);
@@ -1241,16 +1222,32 @@ pub fn Engine(comptime GameLogic: type) type {
             const engCtx = EngCtx{
                 .allocator = allocator,
                 .constants = constants,
+                .io = io,
                 .scene = scene,
                 .wnd = try eng.wnd.Wnd.create(wndTitle),
             };
-            ...
+
+            const render = try eng.rend.Render.create(allocator, io, engCtx.constants, engCtx.wnd.window);
+
+            return .{
+                .engCtx = engCtx,
+                .gameLogic = gameLogic,
+                .render = render,
+            };
         }    
 
-        fn init(self: *Engine(GameLogic), allocator: std.mem.Allocator) !void {
-            ...
+        fn init(self: *Engine(GameLogic)) !void {
+            var arena = std.heap.ArenaAllocator.init(self.engCtx.allocator);
+            const arenaAlloc = arena.allocator();
+            defer arena.deinit();
 
-            try self.render.init(allocator, &self.engCtx, &initData);
+            const initData = try self.gameLogic.init(&self.engCtx, arenaAlloc);
+            try self.render.init(&self.engCtx, &initData);
+        }
+
+        pub fn run(self: *Engine(GameLogic)) !void {
+            try self.init();
+            ...
         }      
     ...
 };

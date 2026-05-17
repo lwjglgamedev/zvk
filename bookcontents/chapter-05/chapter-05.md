@@ -106,7 +106,7 @@ pub const VkCmdBuff = struct {
     ...
     pub fn cleanup(self: *const VkCmdBuff, vkCtx: *const vk.ctx.VkCtx, vkCmdPool: *vk.cmd.VkCmdPool) void {
         const cmds = [_]vulkan.CommandBuffer{self.cmdBuffProxy.handle};
-        vkCtx.vkDevice.deviceProxy.freeCommandBuffers(vkCmdPool.commandPool, cmds.len, &cmds);
+        vkCtx.vkDevice.deviceProxy.freeCommandBuffers(vkCmdPool.commandPool, &cmds);
     }
     ...
     pub fn end(self: *const VkCmdBuff, vkCtx: *const vk.ctx.VkCtx) !void {
@@ -181,11 +181,11 @@ pub const VkFence = struct {
     }
 
     pub fn reset(self: *const VkFence, vkCtx: *const vk.ctx.VkCtx) !void {
-        try vkCtx.*.vkDevice.deviceProxy.resetFences(1, @ptrCast(&self.fence));
+        try vkCtx.*.vkDevice.deviceProxy.resetFences(@ptrCast(&self.fence));
     }
 
     pub fn wait(self: *const VkFence, vkCtx: *const vk.ctx.VkCtx) !void {
-        _ = try vkCtx.*.vkDevice.deviceProxy.waitForFences(1, @ptrCast(&self.fence), vulkan.Bool32.true, std.math.maxInt(u64));
+        _ = try vkCtx.*.vkDevice.deviceProxy.waitForFences(@ptrCast(&self.fence), vulkan.Bool32.true, std.math.maxInt(u64));
     }
 };
 ```
@@ -215,7 +215,6 @@ pub const VkQueue = struct {
         };
         try vkCtx.vkDevice.deviceProxy.queueSubmit2(
             self.handle,
-            1,
             @ptrCast(&si),
             vkFence.fence,
         );

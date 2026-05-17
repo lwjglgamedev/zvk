@@ -47,6 +47,7 @@ pub fn build(b: *std.Build) void {
     eng.addImport("com", com);
     eng.addImport("sdl3", sdl3);
     exe.root_module.addImport("eng", eng);
+    exe.root_module.link_libcpp = true;
 
     b.installArtifact(exe);
 

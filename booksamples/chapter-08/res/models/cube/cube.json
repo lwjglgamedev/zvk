@@ -11,7 +11,7 @@
         "vtxSize": 720
       }
     ],
-    "capacity": 2
+    "capacity": 3
   },
   "idxFilename": "res/models/cube/cube.idx",
   "vtxFilename": "res/models/cube/cube.vtx"

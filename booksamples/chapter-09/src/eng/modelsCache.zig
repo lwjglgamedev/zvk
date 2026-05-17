@@ -51,7 +51,7 @@ pub const VulkanMaterial = struct {
 };
 
 pub const MaterialsCache = struct {
-    materialsMap: std.ArrayHashMap([]const u8, VulkanMaterial, std.array_hash_map.StringContext, false),
+    materialsMap: std.StringArrayHashMapUnmanaged(VulkanMaterial),
     materialsBuffer: ?vk.buf.VkBuffer,
 
     pub fn cleanup(self: *MaterialsCache, allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx) void {
@@ -59,14 +59,14 @@ pub const MaterialsCache = struct {
         while (iter.next()) |entry| {
             entry.value_ptr.cleanup(allocator);
         }
-        self.materialsMap.deinit();
+        self.materialsMap.deinit(allocator);
         if (self.materialsBuffer) |buff| {
             buff.cleanup(vkCtx);
         }
     }
 
-    pub fn create(allocator: std.mem.Allocator) MaterialsCache {
-        const materialsMap = std.ArrayHashMap([]const u8, VulkanMaterial, std.array_hash_map.StringContext, false).init(allocator);
+    pub fn create() MaterialsCache {
+        const materialsMap: std.StringArrayHashMapUnmanaged(VulkanMaterial) = .empty;
         return .{
             .materialsMap = materialsMap,
             .materialsBuffer = null,
@@ -76,6 +76,7 @@ pub const MaterialsCache = struct {
     pub fn init(
         self: *MaterialsCache,
         allocator: std.mem.Allocator,
+        io: std.Io,
         vkCtx: *const vk.ctx.VkCtx,
         textureCache: *eng.tcach.TextureCache,
         cmdPool: *vk.cmd.VkCmdPool,
@@ -132,7 +133,7 @@ pub const MaterialsCache = struct {
             if (materialData.texturePath.len > 0) {
                 const nullTermPath = try allocator.dupeZ(u8, materialData.texturePath);
                 defer allocator.free(nullTermPath);
-                if (try textureCache.addTextureFromPath(allocator, vkCtx, nullTermPath)) {
+                if (try textureCache.addTextureFromPath(allocator, io, vkCtx, nullTermPath)) {
                     if (textureCache.textureMap.getIndex(nullTermPath)) |idx| {
                         textureIdx = @as(u32, @intCast(idx));
                         hasTexture = 1;
@@ -149,7 +150,7 @@ pub const MaterialsCache = struct {
                 .padding = [_]u32{ 0, 0 },
             };
             mappedData[i] = atBuffRecord;
-            try self.materialsMap.put(materialId, vulkanMaterial);
+            try self.materialsMap.put(allocator, materialId, vulkanMaterial);
         }
 
         try cmdBuff.begin(vkCtx);
@@ -184,6 +185,7 @@ pub const ModelsCache = struct {
     pub fn init(
         self: *ModelsCache,
         allocator: std.mem.Allocator,
+        io: std.Io,
         vkCtx: *const vk.ctx.VkCtx,
         cmdPool: *vk.cmd.VkCmdPool,
         vkQueue: vk.queue.VkQueue,
@@ -199,9 +201,9 @@ pub const ModelsCache = struct {
         try cmdBuff.begin(vkCtx);
 
         for (initData.models) |*modelData| {
-            const vtxData = try com.utils.loadFile(allocator, modelData.vtxFilename);
+            const vtxData = try com.utils.loadFile(allocator, io, modelData.vtxFilename);
             defer allocator.free(vtxData);
-            const idxData = try com.utils.loadFile(allocator, modelData.idxFilename);
+            const idxData = try com.utils.loadFile(allocator, io, modelData.idxFilename);
             defer allocator.free(idxData);
 
             var vulkanMeshes = try std.ArrayList(VulkanMesh).initCapacity(allocator, modelData.meshes.items.len);
@@ -288,5 +290,5 @@ fn recordTransfer(
         .dst_offset = 0,
         .size = srcBuff.size,
     }};
-    vkCtx.vkDevice.deviceProxy.cmdCopyBuffer(cmdHandle, srcBuff.buffer, dstBuff.buffer, copyRegion.len, &copyRegion);
+    vkCtx.vkDevice.deviceProxy.cmdCopyBuffer(cmdHandle, srcBuff.buffer, dstBuff.buffer, &copyRegion);
 }

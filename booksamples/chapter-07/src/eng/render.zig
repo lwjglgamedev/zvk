@@ -92,7 +92,7 @@ pub const Render = struct {
         defer allocator.free(self.semsPresComplete);
     }
 
-    pub fn create(allocator: std.mem.Allocator, constants: com.common.Constants, window: sdl3.video.Window) !Render {
+    pub fn create(allocator: std.mem.Allocator, io: std.Io, constants: com.common.Constants, window: sdl3.video.Window) !Render {
         const vkCtx = try vk.ctx.VkCtx.create(allocator, constants, window);
 
         const fences = try allocator.alloc(vk.sync.VkFence, com.common.FRAMES_IN_FLIGHT);
@@ -123,7 +123,7 @@ pub const Render = struct {
         const queueGraphics = vk.queue.VkQueue.create(&vkCtx, vkCtx.vkPhysDevice.queuesInfo.graphics_family);
         const queuePresent = vk.queue.VkQueue.create(&vkCtx, vkCtx.vkPhysDevice.queuesInfo.present_family);
 
-        const renderScn = try eng.rscn.RenderScn.create(allocator, &vkCtx);
+        const renderScn = try eng.rscn.RenderScn.create(allocator, io, &vkCtx);
 
         const modelsCache = eng.mcach.ModelsCache.create(allocator);
 
@@ -143,7 +143,7 @@ pub const Render = struct {
         };
     }
 
-    pub fn init(self: *Render, allocator: std.mem.Allocator, engCtx: *eng.engine.EngCtx, initData: *const eng.engine.InitData) !void {
+    pub fn init(self: *Render, engCtx: *eng.engine.EngCtx, initData: *const eng.engine.InitData) !void {
         const constants = engCtx.constants;
         const extent = self.vkCtx.vkSwapChain.extent;
         engCtx.scene.camera.projData.update(
@@ -153,7 +153,7 @@ pub const Render = struct {
             @as(f32, @floatFromInt(extent.width)),
             @as(f32, @floatFromInt(extent.height)),
         );
-        try self.modelsCache.init(allocator, &self.vkCtx, &self.cmdPools[0], self.queueGraphics, initData);
+        try self.modelsCache.init(engCtx.allocator, &self.vkCtx, &self.cmdPools[0], self.queueGraphics, initData);
     }
 
     pub fn render(self: *Render, engCtx: *eng.engine.EngCtx) !void {

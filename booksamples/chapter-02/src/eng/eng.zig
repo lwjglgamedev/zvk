@@ -5,6 +5,7 @@ const std = @import("std");
 pub const EngCtx = struct {
     allocator: std.mem.Allocator,
     constants: com.common.Constants,
+    io: std.Io,
     wnd: eng.wnd.Wnd,
 
     pub fn cleanup(self: *EngCtx) !void {
@@ -25,13 +26,14 @@ pub fn Engine(comptime GameLogic: type) type {
             try self.engCtx.cleanup();
         }
 
-        pub fn create(allocator: std.mem.Allocator, gameLogic: *GameLogic, wndTitle: [:0]const u8) !Engine(GameLogic) {
-            var constants = try com.common.Constants.load(allocator);
+        pub fn create(allocator: std.mem.Allocator, io: std.Io, gameLogic: *GameLogic, wndTitle: [:0]const u8) !Engine(GameLogic) {
+            var constants = try com.common.Constants.load(allocator, io);
             errdefer constants.cleanup(allocator);
 
             const engCtx = EngCtx{
                 .allocator = allocator,
                 .constants = constants,
+                .io = io,
                 .wnd = try eng.wnd.Wnd.create(wndTitle),
             };
 
@@ -51,31 +53,29 @@ pub fn Engine(comptime GameLogic: type) type {
         pub fn run(self: *Engine(GameLogic)) !void {
             try self.init();
 
-            var timer = try std.time.Timer.start();
-            var lastTime = timer.read();
+            const timeU: f32 = 1.0 / self.engCtx.constants.ups;
+            var lastTime = std.Io.Clock.now(.awake, self.engCtx.io);
             var updateTime = lastTime;
             var deltaUpdate: f32 = 0.0;
-            const timeU: f32 = 1.0 / self.engCtx.constants.ups;
 
             while (!self.engCtx.wnd.closed) {
-                const now = timer.read();
-                const deltaNs = now - lastTime;
+                const now = std.Io.Clock.now(.awake, self.engCtx.io);
+                const deltaNs = lastTime.durationTo(now).toNanoseconds();
                 const deltaSec = @as(f32, @floatFromInt(deltaNs)) / 1_000_000_000.0;
                 deltaUpdate += deltaSec / timeU;
 
                 try self.engCtx.wnd.pollEvents();
-
                 self.gameLogic.input(&self.engCtx, deltaSec);
 
                 if (deltaUpdate >= 1) {
-                    const difUpdateSecs = @as(f32, @floatFromInt(now - updateTime)) / 1_000_000_000.0;
+                    const difNs = updateTime.durationTo(now).toNanoseconds();
+                    const difUpdateSecs = @as(f32, @floatFromInt(difNs)) / 1_000_000_000.0;
                     self.gameLogic.update(&self.engCtx, difUpdateSecs);
                     deltaUpdate -= 1;
                     updateTime = now;
                 }
 
                 try self.render.render(&self.engCtx);
-
                 lastTime = now;
             }
 

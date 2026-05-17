@@ -110,7 +110,7 @@ pub const RenderGui = struct {
     idxBuffers: []vk.buf.VkBuffer,
     vkPipeline: vk.pipe.VkPipeline,
 
-    pub fn create(allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx) !RenderGui {
+    pub fn create(allocator: std.mem.Allocator, io: std.Io, vkCtx: *const vk.ctx.VkCtx) !RenderGui {
         // Init GUI
         try initGUI(allocator, vkCtx);
 
@@ -146,14 +146,14 @@ pub const RenderGui = struct {
         // Shader modules
         var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
         defer arena.deinit();
-        const vertCode align(@alignOf(u32)) = try com.utils.loadFile(arena.allocator(), "res/shaders/gui_vtx.glsl.spv");
+        const vertCode align(@alignOf(u32)) = try com.utils.loadFile(arena.allocator(), io, "res/shaders/gui_vtx.glsl.spv");
         const vert = try vkCtx.vkDevice.deviceProxy.createShaderModule(&.{
             .code_size = vertCode.len,
             .p_code = @ptrCast(@alignCast(vertCode)),
         }, null);
         defer vkCtx.vkDevice.deviceProxy.destroyShaderModule(vert, null);
 
-        const fragCode align(@alignOf(u32)) = try com.utils.loadFile(arena.allocator(), "res/shaders/gui_frg.glsl.spv");
+        const fragCode align(@alignOf(u32)) = try com.utils.loadFile(arena.allocator(), io, "res/shaders/gui_frg.glsl.spv");
         const frag = try vkCtx.vkDevice.deviceProxy.createShaderModule(&.{
             .code_size = fragCode.len,
             .p_code = @ptrCast(@alignCast(fragCode)),
@@ -191,7 +191,7 @@ the descriptor set layouts, shader modules and create the pipeline. The `create`
 ```zig
 pub const RenderGui = struct {
     ...
-    pub fn create(allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx) !RenderGui {
+    pub fn create(allocator: std.mem.Allocator, io: std.Io, vkCtx: *const vk.ctx.VkCtx) !RenderGui {
         ...
         // Buffers
         const vtxBuffers = try allocator.alloc(vk.buf.VkBuffer, com.common.FRAMES_IN_FLIGHT);
@@ -215,7 +215,7 @@ pub const RenderGui = struct {
             );
         }
 
-        const guiTextureCache = eng.tcach.TextureCache.create(allocator);
+        const guiTextureCache = eng.tcach.TextureCache.create();
         return .{
             .descLayoutFrg = descLayoutFrg,
             .guiTextureCache = guiTextureCache,
@@ -340,7 +340,7 @@ pub const RenderGui = struct {
             .min_depth = 0,
             .max_depth = 1,
         }};
-        device.cmdSetViewport(cmdHandle, 0, viewPort.len, &viewPort);
+        device.cmdSetViewport(cmdHandle, 0, &viewPort);
 
         self.setPushConstants(vkCtx, cmdHandle);
 
@@ -350,7 +350,7 @@ pub const RenderGui = struct {
         }
         const offset = [_]vulkan.DeviceSize{0};
         device.cmdBindIndexBuffer(cmdHandle, self.idxBuffers[frameIdx].buffer, 0, vulkan.IndexType.uint16);
-        device.cmdBindVertexBuffers(cmdHandle, 0, 1, @ptrCast(&self.vtxBuffers[frameIdx].buffer), &offset);
+        device.cmdBindVertexBuffers(cmdHandle, 0, @ptrCast(&self.vtxBuffers[frameIdx].buffer), &offset);
 
         var descSets: [1]vulkan.DescriptorSet = undefined;
 
@@ -368,7 +368,7 @@ pub const RenderGui = struct {
                     .offset = .{ .x = x, .y = y },
                     .extent = .{ .width = @intCast(z - x), .height = @intCast(w - y) },
                 }};
-                device.cmdSetScissor(cmdHandle, 0, scissor.len, &scissor);
+                device.cmdSetScissor(cmdHandle, 0,  &scissor);
 
                 const descSetInt = @intFromPtr(cmd.texture_ref.tex_data.?.backend_user_data.?);
                 const descSet: vulkan.DescriptorSet = @enumFromInt(descSetInt);
@@ -379,9 +379,7 @@ pub const RenderGui = struct {
                     vulkan.PipelineBindPoint.graphics,
                     self.vkPipeline.pipelineLayout,
                     0,
-                    @as(u32, @intCast(descSets.len)),
                     &descSets,
-                    0,
                     null,
                 );
 
@@ -796,9 +794,9 @@ pub const Render = struct {
         ...
     }
     ...
-    pub fn create(allocator: std.mem.Allocator, constants: com.common.Constants, window: sdl3.video.Window) !Render {
+    pub fn create(allocator: std.mem.Allocator, io: std.Io, constants: com.common.Constants, window: sdl3.video.Window) !Render {
         ...
-        const renderGui = try eng.rgui.RenderGui.create(allocator, &vkCtx);
+        const renderGui = try eng.rgui.RenderGui.create(allocator, io, &vkCtx);
         ...
         return .{
             ...

@@ -18,7 +18,7 @@ pub const TextureInfo = struct {
 pub const EMPTY_PIXELS = [_]u8{ 0, 0, 0, 0 };
 
 pub const TextureCache = struct {
-    textureMap: std.ArrayHashMap([]const u8, vk.text.VkTexture, std.array_hash_map.StringContext, false),
+    textureMap: std.StringArrayHashMapUnmanaged(vk.text.VkTexture),
 
     pub fn addTexture(self: *TextureCache, allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx, textureInfo: *const TextureInfo) !void {
         if (self.textureMap.contains(textureInfo.id)) {
@@ -35,14 +35,14 @@ pub const TextureCache = struct {
             .format = textureInfo.format,
         };
         const vkTexture = try vk.text.VkTexture.create(vkCtx, &vkTextureInfo);
-        try self.textureMap.put(ownedId, vkTexture);
+        try self.textureMap.put(allocator, ownedId, vkTexture);
     }
 
-    pub fn addTextureFromPath(self: *TextureCache, allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx, path: [:0]const u8) !bool {
+    pub fn addTextureFromPath(self: *TextureCache, allocator: std.mem.Allocator, io: std.Io, vkCtx: *const vk.ctx.VkCtx, path: [:0]const u8) !bool {
         if (self.textureMap.count() >= MAX_TEXTURES) {
             @panic("Exceeded maximum number of textures");
         }
-        std.fs.cwd().access(path, .{}) catch {
+        std.Io.Dir.cwd().access(io, path, .{}) catch {
             log.err("Could not load texture file [{s}]", .{path});
             return false;
         };
@@ -61,8 +61,8 @@ pub const TextureCache = struct {
         return true;
     }
 
-    pub fn create(allocator: std.mem.Allocator) TextureCache {
-        const textureMap = std.ArrayHashMap([]const u8, vk.text.VkTexture, std.array_hash_map.StringContext, false).init(allocator);
+    pub fn create() TextureCache {
+        const textureMap: std.StringArrayHashMapUnmanaged(vk.text.VkTexture) = .empty;
         return .{ .textureMap = textureMap };
     }
 
@@ -73,7 +73,7 @@ pub const TextureCache = struct {
             const texture = entry.value_ptr;
             texture.cleanup(vkCtx);
         }
-        self.textureMap.deinit();
+        self.textureMap.deinit(allocator);
     }
 
     pub fn getTexture(self: *const TextureCache, id: []const u8) vk.text.VkTexture {

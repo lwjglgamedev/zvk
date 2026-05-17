@@ -16,27 +16,27 @@ const MeshIntData = struct {
     }
 };
 
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    var arena = std.heap.ArenaAllocator.init(gpa.allocator());
+pub fn main(init: std.process.Init) !void {
+    var arena = std.heap.ArenaAllocator.init(init.gpa);
     const allocator = arena.allocator();
     defer arena.deinit();
 
-    const args = try std.process.argsAlloc(allocator);
-    defer std.process.argsFree(allocator, args);
+    const args = try init.minimal.args.toSlice(allocator);
 
     if (args.len < 3 or !std.mem.eql(u8, args[1], "-m")) {
         printHelp();
         return;
     }
 
+    const io = init.io;
+
     const modelPath = args[2];
     const baseDir = try normalizePath(allocator, std.fs.path.dirname(modelPath) orelse ".");
     const baseName = std.fs.path.basename(modelPath);
     const modelId = std.fs.path.stem(baseName);
 
-    var dir = try std.fs.cwd().openDir(baseDir, .{});
-    defer dir.close();
+    var dir = try std.Io.Dir.cwd().openDir(io, baseDir, .{});
+    defer dir.close(io);
 
     zmesh.init(allocator);
     defer zmesh.deinit();
@@ -44,7 +44,7 @@ pub fn main() !void {
     const data = try zmesh.io.zcgltf.parseAndLoadFile(modelPath);
     defer zmesh.io.zcgltf.freeData(data);
 
-    var materialList = std.ArrayListUnmanaged(eng.mdata.MaterialData){};
+    var materialList: std.ArrayListUnmanaged(eng.mdata.MaterialData) = .empty;
     defer materialList.deinit(allocator);
 
     if (data.materials_count > 0 and data.materials != null) {
@@ -57,15 +57,15 @@ pub fn main() !void {
 
     // Create indices file
     const idxFileName = try std.fmt.allocPrint(allocator, "{s}.idx", .{modelId});
-    const idxFile = try dir.createFile(idxFileName, .{ .truncate = true });
-    defer idxFile.close();
+    const idxFile = try dir.createFile(io, idxFileName, .{ .truncate = true });
+    defer idxFile.close(io);
 
     // Create vertices file
     const vtxFileName = try std.fmt.allocPrint(allocator, "{s}.vtx", .{modelId});
-    const vtxFile = try dir.createFile(vtxFileName, .{ .truncate = true });
-    defer vtxFile.close();
+    const vtxFile = try dir.createFile(io, vtxFileName, .{ .truncate = true });
+    defer vtxFile.close(io);
 
-    var meshDataList = std.ArrayListUnmanaged(eng.mdata.MeshData){};
+    var meshDataList: std.ArrayListUnmanaged(eng.mdata.MeshData) = .empty;
     defer meshDataList.deinit(allocator);
     const defText = [_]f32{ 0.0, 0.0 };
     var idxOffset: usize = 0;
@@ -88,15 +88,15 @@ pub fn main() !void {
             defer meshIntData.cleanup(allocator);
 
             // Dump to indices file
-            try idxFile.writeAll(std.mem.sliceAsBytes(meshIntData.indices.items));
+            try idxFile.writeStreamingAll(io, std.mem.sliceAsBytes(meshIntData.indices.items));
 
             // Dump to vertices file
             for (meshIntData.positions.items, 0..) |_, idx| {
-                try vtxFile.writeAll(std.mem.sliceAsBytes(std.mem.asBytes(&meshIntData.positions.items[idx])));
+                try vtxFile.writeStreamingAll(io, std.mem.sliceAsBytes(std.mem.asBytes(&meshIntData.positions.items[idx])));
                 if (idx < meshIntData.texcoords.items.len) {
-                    try vtxFile.writeAll(std.mem.sliceAsBytes(std.mem.asBytes(&meshIntData.texcoords.items[idx])));
+                    try vtxFile.writeStreamingAll(io, std.mem.sliceAsBytes(std.mem.asBytes(&meshIntData.texcoords.items[idx])));
                 } else {
-                    try vtxFile.writeAll(std.mem.sliceAsBytes(std.mem.asBytes(&defText)));
+                    try vtxFile.writeStreamingAll(io, std.mem.sliceAsBytes(std.mem.asBytes(&defText)));
                 }
             }
 
@@ -131,9 +131,9 @@ pub fn main() !void {
     };
     const fileMaterialsName = try std.fmt.allocPrint(allocator, "{s}-mat.json", .{modelId});
     try jsonMat.write(materialList);
-    const fileMaterials = try dir.createFile(fileMaterialsName, .{ .truncate = true });
-    defer fileMaterials.close();
-    try fileMaterials.writeAll(writerMaterials.written());
+    const fileMaterials = try dir.createFile(io, fileMaterialsName, .{ .truncate = true });
+    defer fileMaterials.close(io);
+    try fileMaterials.writeStreamingAll(io, writerMaterials.written());
     std.debug.print("Dumped materials [{s}]\n", .{fileMaterialsName});
 
     // Build model data
@@ -162,9 +162,9 @@ pub fn main() !void {
 
     const fileModelName = try std.fmt.allocPrint(allocator, "{s}.json", .{modelId});
     try jsonModel.write(modelData);
-    const fileModel = try dir.createFile(fileModelName, .{ .truncate = true });
-    defer fileModel.close();
-    try fileModel.writeAll(writerModel.written());
+    const fileModel = try dir.createFile(io, fileModelName, .{ .truncate = true });
+    defer fileModel.close(io);
+    try fileModel.writeStreamingAll(io, writerModel.written());
     std.debug.print("Dumped model [{s}]\n", .{fileModelName});
 }
 
@@ -210,9 +210,9 @@ fn processMesh(
 ) !MeshIntData {
     const id = try std.fmt.allocPrint(allocator, "mesh-{d}-{d}", .{ meshIdx, primIdx });
 
-    var indices = std.ArrayListUnmanaged(u32){};
-    var positions = std.ArrayListUnmanaged([3]f32){};
-    var texcoords = std.ArrayListUnmanaged([2]f32){};
+    var indices: std.ArrayListUnmanaged(u32) = .empty;
+    var positions: std.ArrayListUnmanaged([3]f32) = .empty;
+    var texcoords: std.ArrayListUnmanaged([2]f32) = .empty;
 
     var materialId: []const u8 = "";
     if (primitive.material) |material| {

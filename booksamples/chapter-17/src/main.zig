@@ -6,15 +6,14 @@ const log = std.log.scoped(.main);
 const zgui = @import("zgui");
 const zstbi = @import("zstbi");
 
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer if (gpa.deinit() == .leak) @panic("memory leaked");
-    const allocator = gpa.allocator();
+pub fn main(init: std.process.Init) !void {
+    const allocator = init.gpa;
+    const io = init.io;
 
     const wndTitle = "Vulkan Book";
     var game = Game{};
-    var engine = try eng.engine.Engine(Game).create(allocator, &game, wndTitle);
-    try engine.run(allocator);
+    var engine = try eng.engine.Engine(Game).create(allocator, io, &game, wndTitle);
+    try engine.run();
 }
 
 const Game = struct {
@@ -27,7 +26,7 @@ const Game = struct {
     }
 
     pub fn init(self: *Game, engCtx: *eng.engine.EngCtx, arenaAlloc: std.mem.Allocator) !eng.engine.InitData {
-        const sponzaModel = try eng.mdata.loadModel(arenaAlloc, "res/models/sponza/Sponza.json");
+        const sponzaModel = try eng.mdata.loadModel(arenaAlloc, engCtx.io, "res/models/sponza/Sponza.json");
         const models = try arenaAlloc.alloc(eng.mdata.ModelData, 1);
         models[0] = sponzaModel;
 
@@ -38,7 +37,7 @@ const Game = struct {
         try engCtx.scene.addEntity(sponzaEntity);
 
         var materials = try std.ArrayList(eng.mdata.MaterialData).initCapacity(arenaAlloc, 1);
-        const sponzaMaterials = try eng.mdata.loadMaterials(arenaAlloc, "res/models/sponza/Sponza-mat.json");
+        const sponzaMaterials = try eng.mdata.loadMaterials(arenaAlloc, engCtx.io, "res/models/sponza/Sponza-mat.json");
         try materials.appendSlice(arenaAlloc, sponzaMaterials.items);
 
         var viewData = &engCtx.scene.camera.viewData;

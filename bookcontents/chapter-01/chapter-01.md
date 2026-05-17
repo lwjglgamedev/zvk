@@ -15,15 +15,12 @@ When posting source code, we will use `...` to state that there is code above or
 The build file (`build.zig`) is quite standard. It just builds an executable adding the required dependencies and modules.
 We will use the following dependencies:
 
-- [SDL3](https://github.com/Gota7/zig-sdl3) Zig bindings. We will use SDL3 to create windows and handle user input.
-In order to add the dependency to the `build.zig.zon` file just execute:
-`zig fetch --save https://codeberg.org/7Games/zig-sdl3/archive/v0.1.9.tar.gz`
-- [TOML](https://github.com/sam701/zig-toml) to be able to parse configuration files.
-In order to add the dependency to the `build.zig.zon` file just execute:
-`zig fetch --save https://github.com/sam701/zig-toml/archive/58ac681fb63b18c01ffbbbd67d12a404fef8687d.tar.gz`
-- [Vulkan](https://github.com/Snektron/vulkan-zig) Zig bindings.
-In order to add the dependency to the `build.zig.zon` file just execute:
-`zig fetch --save https://github.com/Snektron/vulkan-zig/archive/3ada9e2989bab70090a55f0f6fac19ea90d06357.tar.gz`
+- [SDL3](https://github.com/Gota7/zig-sdl3) Zig bindings. We will use SDL3 to create windows and handle user input. In order to add the
+dependency to the `build.zig.zon` file just execute: `zig fetch --save https://codeberg.org/7Games/zig-sdl3/archive/v0.2.0.tar.gz`
+- [TOML](https://github.com/sam701/zig-toml) to be able to parse configuration files. In order to add the dependency to the `build.zig.zon`
+file just execute: `zig fetch --save https://github.com/sam701/zig-toml/archive/a73c9423d88ed413204b39638fab7e9bccdb83fd.tar.gz`
+- [Vulkan](https://github.com/Snektron/vulkan-zig) Zig bindings. In order to add the dependency to the `build.zig.zon` file just execute:
+`zig fetch --save https://github.com/Snektron/vulkan-zig/archive/f75b0011214705d6593e6ad64948c4832b1e6f27.tar.gz`
 - [Vulkan Headers](https://github.com/KhronosGroup/Vulkan-Headers) we will need to add to the `build.zig.zon` file the following entry
 
 ```zig
@@ -32,7 +29,7 @@ In order to add the dependency to the `build.zig.zon` file just execute:
     .dependencies = .{
         ...
         .vulkan_headers = .{
-            .url = "https://github.com/KhronosGroup/Vulkan-Headers/archive/refs/tags/v1.4.338.tar.gz",
+            .url = "https://github.com/KhronosGroup/Vulkan-Headers/archive/refs/tags/v1.4.351.tar.gz",
             .hash = "N-V-__8AAMZuLQIcPe--JSv0kn_Ga8tsjgbkaojW0OHW2Rfd",
         },
         ...
@@ -99,7 +96,8 @@ pub fn build(b: *std.Build) void {
     eng.addImport("com", com);
     eng.addImport("sdl3", sdl3);
     exe.root_module.addImport("eng", eng);
-
+    exe.root_module.link_libcpp = true;
+    
     b.installArtifact(exe);
 
     const run_step = b.step("run", "Run the app");
@@ -123,15 +121,13 @@ So let's start from the beginning with, of all things, our `main.zig` file:
 const eng = @import("eng");
 const std = @import("std");
 
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer if (gpa.deinit() == .leak) @panic("memory leaked");
-
-    const allocator = gpa.allocator();
+pub fn main(init: std.process.Init) !void {
+    const allocator = init.gpa;
+    const io = init.io;
 
     const wndTitle = "Vulkan Book";
     var game = Game{};
-    var engine = try eng.engine.Engine(Game).create(allocator, &game, wndTitle);
+    var engine = try eng.engine.Engine(Game).create(allocator, io, &game, wndTitle);
     try engine.run();
 }
 
@@ -188,6 +184,7 @@ const std = @import("std");
 pub const EngCtx = struct {
     allocator: std.mem.Allocator,
     constants: com.common.Constants,
+    io: std.Io,
     wnd: eng.wnd.Wnd,
 
     pub fn cleanup(self: *EngCtx) !void {
@@ -208,13 +205,14 @@ pub fn Engine(comptime GameLogic: type) type {
             try self.engCtx.cleanup();
         }
 
-        pub fn create(allocator: std.mem.Allocator, gameLogic: *GameLogic, wndTitle: [:0]const u8) !Engine(GameLogic) {
-            var constants = try com.common.Constants.load(allocator);
+        pub fn create(allocator: std.mem.Allocator, io: std.Io, gameLogic: *GameLogic, wndTitle: [:0]const u8) !Engine(GameLogic) {
+            var constants = try com.common.Constants.load(allocator, io);
             errdefer constants.cleanup(allocator);
 
             const engCtx = EngCtx{
                 .allocator = allocator,
                 .constants = constants,
+                .io = io,
                 .wnd = try eng.wnd.Wnd.create(wndTitle),
             };
 
@@ -234,31 +232,29 @@ pub fn Engine(comptime GameLogic: type) type {
         pub fn run(self: *Engine(GameLogic)) !void {
             try self.init();
 
-            var timer = try std.time.Timer.start();
-            var lastTime = timer.read();
+            const timeU: f32 = 1.0 / self.engCtx.constants.ups;
+            var lastTime = std.Io.Clock.now(.awake, self.engCtx.io);
             var updateTime = lastTime;
             var deltaUpdate: f32 = 0.0;
-            const timeU: f32 = 1.0 / self.engCtx.constants.ups;
 
             while (!self.engCtx.wnd.closed) {
-                const now = timer.read();
-                const deltaNs = now - lastTime;
+                const now = std.Io.Clock.now(.awake, self.engCtx.io);
+                const deltaNs = lastTime.durationTo(now).toNanoseconds();
                 const deltaSec = @as(f32, @floatFromInt(deltaNs)) / 1_000_000_000.0;
                 deltaUpdate += deltaSec / timeU;
 
                 try self.engCtx.wnd.pollEvents();
-
                 self.gameLogic.input(&self.engCtx, deltaSec);
 
                 if (deltaUpdate >= 1) {
-                    const difUpdateSecs = @as(f32, @floatFromInt(now - updateTime)) / 1_000_000_000.0;
+                    const difNs = updateTime.durationTo(now).toNanoseconds();
+                    const difUpdateSecs = @as(f32, @floatFromInt(difNs)) / 1_000_000_000.0;
                     self.gameLogic.update(&self.engCtx, difUpdateSecs);
                     deltaUpdate -= 1;
                     updateTime = now;
                 }
 
                 try self.render.render(&self.engCtx);
-
                 lastTime = now;
             }
 
@@ -293,11 +289,11 @@ const toml = @import("toml");
 pub const Constants = struct {
     ups: f32,
 
-    pub fn load(allocator: std.mem.Allocator) !Constants {
+    pub fn load(allocator: std.mem.Allocator, io: std.Io) !Constants {
         var parser = toml.Parser(Constants).init(allocator);
         defer parser.deinit();
 
-        const result = try parser.parseFile("res/cfg/cfg.toml");
+        const result = try parser.parseFile(io, "res/cfg/cfg.toml");
         defer result.deinit();
 
         const tmp = result.value;

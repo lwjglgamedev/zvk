@@ -535,7 +535,7 @@ We added a new configuration variable in the `Constants` struct that allows us t
 pub const Constants = struct {
     gpu: []const u8,    
     ...
-    pub fn load(allocator: std.mem.Allocator) !Constants {
+    pub fn load(allocator: std.mem.Allocator, io: std.Io) !Constants {
         ...
         const constants = Constants{
             .gpu = try allocator.dupe(u8, tmp.gpu),
@@ -584,7 +584,7 @@ Finally, we need to update the `Engine` struct to also pass a reference to the w
 ```zig
 pub fn Engine(comptime GameLogic: type) type {
     ...
-        pub fn create(allocator: std.mem.Allocator, gameLogic: *GameLogic, wndTitle: [:0]const u8) !Engine(GameLogic) {
+        pub fn create(allocator: std.mem.Allocator, io: std.Io, gameLogic: *GameLogic, wndTitle: [:0]const u8) !Engine(GameLogic) {
             ...
             const render = try eng.rend.Render.create(allocator, engCtx.constants, engCtx.wnd.window);
             ...

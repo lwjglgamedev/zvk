@@ -34,13 +34,18 @@ pub const ModelData = struct {
     }
 };
 
-pub fn loadMaterials(allocator: std.mem.Allocator, path: []const u8) !std.ArrayList(MaterialData) {
+pub fn loadMaterials(allocator: std.mem.Allocator, io: std.Io, path: []const u8) !std.ArrayList(MaterialData) {
     log.debug("Loading materials from [{s}]", .{path});
 
-    const file = try std.fs.cwd().openFile(path, .{});
-    defer file.close();
+    const file = try std.Io.Dir.cwd().openFile(io, path, .{});
+    defer file.close(io);
 
-    const bytes = try file.readToEndAlloc(allocator, std.math.maxInt(usize));
+    const metadata = try file.stat(io);
+    const fileSize = metadata.size;
+
+    var buffer: [8192]u8 = undefined;
+    var fileReader = file.reader(io, &buffer);
+    const bytes = try fileReader.interface.readAlloc(allocator, fileSize);
     defer allocator.free(bytes);
 
     const parsed = try std.json.parseFromSlice(std.ArrayListUnmanaged(MaterialData), allocator, bytes, .{});
@@ -59,13 +64,18 @@ pub fn loadMaterials(allocator: std.mem.Allocator, path: []const u8) !std.ArrayL
     return materials;
 }
 
-pub fn loadModel(allocator: std.mem.Allocator, path: []const u8) !ModelData {
+pub fn loadModel(allocator: std.mem.Allocator, io: std.Io, path: []const u8) !ModelData {
     log.debug("Loading model from [{s}]", .{path});
 
-    const file = try std.fs.cwd().openFile(path, .{});
-    defer file.close();
+    const file = try std.Io.Dir.cwd().openFile(io, path, .{});
+    defer file.close(io);
 
-    const bytes = try file.readToEndAlloc(allocator, std.math.maxInt(usize));
+    const metadata = try file.stat(io);
+    const fileSize = metadata.size;
+
+    var buffer: [8192]u8 = undefined;
+    var fileReader = file.reader(io, &buffer);
+    const bytes = try fileReader.interface.readAlloc(allocator, fileSize);
     defer allocator.free(bytes);
 
     const parsed = try std.json.parseFromSlice(ModelData, allocator, bytes, .{});

@@ -26,7 +26,7 @@ pub fn build(b: *std.Build) void {
     });
     const zmesh = b.dependency("zmesh", .{});
     modelGen.root_module.addImport("zmesh", zmesh.module("root"));
-    modelGen.linkLibrary(zmesh.artifact("zmesh"));
+    modelGen.root_module.linkLibrary(zmesh.artifact("zmesh"));
     b.installArtifact(modelGen);
 }
 ```
@@ -59,19 +59,19 @@ simplify the loading process at the end. The `main` function defined in the `mod
 you are not interested in preprocessing the models):
 
 ```zig
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    var arena = std.heap.ArenaAllocator.init(gpa.allocator());
+pub fn main(init: std.process.Init) !void {
+    var arena = std.heap.ArenaAllocator.init(init.gpa);
     const allocator = arena.allocator();
     defer arena.deinit();
 
-    const args = try std.process.argsAlloc(allocator);
-    defer std.process.argsFree(allocator, args);
+const args = try init.minimal.args.toSlice(allocator);
 
     if (args.len < 3 or !std.mem.eql(u8, args[1], "-m")) {
         printHelp();
         return;
     }
+
+    const io = init.io;
     ...
 }
 ```
@@ -88,8 +88,8 @@ pub fn main() !void {
     const baseName = std.fs.path.basename(modelPath);
     const modelId = std.fs.path.stem(baseName);
 
-    var dir = try std.fs.cwd().openDir(baseDir, .{});
-    defer dir.close();
+    var dir = try std.Io.Dir.cwd().openDir(io, baseDir, .{});
+    defer dir.close(io);
 
     zmesh.init(allocator);
     defer zmesh.deinit();
@@ -105,7 +105,7 @@ Then we process the materials defined in the model:
 ```zig
 pub fn main() !void {
     ...
-    var materialList = std.ArrayListUnmanaged(eng.mdata.MaterialData){};
+    var materialList: std.ArrayListUnmanaged(eng.mdata.MaterialData) = .empty;
     defer materialList.deinit(allocator);
 
     if (data.materials_count > 0 and data.materials != null) {
@@ -138,13 +138,13 @@ pub fn main() !void {
     ...
     // Create indices file
     const idxFileName = try std.fmt.allocPrint(allocator, "{s}.idx", .{modelId});
-    const idxFile = try dir.createFile(idxFileName, .{ .truncate = true });
-    defer idxFile.close();
+    const idxFile = try dir.createFile(io, idxFileName, .{ .truncate = true });
+    defer idxFile.close(io);
 
     // Create vertices file
     const vtxFileName = try std.fmt.allocPrint(allocator, "{s}.vtx", .{modelId});
-    const vtxFile = try dir.createFile(vtxFileName, .{ .truncate = true });
-    defer vtxFile.close();
+    const vtxFile = try dir.createFile(io, vtxFileName, .{ .truncate = true });
+    defer vtxFile.close(io);
     ...
 }
 ```
@@ -154,7 +154,7 @@ for all the meshes. Let's continue with the code.
 ```zig
 pub fn main() !void {
     ...
-    var meshDataList = std.ArrayListUnmanaged(eng.mdata.MeshData){};
+    var meshDataList: std.ArrayListUnmanaged(eng.mdata.MeshData) = .empty;
     defer meshDataList.deinit(allocator);
     const defText = [_]f32{ 0.0, 0.0 };
     var idxOffset: usize = 0;
@@ -177,15 +177,15 @@ pub fn main() !void {
             defer meshIntData.cleanup(allocator);
 
             // Dump to indices file
-            try idxFile.writeAll(std.mem.sliceAsBytes(meshIntData.indices.items));
+            try idxFile.writeStreamingAll(io, std.mem.sliceAsBytes(meshIntData.indices.items));
 
             // Dump to vertices file
             for (meshIntData.positions.items, 0..) |_, idx| {
-                try vtxFile.writeAll(std.mem.sliceAsBytes(std.mem.asBytes(&meshIntData.positions.items[idx])));
+                try vtxFile.writeStreamingAll(io, std.mem.sliceAsBytes(std.mem.asBytes(&meshIntData.positions.items[idx])));
                 if (idx < meshIntData.texcoords.items.len) {
-                    try vtxFile.writeAll(std.mem.sliceAsBytes(std.mem.asBytes(&meshIntData.texcoords.items[idx])));
+                    try vtxFile.writeStreamingAll(io, std.mem.sliceAsBytes(std.mem.asBytes(&meshIntData.texcoords.items[idx])));
                 } else {
-                    try vtxFile.writeAll(std.mem.sliceAsBytes(std.mem.asBytes(&defText)));
+                    try vtxFile.writeStreamingAll(io, std.mem.sliceAsBytes(std.mem.asBytes(&defText)));
                 }
             }
 
@@ -271,9 +271,9 @@ pub fn main() !void {
     };
     const fileMaterialsName = try std.fmt.allocPrint(allocator, "{s}-mat.json", .{modelId});
     try jsonMat.write(materialList);
-    const fileMaterials = try dir.createFile(fileMaterialsName, .{ .truncate = true });
-    defer fileMaterials.close();
-    try fileMaterials.writeAll(writerMaterials.written());
+    const fileMaterials = try dir.createFile(io, fileMaterialsName, .{ .truncate = true });
+    defer fileMaterials.close(io);
+    try fileMaterials.writeStreamingAll(io, writerMaterials.written());
     std.debug.print("Dumped materials [{s}]\n", .{fileMaterialsName});
     ...
 }
@@ -343,9 +343,9 @@ pub fn main() !void {
 
     const fileModelName = try std.fmt.allocPrint(allocator, "{s}.json", .{modelId});
     try jsonModel.write(modelData);
-    const fileModel = try dir.createFile(fileModelName, .{ .truncate = true });
-    defer fileModel.close();
-    try fileModel.writeAll(writerModel.written());
+    const fileModel = try dir.createFile(io, fileModelName, .{ .truncate = true });
+    defer fileModel.close(io);
+    try fileModel.writeStreamingAll(io, writerModel.written());
     std.debug.print("Dumped model [{s}]\n", .{fileModelName});
 }
 ```
@@ -409,9 +409,9 @@ fn processMesh(
 ) !MeshIntData {
     const id = try std.fmt.allocPrint(allocator, "mesh-{d}-{d}", .{ meshIdx, primIdx });
 
-    var indices = std.ArrayListUnmanaged(u32){};
-    var positions = std.ArrayListUnmanaged([3]f32){};
-    var texcoords = std.ArrayListUnmanaged([2]f32){};
+    var indices: std.ArrayListUnmanaged(u32) = .empty;
+    var positions: std.ArrayListUnmanaged([3]f32) = .empty;
+    var texcoords: std.ArrayListUnmanaged([2]f32) = .empty;
 
     var materialId: []const u8 = "";
     if (primitive.material) |material| {
@@ -656,7 +656,6 @@ pub const VkTexture = struct {
             self.vkStageBuffer.?.buffer,
             self.vkImage.image,
             vulkan.ImageLayout.transfer_dst_optimal,
-            region.len,
             &region,
         );
 
@@ -727,10 +726,10 @@ pub const TextureInfo = struct {
 pub const EMPTY_PIXELS = [_]u8{ 0, 0, 0, 0 };
 
 pub const TextureCache = struct {
-    textureMap: std.ArrayHashMap([]const u8, vk.text.VkTexture, std.array_hash_map.StringContext, false),
+    textureMap: std.StringArrayHashMapUnmanaged(vk.text.VkTexture),
     ...
-    pub fn create(allocator: std.mem.Allocator) TextureCache {
-        const textureMap = std.ArrayHashMap([]const u8, vk.text.VkTexture, std.array_hash_map.StringContext, false).init(allocator);
+    pub fn create() TextureCache {
+        const textureMap: std.StringArrayHashMapUnmanaged(vk.text.VkTexture) = .empty;
         return .{ .textureMap = textureMap };
     }
     ...    
@@ -764,15 +763,14 @@ pub const TextureCache = struct {
             .format = textureInfo.format,
         };
         const vkTexture = try vk.text.VkTexture.create(vkCtx, &vkTextureInfo);
-        try self.textureMap.put(ownedId, vkTexture);
+        try self.textureMap.put(allocator, ownedId, vkTexture);
     }
 
-    pub fn addTextureFromPath(self: *TextureCache, allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx, path: [:0]const u8) !bool {
+    pub fn addTextureFromPath(self: *TextureCache, allocator: std.mem.Allocator, io: std.Io, vkCtx: *const vk.ctx.VkCtx, path: [:0]const u8) !bool {
         if (self.textureMap.count() >= MAX_TEXTURES) {
             @panic("Exceeded maximum number of textures");
         }
-        std.fs.cwd().access(path, .{}) catch {
-            log.err("Could not load texture file [{s}]", .{path});
+        std.Io.Dir.cwd().access(io, path, .{}) catch {            log.err("Could not load texture file [{s}]", .{path});
             return false;
         };
         var image = try zstbi.Image.loadFromFile(path, 4);
@@ -806,7 +804,7 @@ pub const TextureCache = struct {
             const texture = entry.value_ptr;
             texture.cleanup(vkCtx);
         }
-        self.textureMap.deinit();
+        self.textureMap.deinit(allocator);
     }
 
     pub fn getTexture(self: *const TextureCache, id: []const u8) vk.text.VkTexture {
@@ -860,9 +858,9 @@ In order to generate the identifiers of the "dummy" textures we will create an U
 function `generateUuid` (defined in the `src/eng/com/utils.zig` file) is defined like this:
 
 ```zig
-pub fn generateUuid(allocator: std.mem.Allocator) ![]const u8 {
+pub fn generateUuid(allocator: std.mem.Allocator, io: std.Io) ![]const u8 {
     var bytes: [16]u8 = undefined;
-    std.crypto.random.bytes(&bytes);
+    io.random(&bytes);
 
     // Set version (4) and variant bits (RFC 4122)
     bytes[6] = (bytes[6] & 0x0F) | 0x40;
@@ -935,6 +933,7 @@ pub const ModelsCache = struct {
     pub fn init(
         self: *ModelsCache,
         allocator: std.mem.Allocator,
+        io: std.Io,
         vkCtx: *const vk.ctx.VkCtx,
         cmdPool: *vk.cmd.VkCmdPool,
         vkQueue: vk.queue.VkQueue,
@@ -950,9 +949,9 @@ pub const ModelsCache = struct {
         try cmdBuff.begin(vkCtx);
 
         for (initData.models) |*modelData| {
-            const vtxData = try com.utils.loadFile(allocator, modelData.vtxFilename);
+            const vtxData = try com.utils.loadFile(allocator, io, modelData.vtxFilename);
             defer allocator.free(vtxData);
-            const idxData = try com.utils.loadFile(allocator, modelData.idxFilename);
+            const idxData = try com.utils.loadFile(allocator, io, modelData.idxFilename);
             defer allocator.free(idxData);
 
             var vulkanMeshes = try std.ArrayList(VulkanMesh).initCapacity(allocator, modelData.meshes.items.len);
@@ -1046,7 +1045,7 @@ const MaterialBuffRecord = struct {
 };
 ...
 pub const MaterialsCache = struct {
-    materialsMap: std.ArrayHashMap([]const u8, VulkanMaterial, std.array_hash_map.StringContext, false),
+    materialsMap: std.StringArrayHashMapUnmanaged(VulkanMaterial),
     materialsBuffer: ?vk.buf.VkBuffer,
 
     pub fn cleanup(self: *MaterialsCache, allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx) void {
@@ -1054,14 +1053,14 @@ pub const MaterialsCache = struct {
         while (iter.next()) |entry| {
             entry.value_ptr.cleanup(allocator);
         }
-        self.materialsMap.deinit();
+        self.materialsMap.deinit(allocator);
         if (self.materialsBuffer) |buff| {
             buff.cleanup(vkCtx);
         }
     }
 
-    pub fn create(allocator: std.mem.Allocator) MaterialsCache {
-        const materialsMap = std.ArrayHashMap([]const u8, VulkanMaterial, std.array_hash_map.StringContext, false).init(allocator);
+    pub fn create() MaterialsCache {
+        const materialsMap: std.StringArrayHashMapUnmanaged(VulkanMaterial) = .empty;
         return .{
             .materialsMap = materialsMap,
             .materialsBuffer = null,
@@ -1085,6 +1084,7 @@ pub const MaterialsCache = struct {
     pub fn init(
         self: *MaterialsCache,
         allocator: std.mem.Allocator,
+        io: std.Io,
         vkCtx: *const vk.ctx.VkCtx,
         textureCache: *eng.tcach.TextureCache,
         cmdPool: *vk.cmd.VkCmdPool,
@@ -1138,7 +1138,7 @@ pub const MaterialsCache = struct {
             if (materialData.texturePath.len > 0) {
                 const nullTermPath = try allocator.dupeZ(u8, materialData.texturePath);
                 defer allocator.free(nullTermPath);
-                if (try textureCache.addTextureFromPath(allocator, vkCtx, nullTermPath)) {
+                if (try textureCache.addTextureFromPath(allocator, io, vkCtx, nullTermPath)) {
                     if (textureCache.textureMap.getIndex(nullTermPath)) |idx| {
                         textureIdx = @as(u32, @intCast(idx));
                         hasTexture = 1;
@@ -1154,7 +1154,7 @@ pub const MaterialsCache = struct {
                 .padding = [_]u32{ 0, 0 },
             };
             mappedData[i] = atBuffRecord;
-            try self.materialsMap.put(materialId, vulkanMaterial);
+            try self.materialsMap.put(allocator, materialId, vulkanMaterial);
         }
 
         try cmdBuff.begin(vkCtx);
@@ -1478,7 +1478,7 @@ pub const VkDesSet = struct {
             .dst_array_element = 0,
         }};
 
-        vkDevice.deviceProxy.updateDescriptorSets(descSets.len, &descSets, 0, null);
+        vkDevice.deviceProxy.updateDescriptorSets(&descSets, null);
     }
     ...
 };
@@ -1530,7 +1530,7 @@ pub const VkDesSet = struct {
             .dst_array_element = 0,
         }};
 
-        vkDevice.deviceProxy.updateDescriptorSets(descSets.len, &descSets, 0, null);
+        vkDevice.deviceProxy.updateDescriptorSets(&descSets, null);
     }
     ...
 }
@@ -1578,7 +1578,7 @@ pub const VkDesSet = struct {
             .dst_array_element = 0,
         }};
 
-        vkDevice.deviceProxy.updateDescriptorSets(descSets.len, &descSets, 0, null);
+        vkDevice.deviceProxy.updateDescriptorSets(&descSets, null);
     }
 };
 ```
@@ -1619,11 +1619,11 @@ initialize the `poolInfoList` with one entry. Let's review how the `PoolInfo` st
 
 ```zig
 const PoolInfo = struct {
-    descCount: std.AutoArrayHashMap(vulkan.DescriptorType, u32),
+    descCount: std.AutoArrayHashMapUnmanaged(vulkan.DescriptorType, u32),
     vkDescPool: VkDescPool,
 
-    pub fn cleanup(self: *PoolInfo, vkDevice: vk.dev.VkDevice) void {
-        self.descCount.deinit();
+    pub fn cleanup(self: *PoolInfo, allocator: std.mem.Allocator, vkDevice: vk.dev.VkDevice) void {
+        self.descCount.deinit(allocator);
         self.vkDescPool.cleanup(vkDevice);
     }
 
@@ -1639,9 +1639,9 @@ const PoolInfo = struct {
             .descriptor_count = try getLimits(vkPhysDevice, vulkan.DescriptorType.storage_buffer),
         } };
         const vkDescPool = try VkDescPool.create(vkDevice, &descPoolSize);
-        var descCount = std.AutoArrayHashMap(vulkan.DescriptorType, u32).init(allocator);
+        var descCount: std.AutoArrayHashMapUnmanaged(vulkan.DescriptorType, u32) = .empty;
         for (descPoolSize) |item| {
-            try descCount.put(item.type, item.descriptor_count);
+            try descCount.put(allocator, item.type, item.descriptor_count);
         }
 
         return .{
@@ -1726,6 +1726,7 @@ pub const VkDescAllocator = struct {
                 const available = poolInfo.descCount.get(layoutInfo.descType) orelse return error.KeyNotFound;
 
                 try poolInfo.descCount.put(
+                    allocator,
                     layoutInfo.descType,
                     available - count,
                 );
@@ -1770,7 +1771,7 @@ pub const VkDescAllocator = struct {
     ...
     pub fn cleanup(self: *VkDescAllocator, allocator: std.mem.Allocator, vkDevice: vk.dev.VkDevice) void {
         for (self.poolInfoList.items) |poolInfo| {
-            poolInfo.cleanup(vkDevice);
+            poolInfo.cleanup(allocator, vkDevice);
             allocator.destroy(poolInfo);
         }
         self.poolInfoList.deinit(allocator);
@@ -1963,7 +1964,7 @@ pub const RenderScn = struct {
     textSampler: vk.text.VkTextSampler,
     vkPipeline: vk.pipe.VkPipeline,
     ...
-    pub fn create(allocator: std.mem.Allocator, vkCtx: *vk.ctx.VkCtx) !RenderScn {
+    pub fn create(allocator: std.mem.Allocator, io: std.Io, vkCtx: *const vk.ctx.VkCtx) !RenderScn {
         ...
         // Textures
         const samplerInfo = vk.text.VkTextSamplerInfo{
@@ -2183,16 +2184,13 @@ pub const RenderScn = struct {
         try descSets.append(allocator, vkDescAllocator.getDescSet(DESC_ID_MAT).?.descSet);
         try descSets.append(allocator, vkDescAllocator.getDescSet(DESC_ID_TEXTS).?.descSet);
 
-        device.cmdBindDescriptorSets(
-            cmdHandle,
-            vulkan.PipelineBindPoint.graphics,
-            self.vkPipeline.pipelineLayout,
-            0,
-            @as(u32, @intCast(descSets.items.len)),
-            descSets.items.ptr,
-            0,
-            null,
-        );
+device.cmdBindDescriptorSets(
+    cmdHandle,
+    vulkan.PipelineBindPoint.graphics,
+    self.vkPipeline.pipelineLayout,
+    descSets.items,
+    null,
+);
         ...
         while (iter.next()) |entityRef| {
             const entity = entityRef.*;
@@ -2205,7 +2203,7 @@ pub const RenderScn = struct {
                     }
                     self.setPushConstants(vkCtx, cmdHandle, entity, materialIdx);
                     device.cmdBindIndexBuffer(cmdHandle, mesh.buffIdx.buffer, 0, vulkan.IndexType.uint32);
-                    device.cmdBindVertexBuffers(cmdHandle, 0, 1, @ptrCast(&mesh.buffVtx.buffer), &offset);
+                    device.cmdBindVertexBuffers(cmdHandle, 0, @ptrCast(&mesh.buffVtx.buffer), &offset);
                     device.cmdDrawIndexed(cmdHandle, @as(u32, @intCast(mesh.numIndices)), 1, 0, 0, 0);
                 }
             } else {
@@ -2294,13 +2292,13 @@ pub const Render = struct {
         ...
     }
 
-    pub fn create(allocator: std.mem.Allocator, constants: com.common.Constants, window: sdl3.video.Window) !Render {
+    pub fn create(allocator: std.mem.Allocator, io: std.Io, constants: com.common.Constants, window: sdl3.video.Window) !Render {
         var vkCtx = try vk.ctx.VkCtx.create(allocator, constants, window);
         ...
-        const materialsCache = eng.mcach.MaterialsCache.create(allocator);
+        const materialsCache = eng.mcach.MaterialsCache.create();
         const modelsCache = eng.mcach.ModelsCache.create(allocator);
 
-        const textureCache = eng.tcach.TextureCache.create(allocator);
+        const textureCache = eng.tcach.TextureCache.create();
 
         return .{
             .vkCtx = vkCtx,
@@ -2320,7 +2318,7 @@ pub const Render = struct {
         };
     }
 
-    pub fn init(self: *Render, allocator: std.mem.Allocator, engCtx: *eng.engine.EngCtx, initData: *const eng.engine.InitData) !void {
+    pub fn init(self: *Render, engCtx: *eng.engine.EngCtx, initData: *const eng.engine.InitData) !void {
         log.debug("Starting render init", .{});
         const constants = engCtx.constants;
         const extent = self.vkCtx.vkSwapChain.extent;
@@ -2331,14 +2329,13 @@ pub const Render = struct {
             @as(f32, @floatFromInt(extent.width)),
             @as(f32, @floatFromInt(extent.height)),
         );
-        try self.materialsCache.init(allocator, &self.vkCtx, &self.textureCache, &self.cmdPools[0], self.queueGraphics, initData);
-
+        const allocator = engCtx.allocator;
+        try self.materialsCache.init(allocator, &self.vkCtx,  engCtx.io, &self.textureCache, &self.cmdPools[0], self.queueGraphics, initData);
         const numTextures = self.textureCache.textureMap.count();
         if (numTextures < eng.tcach.MAX_TEXTURES) {
             const numPadding = eng.tcach.MAX_TEXTURES - numTextures;
             for (0..numPadding) |_| {
-                const id = try com.utils.generateUuid(allocator);
-                defer allocator.free(id);
+                const id = try com.utils.generateUuid(allocator, engCtx.io);                defer allocator.free(id);
                 const textureInfo = eng.tcach.TextureInfo{
                     .data = eng.tcach.EMPTY_PIXELS[0..],
                     .width = 1,
@@ -2351,7 +2348,7 @@ pub const Render = struct {
         }
         try self.textureCache.recordTextures(&self.vkCtx, &self.cmdPools[0], self.queueGraphics);
 
-        try self.modelsCache.init(allocator, &self.vkCtx, &self.cmdPools[0], self.queueGraphics, initData);
+        try self.modelsCache.init(allocator, engCtx.io, &self.vkCtx, &self.cmdPools[0], self.queueGraphics, initData);
 
         try self.renderScn.init(allocator, &self.vkCtx, &self.textureCache, &self.materialsCache);
         log.debug("Finished render init", .{});
@@ -2384,9 +2381,9 @@ We will need also to update the `Engine` struct to initialize the zstbi library 
 ```zig
 pub fn Engine(comptime GameLogic: type) type {
     ...
-        pub fn create(allocator: std.mem.Allocator, gameLogic: *GameLogic, wndTitle: [:0]const u8) !Engine(GameLogic) {
+        pub fn create(allocator: std.mem.Allocator, io: std.Io, gameLogic: *GameLogic, wndTitle: [:0]const u8) !Engine(GameLogic) {
             ...
-            zstbi.init(allocator);
+            zstbi.init(io, allocator);
             ...
         }
     ...
@@ -2396,13 +2393,15 @@ pub fn Engine(comptime GameLogic: type) type {
 In the `src/eng/modelData.zig` we will add to functions to load models and materials from the JSON files:
 
 ```zig
-pub fn loadMaterials(allocator: std.mem.Allocator, path: []const u8) !std.ArrayList(MaterialData) {
+pub fn loadMaterials(allocator: std.mem.Allocator, io:std.Io, path: []const u8) !std.ArrayList(MaterialData) {
     log.debug("Loading materials from [{s}]", .{path});
 
-    const file = try std.fs.cwd().openFile(path, .{});
-    defer file.close();
+    const file = try std.Io.Dir.cwd().openFile(io, path, .{});
+    defer file.close(io);
 
-    const bytes = try file.readToEndAlloc(allocator, std.math.maxInt(usize));
+    var buffer: [8192]u8 = undefined;
+    var fileReader = file.reader(io, &buffer);
+    const bytes = try fileReader.interface.readAlloc(allocator, std.math.maxInt(usize));
     defer allocator.free(bytes);
 
     const parsed = try std.json.parseFromSlice(std.ArrayListUnmanaged(MaterialData), allocator, bytes, .{});
@@ -2421,13 +2420,18 @@ pub fn loadMaterials(allocator: std.mem.Allocator, path: []const u8) !std.ArrayL
     return materials;
 }
 
-pub fn loadModel(allocator: std.mem.Allocator, path: []const u8) !ModelData {
+pub fn loadModel(allocator: std.mem.Allocator, io: std.Io, path: []const u8) !ModelData {
     log.debug("Loading model from [{s}]", .{path});
 
-    const file = try std.fs.cwd().openFile(path, .{});
-    defer file.close();
+    const file = try std.Io.Dir.cwd().openFile(io, path, .{});
+    defer file.close(io);
 
-    const bytes = try file.readToEndAlloc(allocator, std.math.maxInt(usize));
+    const metadata = try file.stat(io);
+    const fileSize = metadata.size;
+
+    var buffer: [8192]u8 = undefined;
+    var fileReader = file.reader(io, &buffer);
+    const bytes = try fileReader.interface.readAlloc(allocator, fileSize);
     defer allocator.free(bytes);
 
     const parsed = try std.json.parseFromSlice(ModelData, allocator, bytes, .{});
@@ -2456,7 +2460,7 @@ const Game = struct {
     pub fn init(self: *Game, engCtx: *eng.engine.EngCtx, arenaAlloc: std.mem.Allocator) !eng.engine.InitData {
         _ = self;
 
-        const cubeModel = try eng.mdata.loadModel(arenaAlloc, "res/models/cube/cube.json");
+        const cubeModel = try eng.mdata.loadModel(arenaAlloc, engCtx.io, "res/models/cube/cube.json");
         const models = try arenaAlloc.alloc(eng.mdata.ModelData, 1);
         models[0] = cubeModel;
 
@@ -2466,7 +2470,7 @@ const Game = struct {
         try engCtx.scene.addEntity(cubeEntity);
 
         var materials = try std.ArrayList(eng.mdata.MaterialData).initCapacity(arenaAlloc, 1);
-        const cubeMaterials = try eng.mdata.loadMaterials(arenaAlloc, "res/models/cube/cube-mat.json");
+        const cubeMaterials = try eng.mdata.loadMaterials(arenaAlloc, engCtx.io, "res/models/cube/cube-mat.json");
         try materials.appendSlice(arenaAlloc, cubeMaterials.items);
 
         return .{ .models = models, .materials = materials };

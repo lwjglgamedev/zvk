@@ -29,6 +29,7 @@ pub const RenderPost = struct {
 
     pub fn create(
         allocator: std.mem.Allocator,
+        io: std.Io,
         vkCtx: *vk.ctx.VkCtx,
         constants: com.common.Constants,
         attColor: *const eng.rend.Attachment,
@@ -75,14 +76,14 @@ pub const RenderPost = struct {
         const fxaa: u32 = if (constants.fxaa) 1 else 0;
         const specConstants = try createSpecConsts(arena.allocator(), &fxaa);
 
-        const vertCode align(@alignOf(u32)) = try com.utils.loadFile(arena.allocator(), "res/shaders/post_vtx.glsl.spv");
+        const vertCode align(@alignOf(u32)) = try com.utils.loadFile(arena.allocator(), io, "res/shaders/post_vtx.glsl.spv");
         const vert = try vkCtx.vkDevice.deviceProxy.createShaderModule(&.{
             .code_size = vertCode.len,
             .p_code = @ptrCast(@alignCast(vertCode)),
         }, null);
         defer vkCtx.vkDevice.deviceProxy.destroyShaderModule(vert, null);
 
-        const fragCode align(@alignOf(u32)) = try com.utils.loadFile(arena.allocator(), "res/shaders/post_frg.glsl.spv");
+        const fragCode align(@alignOf(u32)) = try com.utils.loadFile(arena.allocator(), io, "res/shaders/post_frg.glsl.spv");
         const frag = try vkCtx.vkDevice.deviceProxy.createShaderModule(&.{
             .code_size = fragCode.len,
             .p_code = @ptrCast(@alignCast(fragCode)),
@@ -176,12 +177,12 @@ pub const RenderPost = struct {
             .min_depth = 0,
             .max_depth = 1,
         }};
-        device.cmdSetViewport(cmdHandle, 0, viewPort.len, &viewPort);
+        device.cmdSetViewport(cmdHandle, 0, &viewPort);
         const scissor = [_]vulkan.Rect2D{.{
             .offset = vulkan.Offset2D{ .x = 0, .y = 0 },
             .extent = extent,
         }};
-        device.cmdSetScissor(cmdHandle, 0, scissor.len, &scissor);
+        device.cmdSetScissor(cmdHandle, 0, &scissor);
 
         // Bind descriptor sets
         const vkDescAllocator = vkCtx.vkDescAllocator;
@@ -193,9 +194,7 @@ pub const RenderPost = struct {
             vulkan.PipelineBindPoint.graphics,
             self.vkPipeline.pipelineLayout,
             0,
-            @as(u32, @intCast(descSets.items.len)),
-            descSets.items.ptr,
-            0,
+            descSets.items,
             null,
         );
 

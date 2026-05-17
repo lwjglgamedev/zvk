@@ -377,7 +377,7 @@ pub const RenderShadow = struct {
         self.buffShadowCascades.cleanup(vkCtx);
     }
 
-    pub fn create(allocator: std.mem.Allocator, vkCtx: *vk.ctx.VkCtx, constants: com.common.Constants) !RenderShadow {
+    pub fn create(allocator: std.mem.Allocator, io: std.Io, vkCtx: *vk.ctx.VkCtx, constants: com.common.Constants) !RenderShadow {
         const attColor = try createColorAttachment(vkCtx, constants.shadowMapSize);
         const attDepth = try createDepthAttachment(vkCtx, constants.shadowMapSize);
         const cascadeShadows = [SHADOW_MAP_CASCADE_COUNT]CascadeData{ .{}, .{}, .{} };
@@ -385,14 +385,14 @@ pub const RenderShadow = struct {
         // Shader modules
         var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
         defer arena.deinit();
-        const vertCode align(@alignOf(u32)) = try com.utils.loadFile(arena.allocator(), "res/shaders/shadow_vtx.glsl.spv");
+        const vertCode align(@alignOf(u32)) = try com.utils.loadFile(arena.allocator(), io, "res/shaders/shadow_vtx.glsl.spv");
         const vert = try vkCtx.vkDevice.deviceProxy.createShaderModule(&.{
             .code_size = vertCode.len,
             .p_code = @ptrCast(@alignCast(vertCode)),
         }, null);
         defer vkCtx.vkDevice.deviceProxy.destroyShaderModule(vert, null);
 
-        const fragCode align(@alignOf(u32)) = try com.utils.loadFile(arena.allocator(), "res/shaders/shadow_frg.glsl.spv");
+        const fragCode align(@alignOf(u32)) = try com.utils.loadFile(arena.allocator(), io, "res/shaders/shadow_frg.glsl.spv");
         const frag = try vkCtx.vkDevice.deviceProxy.createShaderModule(&.{
             .code_size = fragCode.len,
             .p_code = @ptrCast(@alignCast(fragCode)),
@@ -663,12 +663,12 @@ pub const RenderShadow = struct {
             .min_depth = 0,
             .max_depth = 1,
         }};
-        device.cmdSetViewport(cmdHandle, 0, viewPort.len, &viewPort);
+        device.cmdSetViewport(cmdHandle, 0, &viewPort);
         const scissor = [_]vulkan.Rect2D{.{
             .offset = vulkan.Offset2D{ .x = 0, .y = 0 },
             .extent = vulkan.Extent2D{ .width = extent.width, .height = extent.height },
         }};
-        device.cmdSetScissor(cmdHandle, 0, scissor.len, &scissor);
+        device.cmdSetScissor(cmdHandle, 0,  &scissor);
 
         // Bind descriptor sets
         const vkDescAllocator = vkCtx.vkDescAllocator;
@@ -678,16 +678,13 @@ pub const RenderShadow = struct {
         try descSets.append(allocator, vkDescAllocator.getDescSet(DESC_ID_MAT).?.descSet);
         try descSets.append(allocator, vkDescAllocator.getDescSet(DESC_ID_TEXTS).?.descSet);
 
-        device.cmdBindDescriptorSets(
-            cmdHandle,
-            vulkan.PipelineBindPoint.graphics,
-            self.vkPipeline.pipelineLayout,
-            0,
-            @as(u32, @intCast(descSets.items.len)),
-            descSets.items.ptr,
-            0,
-            null,
-        );
+device.cmdBindDescriptorSets(
+    cmdHandle,
+    vulkan.PipelineBindPoint.graphics,
+    self.vkPipeline.pipelineLayout,
+    descSets.items,
+    null,
+);
 
         try self.updateShadowUniforms(vkCtx);
 
@@ -735,7 +732,7 @@ pub const RenderShadow = struct {
                     }
                     self.setPushConstants(vkCtx, cmdHandle, entity, materialIdx);
                     device.cmdBindIndexBuffer(cmdHandle, mesh.buffIdx.buffer, 0, vulkan.IndexType.uint32);
-                    device.cmdBindVertexBuffers(cmdHandle, 0, 1, @ptrCast(&mesh.buffVtx.buffer), &offset);
+                    device.cmdBindVertexBuffers(cmdHandle, 0, @ptrCast(&mesh.buffVtx.buffer), &offset);
                     device.cmdDrawIndexed(cmdHandle, @as(u32, @intCast(mesh.numIndices)), 1, 0, 0, 0);
                 }
             } else {
@@ -1271,6 +1268,7 @@ pub const RenderLight = struct {
 
     pub fn create(
         allocator: std.mem.Allocator,
+        io: std.Io,
         vkCtx: *vk.ctx.VkCtx,
         constants: com.common.Constants,
         inputAttachments: *const []eng.rend.Attachment,
@@ -1512,16 +1510,16 @@ pub const Render = struct {
         ...
     }
     ...
-    pub fn create(allocator: std.mem.Allocator, constants: com.common.Constants, window: sdl3.video.Window) !Render {
+    pub fn create(allocator: std.mem.Allocator, io: std.Io, constants: com.common.Constants, window: sdl3.video.Window) !Render {
         ...
-        const renderShadow = try eng.rsha.RenderShadow.create(allocator, &vkCtx, constants);
+        const renderShadow = try eng.rsha.RenderShadow.create(allocator, io, &vkCtx, constants);
         const attachments = try allocator.alloc(eng.rend.Attachment, renderScn.attachments.len + 1);
         defer allocator.free(attachments);
         for (0..renderScn.attachments.len) |i| {
             attachments[i] = renderScn.attachments[i];
         }
         attachments[attachments.len - 1] = renderShadow.attColor;
-        const renderLight = try eng.rlgt.RenderLight.create(allocator, &vkCtx, constants, &attachments);
+        const renderLight = try eng.rlgt.RenderLight.create(allocator, io, &vkCtx, constants, &attachments);
         ...
         return .{
             ...
@@ -1530,7 +1528,7 @@ pub const Render = struct {
         };
     }
 
-    pub fn init(self: *Render, allocator: std.mem.Allocator, engCtx: *eng.engine.EngCtx, initData: *const eng.engine.InitData) !void {
+    pub fn init(self: *Render, engCtx: *eng.engine.EngCtx, initData: *const eng.engine.InitData) !void {
         ...
         try self.renderShadow.init(allocator, &self.vkCtx, &self.textureCache, &self.materialsCache);
         log.debug("Finished render init", .{});

@@ -110,7 +110,7 @@ pub const RenderScn = struct {
         ...
     }
 
-    pub fn create(allocator: std.mem.Allocator, vkCtx: *vk.ctx.VkCtx) !RenderScn {
+    pub fn create(allocator: std.mem.Allocator, io: std.Io, vkCtx: *const vk.ctx.VkCtx) !RenderScn {
         const attachments = try createColorAttachment(allocator, vkCtx);
         const depthAttachment = try createDepthAttachment(vkCtx);
         ...
@@ -474,6 +474,7 @@ pub const RenderLight = struct {
     ...
     pub fn create(
         allocator: std.mem.Allocator,
+        io: std.Io,
         vkCtx: *vk.ctx.VkCtx,
         inputAttachments: *const []eng.rend.Attachment,
     ) !RenderLight {
@@ -482,14 +483,14 @@ pub const RenderLight = struct {
         // Shader modules
         var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
         defer arena.deinit();
-        const vertCode align(@alignOf(u32)) = try com.utils.loadFile(arena.allocator(), "res/shaders/light_vtx.glsl.spv");
+        const vertCode align(@alignOf(u32)) = try com.utils.loadFile(arena.allocator(), io, "res/shaders/light_vtx.glsl.spv");
         const vert = try vkCtx.vkDevice.deviceProxy.createShaderModule(&.{
             .code_size = vertCode.len,
             .p_code = @ptrCast(@alignCast(vertCode)),
         }, null);
         defer vkCtx.vkDevice.deviceProxy.destroyShaderModule(vert, null);
 
-        const fragCode align(@alignOf(u32)) = try com.utils.loadFile(arena.allocator(), "res/shaders/light_frg.glsl.spv");
+        const fragCode align(@alignOf(u32)) = try com.utils.loadFile(arena.allocator(), io, "res/shaders/light_frg.glsl.spv");
         const frag = try vkCtx.vkDevice.deviceProxy.createShaderModule(&.{
             .code_size = fragCode.len,
             .p_code = @ptrCast(@alignCast(fragCode)),
@@ -655,28 +656,25 @@ pub const RenderLight = struct {
             .min_depth = 0,
             .max_depth = 1,
         }};
-        device.cmdSetViewport(cmdHandle, 0, viewPort.len, &viewPort);
+        device.cmdSetViewport(cmdHandle, 0, &viewPort);
         const scissor = [_]vulkan.Rect2D{.{
             .offset = vulkan.Offset2D{ .x = 0, .y = 0 },
             .extent = extent,
         }};
-        device.cmdSetScissor(cmdHandle, 0, scissor.len, &scissor);
+        device.cmdSetScissor(cmdHandle, 0,  &scissor);
 
         // Bind descriptor sets
         const vkDescAllocator = vkCtx.vkDescAllocator;
         var descSets = try std.ArrayList(vulkan.DescriptorSet).initCapacity(allocator, 1);
         defer descSets.deinit(allocator);
         try descSets.append(allocator, vkDescAllocator.getDescSet(DESC_ID_LIGHT_TEXT_SAMPLER).?.descSet);
-        device.cmdBindDescriptorSets(
-            cmdHandle,
-            vulkan.PipelineBindPoint.graphics,
-            self.vkPipeline.pipelineLayout,
-            0,
-            @as(u32, @intCast(descSets.items.len)),
-            descSets.items.ptr,
-            0,
-            null,
-        );
+device.cmdBindDescriptorSets(
+    cmdHandle,
+    vulkan.PipelineBindPoint.graphics,
+    self.vkPipeline.pipelineLayout,
+    descSets.items,
+    null,
+);
 
         device.cmdDraw(cmdHandle, 3, 1, 0, 0);
 
@@ -832,7 +830,7 @@ pub const VkDesSet = struct {
             };
         }
 
-        vkDevice.deviceProxy.updateDescriptorSets(@as(u32, @intCast(writeDesSets.len)), writeDesSets.ptr, 0, null);
+        vkDevice.deviceProxy.updateDescriptorSets( writeDesSets.ptr, null);
     }
     ...
 };
@@ -887,15 +885,15 @@ pub const Render = struct {
         ...
     }
     ...
-    pub fn create(allocator: std.mem.Allocator, constants: com.common.Constants, window: sdl3.video.Window) !Render {
+    pub fn create(allocator: std.mem.Allocator, io: std.Io, constants: com.common.Constants, window: sdl3.video.Window) !Render {
         ...
         const queueGraphics = vk.queue.VkQueue.create(&vkCtx, vkCtx.vkPhysDevice.queuesInfo.graphics_family);
         const queuePresent = vk.queue.VkQueue.create(&vkCtx, vkCtx.vkPhysDevice.queuesInfo.present_family);
 
-        const renderGui = try eng.rgui.RenderGui.create(allocator, &vkCtx);
-        const renderScn = try eng.rscn.RenderScn.create(allocator, &vkCtx);
-        const renderLight = try eng.rlgt.RenderLight.create(allocator, &vkCtx, &renderScn.attachments);
-        const renderPost = try eng.rpst.RenderPost.create(allocator, &vkCtx, constants, &renderLight.outputAtt);
+        const renderGui = try eng.rgui.RenderGui.create(allocator, io, &vkCtx);
+        const renderScn = try eng.rscn.RenderScn.create(allocator, io, &vkCtx);
+        const renderLight = try eng.rlgt.RenderLight.create(allocator, io, &vkCtx, &renderScn.attachments);
+        const renderPost = try eng.rpst.RenderPost.create(allocator, io, &vkCtx, constants, &renderLight.outputAtt);
         ...
         return .{
             .vkCtx = vkCtx,
@@ -960,7 +958,7 @@ Finally, we need to update the other render structs to adapt to the changes in t
 ```zig
 pub const RenderGui = struct {
     ...
-    pub fn create(allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx) !RenderGui {
+    pub fn create(allocator: std.mem.Allocator, io: std.Io, vkCtx: *const vk.ctx.VkCtx) !RenderGui {
         ...
         // Pipeline
         const colorFormats = [_]vulkan.Format{vkCtx.vkSwapChain.surfaceFormat.format};
@@ -979,6 +977,7 @@ pub const RenderPost = struct {
     ...
     pub fn create(
         allocator: std.mem.Allocator,
+        io: std.Io,
         vkCtx: *vk.ctx.VkCtx,
         constants: com.common.Constants,
         attColor: *const eng.rend.Attachment,

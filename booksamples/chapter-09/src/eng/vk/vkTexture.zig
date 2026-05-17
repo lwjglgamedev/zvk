@@ -208,7 +208,6 @@ pub const VkTexture = struct {
                 vulkan.ImageLayout.transfer_src_optimal,
                 self.vkImage.image,
                 vulkan.ImageLayout.transfer_dst_optimal,
-                imageBlit.len,
                 &imageBlit,
                 vulkan.Filter.linear,
             );
@@ -314,7 +313,6 @@ pub const VkTexture = struct {
             self.vkStageBuffer.?.buffer,
             self.vkImage.image,
             vulkan.ImageLayout.transfer_dst_optimal,
-            region.len,
             &region,
         );
 

@@ -51,6 +51,8 @@ pub fn build(b: *std.Build) void {
     // VMA
     const vmaDep = b.dependency("vma", .{});
     const vmaIncludePath = vmaDep.path("include");
+    exe.root_module.link_libcpp = true;
+    exe.root_module.link_libcpp = true;
     ...
     vk.addIncludePath(vmaIncludePath);
     vk.addIncludePath(vkIncludePath);
@@ -415,7 +417,6 @@ pub const VkTexture = struct {
                 vulkan.ImageLayout.transfer_src_optimal,
                 image,
                 vulkan.ImageLayout.transfer_dst_optimal,
-                imageBlit.len,
                 &imageBlit,
                 vulkan.Filter.linear,
             ); 
@@ -441,7 +442,6 @@ pub const VkTexture = struct {
             self.vkStageBuffer.?.buffer,
             image,
             vulkan.ImageLayout.transfer_dst_optimal,
-            region.len,
             &region,
         );
         ...
@@ -457,6 +457,7 @@ pub const ModelsCache = struct {
     pub fn init(
         self: *ModelsCache,
         allocator: std.mem.Allocator,
+        io: std.Io,
         vkCtx: *const vk.ctx.VkCtx,
         cmdPool: *vk.cmd.VkCmdPool,
         vkQueue: vk.queue.VkQueue,
@@ -520,6 +521,7 @@ pub const MaterialsCache = struct {
     pub fn init(
         self: *MaterialsCache,
         allocator: std.mem.Allocator,
+        io: std.Io,
         vkCtx: *const vk.ctx.VkCtx,
         textureCache: *eng.tcach.TextureCache,
         cmdPool: *vk.cmd.VkCmdPool,

@@ -1,36 +1,36 @@
 .{
     .name = .zig,
     .version = "0.1.0",
-    .fingerprint = 0xc1ce10812cceb312, // Changing this has security and trust implications.
-    .minimum_zig_version = "0.15.1",
+    .fingerprint = 0xc1ce10812cceb312,
+    .minimum_zig_version = "0.16.0",
     .dependencies = .{
         .sdl3 = .{
-            .url = "https://codeberg.org/7Games/zig-sdl3/archive/v0.1.9.tar.gz",
-            .hash = "sdl3-0.1.9-NmT1Q2k0JwAtPRns9E3OO6qpqpvy8mn80guJ8L209AtI",
+            .url = "https://codeberg.org/7Games/zig-sdl3/archive/v0.2.0.tar.gz",
+            .hash = "sdl3-0.2.0-NmT1Q0mFJwBi9kZmArzh2rfJ_mFshydV0zPGULVlpACc",
         },
         .vulkan = .{
-            .url = "https://github.com/Snektron/vulkan-zig/archive/3ada9e2989bab70090a55f0f6fac19ea90d06357.tar.gz",
-            .hash = "vulkan-0.0.0-r7Ytx6FIAwD3QyrrJhvObO0YSZ6WEkMGSCPKbhM__HFd",
+            .url = "https://github.com/Snektron/vulkan-zig/archive/f75b0011214705d6593e6ad64948c4832b1e6f27.tar.gz",
+            .hash = "vulkan-0.0.0-r7Ytx759AwBNdwE-gHKt3vzRQaU7RFerBg3FmD7iTEv4",
         },
         .vulkan_headers = .{
-            .url = "https://github.com/KhronosGroup/Vulkan-Headers/archive/refs/tags/v1.4.338.tar.gz",
+            .url = "https://github.com/KhronosGroup/Vulkan-Headers/archive/refs/tags/v1.4.351.tar.gz",
             .hash = "N-V-__8AAMZuLQIcPe--JSv0kn_Ga8tsjgbkaojW0OHW2Rfd",
         },
         .toml = .{
-            .url = "https://github.com/sam701/zig-toml/archive/58ac681fb63b18c01ffbbbd67d12a404fef8687d.tar.gz",
-            .hash = "toml-0.3.0-bV14BfV7AQD8DkuQI7skP8ekQTaBYKTO0MY_35Cw_EXo",
+            .url = "https://github.com/sam701/zig-toml/archive/a73c9423d88ed413204b39638fab7e9bccdb83fd.tar.gz",
+            .hash = "toml-0.3.0-bV14Be6EAQDr0fkyURz4jYFyTAMPcwlNN0FEPVjDnXTR",
         },
         .zmath = .{
-            .url = "https://github.com/zig-gamedev/zmath/archive/3a5955b2b72cd081563fbb084eff05bffd1e3fbb.tar.gz",
-            .hash = "zmath-0.11.0-dev-wjwivdMsAwD-xaLj76YHUq3t9JDH-X16xuMTmnDzqbu2",
+            .url = "https://github.com/zig-gamedev/zmath/archive/9e42b04a24c970a297b365f3d3022f92dbf3219d.tar.gz",
+            .hash = "zmath-0.11.0-dev-wjwivTwtAwDOjG2_KGP-HLtHrONfsFfHttalmxFAGVAK",
         },
         .zmesh = .{
-            .url = "https://github.com/zig-gamedev/zmesh/archive/a9c23ba7440b8c03cbc2bec89a3285fe84cbb50f.tar.gz",
-            .hash = "zmesh-0.11.0-dev-oO3A5lKRCgCGK8Krro4Rj_F_MhO8LT487re5u_DNIzvl",
+            .url = "https://github.com/zig-gamedev/zmesh/archive/a0efcc452eab17550ad5525df2293009e9cbaf66.tar.gz",
+            .hash = "zmesh-0.11.0-dev-oO3A5kqTCgAF9nWzOGHywV6-07-wJRUIMm1RH7BlCTHb",
         },
         .zstbi = .{
-            .url = "https://github.com/zig-gamedev/zstbi/archive/664305dd52640be15cbebd7cd73d1199679933e1.tar.gz",
-            .hash = "zstbi-0.11.0-dev-L0Ea_2yVBwA4uh-tHfgdhZcQaWRoZVYlNGs4Dl_WTeuR",
+            .url = "https://github.com/zig-gamedev/zstbi/archive/3813f5f113b26f644cfa01a30155cc76b3526e91.tar.gz",
+            .hash = "zstbi-0.11.0-dev-L0Ea_3GWBwAh7m54XX055vwLKPTPij5hyqyeq92MXPE2",
         },
     },
     .paths = .{

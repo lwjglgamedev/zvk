@@ -116,6 +116,7 @@ pub const MaterialsCache = struct {
     pub fn init(
         self: *MaterialsCache,
         allocator: std.mem.Allocator,
+        io: std.Io,
         vkCtx: *const vk.ctx.VkCtx,
         textureCache: *eng.tcach.TextureCache,
         cmdPool: *vk.cmd.VkCmdPool,
@@ -134,7 +135,7 @@ pub const MaterialsCache = struct {
             if (materialData.texturePath.len > 0) {
                 const nullTermPath = try allocator.dupeZ(u8, materialData.texturePath);
                 defer allocator.free(nullTermPath);
-                if (try textureCache.addTextureFromPath(allocator, vkCtx, nullTermPath)) {
+                if (try textureCache.addTextureFromPath(allocator, io, vkCtx, nullTermPath)) {
                     if (textureCache.textureMap.getIndex(nullTermPath)) |idx| {
                         textureIdx = @as(u32, @intCast(idx));
                         hasTexture = 1;
@@ -350,7 +351,6 @@ pub const VkTexture = struct {
                 vulkan.ImageLayout.transfer_src_optimal,
                 self.vkImage.image,
                 vulkan.ImageLayout.transfer_dst_optimal,
-                imageBlit.len,
                 &imageBlit,
                 vulkan.Filter.linear,
             );
@@ -600,7 +600,7 @@ pub const RenderScn = struct {
         allocator.free(self.buffsCamera);
     }
 
-    pub fn create(allocator: std.mem.Allocator, vkCtx: *vk.ctx.VkCtx) !RenderScn {
+    pub fn create(allocator: std.mem.Allocator, io: std.Io, vkCtx: *vk.ctx.VkCtx) !RenderScn {
         ...
         const buffsCamera = try createCamBuffers(allocator, vkCtx, descLayoutVtx);
         ...
@@ -725,7 +725,7 @@ pub const RenderScn = struct {
                     }
                     self.setPushConstants(vkCtx, cmdHandle, entity, materialIdx);
                     device.cmdBindIndexBuffer(cmdHandle, mesh.buffIdx.buffer, 0, vulkan.IndexType.uint32);
-                    device.cmdBindVertexBuffers(cmdHandle, 0, 1, @ptrCast(&mesh.buffVtx.buffer), &offset);
+                    device.cmdBindVertexBuffers(cmdHandle, 0, @ptrCast(&mesh.buffVtx.buffer), &offset);
                     device.cmdDrawIndexed(cmdHandle, @as(u32, @intCast(mesh.numIndices)), 1, 0, 0, 0);
                 }
             } else {
@@ -825,7 +825,7 @@ const Game = struct {
     pub fn init(self: *Game, engCtx: *eng.engine.EngCtx, arenaAlloc: std.mem.Allocator) !eng.engine.InitData {
         _ = self;
 
-        const sponzaModel = try eng.mdata.loadModel(arenaAlloc, "res/models/sponza/Sponza.json");
+        const sponzaModel = try eng.mdata.loadModel(arenaAlloc, engCtx.io,  "res/models/sponza/Sponza.json");
         const models = try arenaAlloc.alloc(eng.mdata.ModelData, 1);
         models[0] = sponzaModel;
 
@@ -836,7 +836,7 @@ const Game = struct {
         try engCtx.scene.addEntity(sponzaEntity);
 
         var materials = try std.ArrayList(eng.mdata.MaterialData).initCapacity(arenaAlloc, 1);
-        const sponzaMaterials = try eng.mdata.loadMaterials(arenaAlloc, "res/models/sponza/Sponza-mat.json");
+        const sponzaMaterials = try eng.mdata.loadMaterials(arenaAlloc, engCtx.io, "res/models/sponza/Sponza-mat.json");
         try materials.appendSlice(arenaAlloc, sponzaMaterials.items);
 
         var viewData = &engCtx.scene.camera.viewData;

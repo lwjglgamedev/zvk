@@ -24,7 +24,6 @@ pub const VkQueue = struct {
         };
         try vkCtx.vkDevice.deviceProxy.queueSubmit2(
             self.handle,
-            1,
             @ptrCast(&si),
             vkFence.fence,
         );

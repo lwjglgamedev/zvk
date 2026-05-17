@@ -106,7 +106,7 @@ pub const Render = struct {
         defer allocator.free(self.semsPresComplete);
     }
 
-    pub fn create(allocator: std.mem.Allocator, constants: com.common.Constants, window: sdl3.video.Window) !Render {
+    pub fn create(allocator: std.mem.Allocator, io: std.Io, constants: com.common.Constants, window: sdl3.video.Window) !Render {
         var vkCtx = try vk.ctx.VkCtx.create(allocator, constants, window);
 
         const fences = try allocator.alloc(vk.sync.VkFence, com.common.FRAMES_IN_FLIGHT);
@@ -139,13 +139,13 @@ pub const Render = struct {
 
         const attColor = try createColorAttachment(&vkCtx);
 
-        const renderGui = try eng.rgui.RenderGui.create(allocator, &vkCtx);
-        const renderPost = try eng.rpst.RenderPost.create(allocator, &vkCtx, constants, &attColor);
-        const renderScn = try eng.rscn.RenderScn.create(allocator, &vkCtx);
+        const renderGui = try eng.rgui.RenderGui.create(allocator, io, &vkCtx);
+        const renderPost = try eng.rpst.RenderPost.create(allocator, io, &vkCtx, constants, &attColor);
+        const renderScn = try eng.rscn.RenderScn.create(allocator, io, &vkCtx);
 
-        const materialsCache = eng.mcach.MaterialsCache.create(allocator);
+        const materialsCache = eng.mcach.MaterialsCache.create();
         const modelsCache = eng.mcach.ModelsCache.create(allocator);
-        const textureCache = eng.tcach.TextureCache.create(allocator);
+        const textureCache = eng.tcach.TextureCache.create();
 
         return .{
             .vkCtx = vkCtx,
@@ -184,7 +184,7 @@ pub const Render = struct {
         return attColor;
     }
 
-    pub fn init(self: *Render, allocator: std.mem.Allocator, engCtx: *eng.engine.EngCtx, initData: *const eng.engine.InitData) !void {
+    pub fn init(self: *Render, engCtx: *eng.engine.EngCtx, initData: *const eng.engine.InitData) !void {
         log.debug("Starting render init", .{});
         const constants = engCtx.constants;
         const extent = self.vkCtx.vkSwapChain.extent;
@@ -195,13 +195,21 @@ pub const Render = struct {
             @as(f32, @floatFromInt(extent.width)),
             @as(f32, @floatFromInt(extent.height)),
         );
-        try self.materialsCache.init(allocator, &self.vkCtx, &self.textureCache, &self.cmdPools[0], self.queueGraphics, initData);
-
+        const allocator = engCtx.allocator;
+        try self.materialsCache.init(
+            allocator,
+            engCtx.io,
+            &self.vkCtx,
+            &self.textureCache,
+            &self.cmdPools[0],
+            self.queueGraphics,
+            initData,
+        );
         const numTextures = self.textureCache.textureMap.count();
         if (numTextures < eng.tcach.MAX_TEXTURES) {
             const numPadding = eng.tcach.MAX_TEXTURES - numTextures;
             for (0..numPadding) |_| {
-                const id = try com.utils.generateUuid(allocator);
+                const id = try com.utils.generateUuid(allocator, engCtx.io);
                 defer allocator.free(id);
                 const textureInfo = eng.tcach.TextureInfo{
                     .data = eng.tcach.EMPTY_PIXELS[0..],
@@ -215,7 +223,7 @@ pub const Render = struct {
         }
         try self.textureCache.recordTextures(&self.vkCtx, &self.cmdPools[0], self.queueGraphics);
 
-        try self.modelsCache.init(allocator, &self.vkCtx, &self.cmdPools[0], self.queueGraphics, initData);
+        try self.modelsCache.init(allocator, engCtx.io, &self.vkCtx, &self.cmdPools[0], self.queueGraphics, initData);
 
         try self.renderScn.init(allocator, &self.vkCtx, &self.textureCache, &self.materialsCache);
         log.debug("Finished render init", .{});
