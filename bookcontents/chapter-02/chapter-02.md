@@ -16,6 +16,7 @@ therefore, we will use just a single instance.
 Most of the Vulkan-related code will be placed in the `vk` module (in the `src/eng/vk` folder). In this case, we will create a new
 struct named `VkInstance` to wrap all the initialization code. So let's start by coding the `create` function, which starts like this:
 
+**File: src/eng/vk/vkInstance.zig**
 ```zig
 const builtin = @import("builtin");
 const std = @import("std");
@@ -47,6 +48,7 @@ pub const VkInstance = struct {
 First we get the address of the function pointer required by Vulkan to bootstrap all other Vulkan functions. It is like the entry point
 that will allow us to access all the functions. We will need this to load the Vulkan base wrapper. Let's continue with the code:
 
+**File: src/eng/vk/vkInstance.zig**
 ```zig
 pub const VkInstance = struct {
     ...
@@ -81,6 +83,7 @@ A Vulkan extension is a piece of functionality that is not part of the core Vulk
 You can think about extensions like plugins. As the Vulkan standard evolve, some of the extensions have been included in the core API
 so make sure you check this if you plan to include a new one. Let's review which extensions we will use in the code:
 
+**File: src/eng/vk/vkInstance.zig**
 ```zig
 pub const VkInstance = struct {
     ...
@@ -125,6 +128,7 @@ Our `create` function receives a boolean parameter indicating if validation shou
 use the `VK_LAYER_KHRONOS_validation` layer (defined in the constant `VALIDATION_LAYER`). In addition to that, if we support validation
 we will add a new layer to be able to use a callback that will be invoked whenever a validation event occurs.
 
+**File: src/eng/vk/vkInstance.zig**
 ```zig
 pub const VkInstance = struct {
     ...
@@ -154,6 +158,7 @@ pub const VkInstance = struct {
 
 The `supportsValidation` function is defined like this:
 
+**File: src/eng/vk/vkInstance.zig**
 ```zig
 pub const VkInstance = struct {
     ...
@@ -187,6 +192,7 @@ the layers themselves passing a preallocated array. If we find the validation la
 
 With all the information we can finally create the Vulkan instance:
 
+**File: src/eng/vk/vkInstance.zig**
 ```zig
 pub const VkInstance = struct {
     ...
@@ -213,6 +219,7 @@ pub const VkInstance = struct {
 
 If validation is enabled and supported we need to create the debug messenger extension:
 
+**File: src/eng/vk/vkInstance.zig**
 ```zig
 pub const VkInstance = struct {
     ...
@@ -244,6 +251,7 @@ in just errors and warnings, but you can enable information and verbose levels. 
 messages we are interested in. We will activate validation messages, general information and performance ones. Finally we will set up
 the callback to be invoked in the `pfn_user_callback` attribute. The function set as a callback is defined like this:
 
+**File: src/eng/vk/vkInstance.zig**
 ```zig
 pub const VkInstance = struct {
     ...
@@ -275,6 +283,7 @@ We just debug the message according to the severity level. We return a boolean s
 
 Back to the `create` function, with all that information we just create the `VkInstance` structure and return it:
 
+**File: src/eng/vk/vkInstance.zig**
 ```zig
 pub const VkInstance = struct {
     ...
@@ -292,6 +301,7 @@ pub const VkInstance = struct {
 
 We need to complete the code with a `cleanup` function to properly free resources when we are finished:
 
+**File: src/eng/vk/vkInstance.zig**
 ```zig
 pub const VkInstance = struct {
     ...
@@ -312,6 +322,7 @@ pub const VkInstance = struct {
 We will create a new struct, named `VkCtx` which will group most relevant Vulkan context structs together. By now, it will only have a
 reference to the `VkInstance` struct:
 
+**File: src/eng/vk/vkCtx.zig**
 ```zig
 const std = @import("std");
 const sdl3 = @import("sdl3");
@@ -339,6 +350,7 @@ pub const VkCtx = struct {
 Finally, we can use the Instance `VkCtx` struct in our `Render` struct, in the `create` function. We will need to call the `VkCtx`
 `cleanup` function also:
 
+**File: src/eng/vk/vkCtx.zig**
 ```zig
 pub const Render = struct {
     vkCtx: vk.ctx.VkCtx,
@@ -359,6 +371,7 @@ pub const Render = struct {
 
 We have added a new configuration variable to control if validation should be used or not:
 
+**File: src/eng/vk/vkCtx.zig**
 ```zig
 pub const Constants = struct {
     ...
@@ -377,12 +390,14 @@ pub const Constants = struct {
 
 We need to add a new parameter in the `res/cfg/cfg.toml` file:
 
+**File: res/cfg/cfg.toml**
 ```toml
 validation=true
 ```
 
 We will also need to modify the `Engine` type to properly instantiate the `Render` struct:
 
+**File: src/eng/render.zig**
 ```zig
 pub fn Engine(comptime GameLogic: type) type {
     ...
@@ -401,4 +416,6 @@ will continue writing lots of code required to set up everything. It will take s
 news is that when everything is set up, adding incremental features to draw more complex models or to support advanced techniques should
 require less code. And if we do it correctly, we get a good understanding of Vulkan.
 
-[Next chapter](../chapter-03/chapter-03.md)
+[Back to Table of Contents](../README.md)
+
+[Previous chapter](../chapter-01/chapter-01.md) | [Next chapter](../chapter-03/chapter-03.md)

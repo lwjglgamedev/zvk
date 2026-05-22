@@ -32,6 +32,7 @@ Each entry is modeled by the `SpecializationMapEntry` struct which has the follo
 
 We will modify the `ShaderModuleInfo` struct to be able to hold a `SpecializationInfo` instance:
 
+**File: src/eng/vk/vkPipeline.zig**
 ```zig
 pub const ShaderModuleInfo = struct {
     ...
@@ -43,6 +44,7 @@ pub const ShaderModuleInfo = struct {
 
 We need to modify the `VkPipeline` struct to use the `SpecializationInfo` information when creating the shader stages:
 
+**File: src/eng/vk/vkPipeline.zig**
 ```zig
 pub const VkPipeline = struct {
     ...
@@ -67,6 +69,7 @@ pub const VkPipeline = struct {
 We will start by modifying the `RenderScn` to render to an external attachment instead of rendering to a swap chain image. The changes
 are minimal:
 
+**File: src/eng/renderScn.zig**
 ```zig
 pub const RenderScn = struct {
     ...
@@ -105,6 +108,7 @@ pub const RenderScn = struct {
 
 We will change the color format for the pipeline to use a constant that will be defined in the `render.zig` file like this:
 
+**File: src/eng/render.zig**
 ```zig
 pub const COLOR_ATTACHMENT_FORMAT = vulkan.Format.r16g16b16a16_sfloat;
 ```
@@ -124,6 +128,7 @@ post processing stages and output to a swap chain image in the final post proces
 named `RenderPost` which starts like this (it will be defined in the `src/eng/renderPost.zig` file, so remember to include it in the
 `mod.zig` file: `pub const rpst = @import("renderPost.zig");`):
 
+**File: src/eng/renderPost.zig**
 ```zig
 const com = @import("com");
 const eng = @import("mod.zig");
@@ -255,6 +260,7 @@ space so we will not have perspective distortion that needs to be filtered.
 
 This specialization constant is created in the `createSpecConsts` function:
 
+**File: src/eng/renderPost.zig**
 ```zig
 pub const RenderPost = struct {
     ...
@@ -282,6 +288,7 @@ which we will use to check if we apply FXXA (`1`) or not (`0`).
 
 We will need also a `cleanup` function:
 
+**File: src/eng/renderPost.zig**
 ```zig
 pub const RenderPost = struct {
     ...
@@ -296,6 +303,7 @@ pub const RenderPost = struct {
 
 The `render` function in the `RenderPost` is defined like this:
 
+**File: src/eng/renderPost.zig**
 ```zig
 pub const RenderPost = struct {
     ...
@@ -379,6 +387,7 @@ information. We will see later on the shader why we do not need this to render a
 To complete the `RenderPost` struct we need to define a `resize` function to update the  descriptor size associated to the input attachment
 since it may have changed when resizing. We will also add a `setPushConstants` to pass as a push constants the screen dimensions:
 
+**File: src/eng/renderPost.zig**
 ```zig
 pub const RenderPost = struct {
     ...
@@ -408,6 +417,7 @@ pub const RenderPost = struct {
 
 Now it is turn for the vertex shader `post_vtx.glsl`:
 
+**File: res/shaders/post_vtx.glsl**
 ```glsl
 #version 450
 
@@ -445,6 +455,7 @@ generate the post-processing image.
 
 The fragment shader is defined like this:
 
+**File: res/shaders/post_frg.glsl**
 ```glsl
 #version 450
 
@@ -534,6 +545,7 @@ result of the scene rendering stage. FXAA implementation has been obtained from 
 
 The shaders need to be compiled in the `build.zig` file:
 
+**File: build.zig**
 ```zig
 pub fn build(b: *std.Build) void {
     ...
@@ -554,6 +566,7 @@ We will review now the changes in the `Render` struct. We first need to create a
 `RenderScn` instance and as an input by the `RenderPost` instance. We will also need to instantiate the `RenderPost` struct and store
 it as an attribute.
 
+**File: src/eng/render.zig**
 ```zig
 pub const Render = struct {
     ...
@@ -607,6 +620,7 @@ pub const Render = struct {
 We will create the `attColor` with the same dimensions as the swap chain images although you can play with upscaling / downscaling
 if you want. We will also update the `render` function to use the post processing stage:
 
+**File: src/eng/render.zig**
 ```zig
 pub const Render = struct {
     ...
@@ -640,6 +654,7 @@ You may have noticed that we have created two new functions `renderInitPost` and
 layout transitions required in the post-processing stage. However, the `renderMainInit` and the `renderMainFinish` have also changed so
 let us start with them:
 
+**File: src/eng/render.zig**
 ```zig
 pub const Render = struct {
     ...
@@ -681,6 +696,7 @@ to the attachment in this stage, so we set the  `color_attachment_write_bit` fla
 
 The `renderMainFinish` is defined like this:
 
+**File: src/eng/render.zig**
 ```zig
 pub const Render = struct {
     ...
@@ -721,6 +737,7 @@ access it in read-only mode so we set the `dst_access_mask` to the `shader_read_
 
 The `renderInitPost` is defined like this.
 
+**File: src/eng/render.zig**
 ```zig
 pub const Render = struct {
     ...
@@ -757,6 +774,7 @@ the post-processing stage, that is, the swap chain image.
 
 Analogously, the `renderFinishPost` will be identical as the `renderMainFinish` function in the previous chapters:
 
+**File: src/eng/render.zig**
 ```zig
 pub const Render = struct {
     ...
@@ -791,6 +809,7 @@ pub const Render = struct {
 Finally, the `resize` function needs also to be updated to recreate the `attColor` attribute to have the same size as the swap chain
 images. We need also to call the `resize` function over the `RenderPost` instance:
 
+**File: src/eng/render.zig**
 ```zig
 pub const Render = struct {
     ...
@@ -809,6 +828,7 @@ pub const Render = struct {
 
 We need to update the `Constants` struct to have the new configuration parameter to enable / disable FXAA:
 
+**File: src/eng/com/common.zig**
 ```zig
 pub const Constants = struct {
     ...
@@ -828,6 +848,7 @@ pub const Constants = struct {
 
 Remember to add the new configuration parameter to the `res/cfg/cfg.toml` file:
 
+**File: res/cfg/cfg.toml**
 ```toml
 ...
 fxaa=true
@@ -839,6 +860,7 @@ There is also an important change that we need to perform. When setting the surf
 correction manually in the post-processing stage (this will prevent having issues when using other stages, such as GUI drawing, that apply
 also gamma correction). Therefore, we need to change that format to this one: `b8g8r8a8_unorm` (`VK_FORMAT_B8G8R8A8_UNORM`):
 
+**File: src/eng/vk/vkSurface.zig**
 ```zig
 pub const VkSurface = struct {
     ...
@@ -853,4 +875,6 @@ pub const VkSurface = struct {
 };
 ```
 
-[Next chapter](../chapter-12/chapter-12.md)
+[Back to Table of Contents](../README.md)
+
+[Previous chapter](../chapter-10/chapter-10.md) | [Next chapter](../chapter-12/chapter-12.md)

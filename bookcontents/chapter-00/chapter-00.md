@@ -103,4 +103,6 @@ the code is quite simple, just select the executable and launch it.
 > [!WARNING]  
 > If you are using Linux with Wayland just make sure to have the `SDL_VIDEODRIVER` environment variable to `x11`.
 
+[Back to Table of Contents](../README.md)
+
 [Next chapter](../chapter-01/chapter-01.md)

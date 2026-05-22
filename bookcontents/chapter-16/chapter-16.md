@@ -16,7 +16,7 @@ the depth stored in the depth map for those coordinates, it will mean that the f
 calculating shadows for a single directional light, so when rendering the depth map we will be using an orthographic projection (you can
 think about directional light as a source which casts parallel rays from infinity. Those rays do not converge at a focal point).
 
-<img src="rc16-light-projection.svg" title="" alt="Light projection" data-align="center">
+![Light projection](rc16-light-projection.svg)
 
 The problem with shadow depth maps is its resolution, we need to cover a wide area, and in order to get high quality visuals we would need
 huge images to store that information. One possible solution for that are cascade shadow maps. It is based on the fact that, shadows of
@@ -39,6 +39,7 @@ render the shadow maps (Remember to add a line in the `src/eng/mod.zig` file: `p
 first a struct named `CascadeData` which will store the projection view matrix (from light perspective) for a specific cascade shadow split
 (`projViewMatrix` attribute) and the far plane distance for its ortho-projection matrix (`splitDistance` attribute):
 
+**File: src/eng/renderShadow.zig**
 ```zig
 const com = @import("com");
 const eng = @import("mod.zig");
@@ -60,6 +61,7 @@ const UP_ALT = zm.f32x4(0.0, 0.0, 1.0, 0.0);
 ```
 Shadow cascades calculation is done in a function named `updateCascadeShadows` which starts like this:
 
+**File: src/eng/renderShadow.zig**
 ```zig
 ...
 pub fn updateCascadeShadows(
@@ -115,6 +117,7 @@ to cast the shadows. After that, we calculate cascade split parameters:
 These values are used to partition the view frustum into multiple shadow cascades (e.g., near/far splits) so we can have higher shadow
 resolution near the camera and lower resolution farther away. The code follows like this:
 
+**File: src/eng/renderShadow.zig**
 ```zig
 pub fn updateCascadeShadows(
     cascadeShadows: *[SHADOW_MAP_CASCADE_COUNT]CascadeData,
@@ -147,6 +150,7 @@ get more detail where it matters, in objects closer to the camera. You can check
 a set of values in the range [0, 1] which we will use later on to perform the required calculations to get the split distances and the
 projection matrices for each cascade. The code continue like this:
 
+**File: src/eng/renderShadow.zig**
 ```zig
 pub fn updateCascadeShadows(
     cascadeShadows: *[SHADOW_MAP_CASCADE_COUNT]CascadeData,
@@ -196,6 +200,7 @@ directional lights, we will use orthographic projection matrices for rendering t
 direction. From light perspective, farthest objects do not appear smaller than closer ones, light rays from a directional light do not
 diverge, they are all parallel). Let's continue with the code:
 
+**File: src/eng/renderShadow.zig**
 ```zig
 pub fn updateCascadeShadows(
     cascadeShadows: *[SHADOW_MAP_CASCADE_COUNT]CascadeData,
@@ -223,6 +228,7 @@ interpolate frustum corners between lastSplitDist and splitDist to get the casca
 coordinates of the center of that split (still working in world coordinates), and the radius of a bounding sphere that encloses that split.
 The radius is rounded up to a power-of-16 to reduce shadow flickering:
 
+**File: src/eng/renderShadow.zig**
 ```zig
 pub fn updateCascadeShadows(
     cascadeShadows: *[SHADOW_MAP_CASCADE_COUNT]CascadeData,
@@ -259,6 +265,7 @@ pub fn updateCascadeShadows(
 With that information, we can now calculate orthographic light view/projection matrix (the one that will be used to render the shadow map.
 That is, to render the scene from directional light's perspective). We will also calculate split distance (in camera view coordinates):
 
+**File: src/eng/renderShadow.zig**
 ```zig
 pub fn updateCascadeShadows(
     cascadeShadows: *[SHADOW_MAP_CASCADE_COUNT]CascadeData,
@@ -283,6 +290,50 @@ pub fn updateCascadeShadows(
         if (dot == 1.0) {
             up = UP_ALT;
         }
+
+        const lightView = zm.lookAtRh(shadowCamPos, frustumCenter, up);
+        const far = maxExtents[2] - minExtents[2];
+        var lightOrtho = orthoVulkan(minExtents[0], maxExtents[0], minExtents[1], maxExtents[1], 0.0, far);
+
+        // Stabilize shadow
+        var shadowOrigin = zm.f32x4(0, 0, 0, 1);
+        shadowOrigin = zm.mul(shadowOrigin, zm.mul(lightOrtho, lightView));
+        const scale = shadowMapSize / 2.0;
+        shadowOrigin = zm.f32x4(shadowOrigin[0] * scale, shadowOrigin[1] * scale, shadowOrigin[2] * scale, shadowOrigin[3]);
+
+        const roundedOrigin = zm.round(shadowOrigin);
+        var roundOffset = roundedOrigin - shadowOrigin;
+        roundOffset = roundOffset * @as(@Vector(4, f32), @splat(2.0 / shadowMapSize));
+
+        roundOffset = zm.f32x4(
+            roundOffset[0],
+            roundOffset[1],
+            0,
+            0,
+        );
+
+        lightOrtho[3][0] += roundOffset[0];
+        lightOrtho[3][1] += roundOffset[1];
+
+        const cascadeData = &cascadeShadows[i];
+        cascadeData.splitDist = (nearClip + splitDist * clipRange) * -1.0;
+
+        cascadeData.projViewMatrix = zm.mul(lightView, lightOrtho);
+
+        lastSplitDist = cascadeSplits[i];
+        ...
+    }
+    ...
+};
+...
+fn orthoVulkan(left: f32, right: f32, bottom: f32, top: f32, near: f32, far: f32) zm.Mat {
+    return .{
+        .{ 2.0 / (right - left), 0.0, 0.0, 0.0 },
+        .{ 0.0, 2.0 / (top - bottom), 0.0, 0.0 },
+        .{ 0.0, 0.0, 1.0 / (near - far), 0.0 },
+        .{ (left + right) / (left - right), (bottom + top) / (bottom - top), near / (near - far), 1.0 },
+    };
+}
 
         const lightView = zm.lookAtRh(shadowCamPos, frustumCenter, up);
         const far = maxExtents[2] - minExtents[2];
@@ -348,6 +399,7 @@ the drawing commands for the scene elements once, by using multi-view render.
 
 The `RenderShadow` struct (defined also in the `src/eng/renderShadow.zig` file) starts like this:
 
+**File: src/eng/renderShadow.zig**
 ```zig
 const COLOR_ATTACHMENT_FORMAT = vulkan.Format.r32g32_sfloat;
 const DEPTH_FORMAT = vulkan.Format.d32_sfloat;
@@ -512,6 +564,7 @@ descriptor sets associated to the uniforms / buffers used in the shader and the 
 
 Let's review the functions used in the `create` functions:
 
+**File: src/eng/renderShadow.zig**
 ```zig
 pub const RenderShadow = struct {
     ...
@@ -558,6 +611,7 @@ implemented later on.
 We will provide also a function to load material information, that is to create associated descriptor sets to be able to access materials
 buffer. We need this in order to prevent rendering depth information for transparent objects. This will be done in the `init` function:
 
+**File: src/eng/renderShadow.zig**
 ```zig
 pub const RenderShadow = struct {
     ...
@@ -602,6 +656,7 @@ pub const RenderShadow = struct {
 
 Let's examine now the `render` function which renders the scene to generate the depth maps:
 
+**File: src/eng/renderShadow.zig**
 ```zig
 pub const RenderShadow = struct {
     ...
@@ -706,6 +761,7 @@ transparent threshold.
 
 The `renderEntities` function is almost identical to the one used in `RenderScn` but without transparency filtering:
 
+**File: src/eng/renderShadow.zig**
 ```zig
 pub const RenderShadow = struct {
     ...
@@ -747,6 +803,7 @@ pub const RenderShadow = struct {
 The `renderInit` function sets up an image memory barrier for the depth and color attachments so they can transition to the proper layout to
 be used while rendering:
 
+**File: src/eng/renderShadow.zig**
 ```zig
 pub const RenderShadow = struct {
     ...
@@ -806,6 +863,7 @@ pub const RenderShadow = struct {
 
 The `renderFinish` function just transitions the color attachment so it can be sampled in the light stage:
 
+**File: src/eng/renderShadow.zig**
 ```zig
 pub const RenderShadow = struct {
     ...
@@ -840,6 +898,7 @@ pub const RenderShadow = struct {
 
 We will need two methods to set up push constants and upload cascade shadows projection matrices:
 
+**File: src/eng/renderShadow.zig**
 ```zig
 ...
 const PushConstantsVtx = struct {
@@ -890,6 +949,7 @@ Since the image used to update shadow maps does not depend on the screen size, w
 The vertex shader (`shadow_vtx.glsl`) is quite similar to previous ones, we just apply the model matrix, passed as a push constant, to
 transform and apply the cascade orthographic projection matrix:
 
+**File: res/shaders/shadow_vtx.glsl**
 ```glsl
 #version 450
 #extension GL_EXT_multiview : enable
@@ -928,6 +988,8 @@ call. We will do as many renders as cascade shadow maps are, in order to access 
 `gl_ViewIndex` which will act as an index which models the render iteration we are in.
 
 The fragment shader, `shadow_frg.glsl`, is defined like this:
+
+**File: res/shaders/shadow_frg.glsl**
 ```glsl
 #version 450
 
@@ -993,6 +1055,7 @@ to the local depth variation, we compensate interpolation errors. The `dFdx`  fu
 
 We have modified the Attachment `struct` to be able to set up the image layers:
 
+**File: src/eng/render.zig**
 ```zig
 pub const Attachment = struct {
     ...
@@ -1023,6 +1086,7 @@ Prior to reviewing the changes in the `RenderLight` struct, we will examine the 
 modifications required in that class. The vertex shader (`light_vtx.glsl`) does not need to be modified at all, the changes will affect the
 fragment shader (`light_frg.glsl`). Let's dissect the changes. First, we will define a set of specialization constants:
 
+**File: res/shaders/light_frg.glsl**
 ```glsl
 ...
 layout (constant_id = 0) const int SHADOW_MAP_CASCADE_COUNT = 3;
@@ -1040,6 +1104,7 @@ Description of the constants:
 
 We will need also to pass cascade shadows information as long as the view matrix to perform how shadows affect final fragment color:
 
+**File: res/shaders/light_frg.glsl**
 ```glsl
 ...
 layout(set = 0, binding = 4) uniform sampler2DArray shadowSampler;
@@ -1071,7 +1136,7 @@ that will be applied to the final fragment color. If the fragment is not affecte
 `0`. When `SAMPLING` equals `1`, the calcVisibility function performs Variance Shadow Map (VSM) and applies Poisson PCF filtering. Let's
 review the functions and constants involved:
 
-
+**File: res/shaders/light_frg.glsl**
 ```glsl
 const vec2 poissonDisk[16] = vec2[](
     vec2(-0.94201624, -0.39906216),
@@ -1155,6 +1220,7 @@ scaled with distance, the larger the distance, the larger is the scale. Basicall
 
 The `main` function is defined like this:
 
+**File: res/shaders/light_frg.glsl**
 ```glsl
 void main() {
     vec3 albedo   = texture(albedoSampler, inTextCoord).rgb;
@@ -1234,6 +1300,7 @@ the cascades we are using.
 
 Let's examine the changes in the `src/eng/renderLight.zig` file:
 
+**File: src/eng/renderLight.zig**
 ```zig
 ...
 const zm = @import("zmath");
@@ -1319,6 +1386,7 @@ pub const RenderLight = struct {
 
 We need to update the `createColorAttachment` due to the changes in the `Attachment` struct to be able to specify the number of layers:
 
+**File: src/eng/renderLight.zig**
 ```zig
 pub const RenderLight = struct {
     ...
@@ -1339,6 +1407,7 @@ pub const RenderLight = struct {
 
 The `createSpecConsts` function is defined like this:
 
+**File: src/eng/renderLight.zig**
 ```zig
 pub const RenderLight = struct {
     ...
@@ -1372,6 +1441,7 @@ pub const RenderLight = struct {
 
 The `render` function also needs to be updated:
 
+**File: src/eng/renderLight.zig**
 ```zig
 pub const RenderLight = struct {
     ...
@@ -1403,6 +1473,7 @@ We now need to receive as a parameter the cascade splits information so we can u
 fragment shader. We need also to bind the new descriptor set associated to that buffer. The writing in that buffer is done in the
 `updateCascadeShadows` function:
 
+**File: src/eng/renderLight.zig**
 ```zig
 pub const RenderLight = struct {
     ...
@@ -1438,6 +1509,7 @@ pub const RenderLight = struct {
 
 Finally, we need to update the `updateSceneInfo` function to include the view matrix:
 
+**File: src/eng/renderLight.zig**
 ```zig
 pub const RenderLight = struct {
     ...
@@ -1463,6 +1535,7 @@ pub const RenderLight = struct {
 
 Due to the changes in the way we create the Attachments we need to update the `RenderScn` struct:
 
+**File: src/eng/renderScn.zig**
 ```zig
 pub const RenderScn = struct {
     ...
@@ -1499,6 +1572,7 @@ pub const RenderScn = struct {
 
 We need to use the new `RenderShadow` struct in the `Render` one:
 
+**File: src/eng/render.zig**
 ```zig
 pub const Render = struct {
     ...
@@ -1557,6 +1631,7 @@ pub const Render = struct {
 ```
 The `Constants` struct needs also to be updated to read the additional properties that control depth map generation:
 
+**File: src/eng/com/common.zig**
 ```zig
 pub const Constants = struct {
     ...
@@ -1580,6 +1655,7 @@ pub const Constants = struct {
 
 Therefore, we will need to add new parameters in the `res/cfg/cfg.toml` file:
 
+**File: res/cfg/cfg.toml**
 ```toml
 ...
 pcfEnabled=true
@@ -1590,6 +1666,7 @@ shadowMapSize=4096
 
 In the `VkDevice` struct we need to enable the multi view feature:
 
+**File: src/eng/vk/vkDevice.zig**
 ```zig
 pub const VkDevice = struct {
     ...
@@ -1610,6 +1687,7 @@ pub const VkDevice = struct {
 
 We will modify `VkPipelineCreateInfo` and `VkPipelineCreateInfo` structs so we can create pipelines which can support multi view:
 
+**File: src/eng/vk/vkPipeline.zig**
 ```zig
 pub const VkPipelineCreateInfo = struct {
     ...
@@ -1635,10 +1713,12 @@ pub const VkPipeline = struct {
 
 We are now done with the changes, you should now be able to see the scene with shadows applied, as in the following screenshot:
 
-<img src="rc16-screen-shot.png" title="" alt="Screen Shot" data-align="center">
+![Screen Shot](rc16-screen-shot.png)
 
 As a bonus, you can try to activate the cascade shadow debug to show the cascade splits:
 
-<img src="rc16-screen-shot-debug.png" title="" alt="Screen Shot (Debug)" data-align="center">
+![Screen Shot (Debug)](rc16-screen-shot-debug.png)
 
-[Next chapter](../chapter-17/chapter-17.md)
+[Back to Table of Contents](../README.md)
+
+[Previous chapter](../chapter-15/chapter-15.md) | [Next chapter](../chapter-17/chapter-17.md)

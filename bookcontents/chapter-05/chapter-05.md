@@ -13,6 +13,7 @@ submitting them to a queue. It is time now to implement the support for these el
 command pool. Therefore, let's encapsulate Command pool creation in a struct named `VkCmdPool`. Its definition is quite simple (it's defined
 in the file `src/eng/vkVkCmd.zig` remember to include it in the `mod.zig` file: `pub const cmd = @import("vkCmd.zig");`):
 
+**File: src/eng/vk/vkCmd.zig**
 ```zig
 const std = @import("std");
 const vulkan = @import("vulkan");
@@ -50,6 +51,7 @@ The rest of the functions of the struct are, as usual, a `cleanup` function to r
 pools, let's review the struct that will allow us to instantiate command buffers, which as you can imagine it's named `VkCmdBuff`
 (defined in the same file as `VkCmdPool`). It starts like this:
 
+**File: src/eng/vk/vkCmd.zig**
 ```zig
 pub const VkCmdBuff = struct {
     cmdBuffProxy: vulkan.CommandBufferProxy,
@@ -84,6 +86,7 @@ To finalize the `create` function, once that structure is being set, we allocate
 instance. The next function of the `VkCmdBuff` struct, named `begin`, should be invoked when we want to start recording for that command
 buffer:
 
+**File: src/eng/vk/vkCmd.zig**
 ```zig
 pub const VkCmdBuff = struct {
     ...
@@ -101,6 +104,7 @@ case, the driver may not try to optimize that command buffer since it will only 
 
 The next functions are the usual `cleanup` for releasing resources and `end` to finalize the recording:
 
+**File: src/eng/vk/vkCmd.zig**
 ```zig
 pub const VkCmdBuff = struct {
     ...
@@ -138,6 +142,7 @@ waiting can only happen in the GPU.
 Before using these elements, we will define some structs to manage them. We will first start with the `VkSemaphore` struct (defined in the
 file `vkSync.zig`. Remember to include this file in the `mod.zig` file: `pub const sync = @import("vkSync.zig");`):
 
+**File: src/eng/vk/vkSync.zig**
 ```zig
 const std = @import("std");
 const vulkan = @import("vulkan");
@@ -167,6 +172,7 @@ semaphore is easy, just define call the `createSemaphore` function. We complete 
 
 Now it's turn for the `VkFence` struct (defined in the same file):
 
+**File: src/eng/vk/vkSync.zig**
 ```zig
 pub const VkFence = struct {
     fence: vulkan.Fence,
@@ -200,6 +206,7 @@ another one named `reset` which resets the fence to un-signaled state by calling
 With all of these synchronization elements we can go back to the `VkQueue` struct and add a function to submit command buffers named
 `submit`:
 
+**File: src/eng/vk/vkQueue.zig**
 ```zig
 pub const VkQueue = struct {
     ...
@@ -241,6 +248,7 @@ prevent re-submitting commands that are still in use.
 Now that we have introduced semaphores, fences, and queue submission it is time to show the pending function in the `VkCmdBuff` which is
 called `submitAndWait`:
 
+**File: src/eng/vk/vkCmd.zig**
 ```zig
 pub const VkCmdBuff = struct {
     ...
@@ -279,6 +287,7 @@ have the `VkSwapChain` image views. The reality, however, is that you do not nee
 not want the CPU to wait for the GPU to prevent having latency. We will refer to this number as frames in flight, which shall not be
 confused with total swap chain image views. In fact, we will create a new constant in the `common.zig` file for this:
 
+**File: src/eng/com/common.zig**
 ```zig
 ...
 pub const FRAMES_IN_FLIGHT = 2;
@@ -321,6 +330,7 @@ presentation is not involved at all.
 Let's go now to the `Render` struct and see the new attributes that we will need (showing the changes in the `create` and the `cleanup`
 functions):
 
+**File: src/eng/render.zig**
 ```zig
 ...
 const vulkan = @import("vulkan");
@@ -453,6 +463,7 @@ buffers or using several threads).
 
 Let's see how the code of the render loop (and associated functions) looks like:
 
+**File: src/eng/render.zig**
 ```zig
 pub const Render = struct {
     ...
@@ -510,6 +521,7 @@ parameter. Later on, we will use it.
 We will see later on the implementation of `renderMainInit` and `renderMainFinish` functions. Let's review the definition of the `submit`
 function:
 
+**File: src/eng/render.zig**
 ```zig
 pub const Render = struct {
     ...
@@ -563,6 +575,7 @@ Finally, we use the current `VkFence` instance, this way we block the CPU from r
 
 Let's start now by reviewing the missing functions in `VkSwapChain` struct. First function is `acquire`:
 
+**File: src/eng/vk/vkSwapChain.zig**
 ```zig
 pub const VkSwapChain = struct {
     ...
@@ -612,6 +625,7 @@ If this value is returned, it means that the window has been resized. If so, we 
 
 Let's review the new function for image presentation named `present`:
 
+**File: src/eng/vk/vkSwapChain.zig**
 ```zig
 pub const VkSwapChain = struct {
     ...
@@ -669,6 +683,7 @@ applied.
 
 We will explain how to use dynamic rendering while we define the `RenderScn` struct
 
+**File: src/eng/renderScn.zig**
 ```zig
 const std = @import("std");
 const vk = @import("vk");
@@ -754,6 +769,7 @@ will be the attachments created previously.
 
 Now it is turn to go back to the `Render` struct to revisit pending functions to be described. Let's start with `renderMainInit`:
 
+**File: src/eng/render.zig**
 ```zig
 pub const Render = struct {
     ...
@@ -830,6 +846,7 @@ be using mipmap levels or array layers of images so we just set them to default 
 
 It is now the turn for the `renderMainFinish` function:
 
+**File: src/eng/render.zig**
 ```zig
 pub const Render = struct {
     ...
@@ -892,4 +909,6 @@ understand why Vulkan is called an explicit API.  The good news is that, in my o
 to understand. Although we still need to define some important topics, such as pipelines or data buffers, I think they will be easier to
 understand once you have made your head around this.
 
-[Next chapter](../chapter-06/chapter-06.md)
+[Back to Table of Contents](../README.md)
+
+[Previous chapter](../chapter-04/chapter-04.md) | [Next chapter](../chapter-06/chapter-06.md)

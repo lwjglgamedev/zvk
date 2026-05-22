@@ -24,6 +24,7 @@ to still managing allocation in the pure Vulkan way in case you need it.
 
 In order to use VMA library you will need to add the following entry to the `build.zig.zon` file:
 
+**File: build.zig.zon**
 ```
 .{
     ...
@@ -41,6 +42,7 @@ In order to use VMA library you will need to add the following entry to the `bui
 
 We will need to add the VMA dependency in the `build.zig` file:
 
+**File: build.zig**
 ```zig
 pub fn build(b: *std.Build) void {
     ...
@@ -66,6 +68,7 @@ You will see we add the usual dependency but we need to:
 - Add Vulkan headers to the `vk` module so it can be accessed by VMA.
 - Add a source file to properly link the symbols defined by the VMA header. This file needs to be created manually and is defined like this:
 
+**File: src/eng/vk/vma.cpp**
 ```c
 #define VMA_IMPLEMENTATION
 #define VMA_STATIC_VULKAN_FUNCTIONS 0
@@ -81,6 +84,7 @@ code.
 We will create a new struct named `VkVmaAlloc` to handle the initialization of the VMA library. This struct will be defined in a new file:
 `src/eng/vk/vma.zig` (Remember to include it in the `mod.zig` file: `pub const vma = @import("vma.zig");`). It is defined like this:
 
+**File: src/eng/vk/vma.zig**
 ```zig
 const vke = @import("mod.zig");
 pub const vma = @cImport({
@@ -139,6 +143,7 @@ In the file we define some convenience `enum`s to prevent the rest of the code t
 
 We will create an instance of the `VkVmaAlloc` in the `VkCtx` struct:
 
+**File: src/eng/vk/vkCtx.zig**
 ```zig
 pub const VkCtx = struct {
     ...
@@ -165,6 +170,7 @@ pub const VkCtx = struct {
 
 The next step is to modify the `VkBuffer` struct to use the VMA library. We will start with the attributes:
 
+**File: src/eng/vk/vkBuffer.zig**
 ```zig
 const vma = vk.vma.vma;
 
@@ -180,6 +186,7 @@ pub const VkBuffer = struct {
 The `allocation` attribute is a handle to the allocated memory, which will be used later on to refer to that block and to perform the map
 and unmap operations. This removes the need to have the memory handle. Let's review the changes in the `create` function:
 
+**File: src/eng/vk/vkBuffer.zig**
 ```zig
 pub const VkBuffer = struct {
     ...
@@ -241,6 +248,7 @@ is to set it always to `VMA_MEMORY_USAGE_AUTO` and let VMA manage it for us.
 After that, we call the `vmaCreateBuffer` function which creates the Vulkan buffer, allocates the memory for it and binds the buffer to the
 allocated memory. The rest of the functions of the `VkBuffer` struct that need also to be modified are shown below:
 
+**File: src/eng/vk/vkBuffer.zig**
 ```zig
 pub const VkBuffer = struct {
     ...
@@ -276,6 +284,7 @@ want to use the coherent flag to do it automatically for us.
 The code inside the `src/eng/vk/vkImage.zig` file needs to be highly modified, since the allocation mechanisms for images and the associated 
 buffers change a lot when using VMA. We first need to define memory usage flags in the `VkImageData` struct:
 
+**File: src/eng/vk/vkImage.zig**
 ```zig
 ...
 const vma = vk.vma.vma;
@@ -290,6 +299,7 @@ pub const VkImageData = struct {
 The `VkImage` attributes need also to be modified. We no longer will need keep track of the allocated memory but we will need to keep an
 allocation handle, as in the case of the `VkBuffer` struct.
 
+**File: src/eng/vk/vkImage.zig**
 ```zig
 pub const VkImage = struct {
     image: vma.VkImage,
@@ -300,6 +310,7 @@ pub const VkImage = struct {
 
 The `create` function now looks like this:
 
+**File: src/eng/vk/vkImage.zig**
 ```zig
 pub const VkImage = struct {
     ...
@@ -355,6 +366,7 @@ function will take care of allocating and binding the memory.
 
 We need to update also the `cleanup` function to use `vmaDestroyImage`:
 
+**File: src/eng/vk/vkImage.zig**
 ```zig
 pub const VkImage = struct {
     ...
@@ -368,6 +380,7 @@ pub const VkImage = struct {
 The next struct to be modified is the `VkTexture` one. This struct a buffer to store the texture image contents. Since the `VkBuffer`
 `create` function has been modified, we need to update the code to correctly specify the usage flags.
 
+**File: src/eng/vk/vkTexture.zig**
 ```zig
 pub const VkTexture = struct {
     ...
@@ -397,6 +410,7 @@ In this case, since it is a buffer that needs to be accessed by both CPU and GPU
 
 This cast needs to be applied whenever we use the image:
 
+**File: src/eng/vk/vkTexture.zig**
 ```zig
 pub const VkTexture = struct {
     ...
@@ -451,6 +465,7 @@ pub const VkTexture = struct {
 
 The `ModelsCache` struct needs also to be updated with small changes due to the changes in `VkBuffer`:
 
+**File: src/eng/modelsCache.zig**
 ```zig
 pub const ModelsCache = struct {
     ...
@@ -515,6 +530,7 @@ pub const ModelsCache = struct {
 
 We need to update also the `MaterialsCache` struct:
 
+**File: src/eng/modelsCache.zig**
 ```zig
 pub const MaterialsCache = struct {
     ...
@@ -554,6 +570,7 @@ pub const MaterialsCache = struct {
 
 We need to update also the `src/eng/vk/vkUtils.zig` file to update the `createHostVisibleBuff`:
 
+**File: src/eng/vk/vkUtils.zig**
 ```zig
 ...
 pub fn createHostVisibleBuff(
@@ -588,6 +605,7 @@ pub fn createHostVisibleBuff(
 
 We need to update also the `RenderScn` struct to accommodate the way wew handle image handles now:
 
+**File: src/eng/renderScn.zig**
 ```zig
 pub const RenderScn = struct {
     ...
@@ -615,6 +633,7 @@ pub const RenderScn = struct {
 
 Finally, we update the `Attachment` struct to properly handle image handles.
 
+**File: src/eng/render.zig**
 ```zig
 pub const Attachment = struct {
     ...
@@ -627,3 +646,7 @@ pub const Attachment = struct {
     ...
 };
 ```
+
+[Back to Table of Contents](../README.md)
+
+[Previous chapter](../chapter-09/chapter-09.md) | [Next chapter](../chapter-11/chapter-11.md)

@@ -34,6 +34,8 @@ operations to be done are restricted to what will be displayed on the screen.
 We need to modify the `VkPipeline` struct to be able to use more than one color output attachment. In order to do that, we first need to
 update the `VkPipelineCreateInfo` struct to store an array of color formats, one per color output attachment:
 
+**File: src/eng/vk/vkPipeline.zig**
+
 ```zig
 pub const VkPipelineCreateInfo = struct {
     colorFormats: []const vulkan.Format,
@@ -42,6 +44,8 @@ pub const VkPipelineCreateInfo = struct {
 ```
 
 In the `VkPipeline` struct we need to take into account the fact that we may have more than one attachment:
+
+**File: src/eng/vk/vkPipeline.zig**
 
 ```zig
 pub const VkPipeline = struct {
@@ -90,6 +94,8 @@ pub const VkPipeline = struct {
 The next step is to modify the `RenderScn` struct to also be able to use several attachments as color output. In previous chapters,
 `RenderScn` used, a color output attachment that was managed in the `Render` struct, now, we will move that code to the `RenderScn` struct
 and add support for having more than one color output:
+
+**File: src/eng/renderScn.zig**
 
 ```zig
 const COLOR_ATTACHMENT_FORMAT = vulkan.Format.r16g16b16a16_sfloat;
@@ -148,6 +154,8 @@ it is more important to reduce memory usage.
 The `createColorAttachment` function is quite similar to the one used to create depth attachments, we just need to set the proper color
 format and usage flags:
 
+**File: src/eng/renderScn.zig**
+
 ```zig
 pub const RenderScn = struct {
     ...
@@ -182,6 +190,8 @@ By now, we will use just one color attachment but the code is ready to add more 
 more than color (albedo) and depth attachment but one also for normals, etc. The `createDepthAttachments` function has been renamed to
 `createDepthAttachment` since it will return just one depth attachment:
 
+**File: src/eng/renderScn.zig**
+
 ```zig
 pub const RenderScn = struct {
     ...
@@ -203,6 +213,8 @@ pub const RenderScn = struct {
 ```
 
 The `render` function needs also to be modified:
+
+**File: src/eng/renderScn.zig**
 
 ```zig
 pub const RenderScn = struct {
@@ -270,6 +282,8 @@ be an array sized to the number of attachments. After we have finished to record
 again, performs a new image transition layout. We have moved also the barriers associated to the depth attachment to the `renderInit`
 function, which is defined like this:
 
+**File: src/eng/renderScn.zig**
+
 ```zig
 pub const RenderScn = struct {
     ...
@@ -335,6 +349,8 @@ pub const RenderScn = struct {
 As you can see we set the same barriers we used previously in the `Render` struct but applied to the output color attachments. We also 
 include here the transition of the depth attachment. The `renderFinish` function is defined like this.
 
+**File: src/eng/renderScn.zig**
+
 ```zig
 pub const RenderScn = struct {
     ...
@@ -376,6 +392,8 @@ pub const RenderScn = struct {
 We just transition the color output images to `read_only_optimal` layout when all the previous commands have gone through color output
 stage. We need also to update the `resize` function due to the changes in the attachments:
 
+**File: src/eng/renderScn.zig**
+
 ```zig
 pub const RenderScn = struct {
     ...
@@ -400,6 +418,8 @@ pub const RenderScn = struct {
 ```
 
 The vertex shader, does not need to be changed, however the fragment shader (`scn_frg.glsl`) is slightly modified:
+
+**File: res/shaders/scn_frg.glsl**
 
 ```glsl
 #version 450
@@ -445,6 +465,8 @@ The fragment shader is almost identical, we have changed the output attachment n
 We are ready now to develop the code needed to support the lighting phase. The rendering tasks of the lighting phase will be handled in a
 new struct named `RenderLight`. It is defined in a new file under `src/eng/renderLight.zig` so you will need to include it in the
 `src/eng/mod.zig` file (`pub const rlgt = @import("renderLight.zig");`). It starts like this:
+
+**File: src/eng/renderLight.zig**
 
 ```zig
 const com = @import("com");
@@ -573,6 +595,8 @@ later on.
 
 The `cleanup` function is defined like this:
 
+**File: src/eng/renderLight.zig**
+
 ```zig
 pub const RenderLight = struct {
     ...
@@ -587,6 +611,8 @@ pub const RenderLight = struct {
 ```
 
 The `createColorAttachment` function is defined like this:
+
+**File: src/eng/renderLight.zig**
 
 ```zig
 pub const RenderLight = struct {
@@ -611,6 +637,8 @@ pub const RenderLight = struct {
 ```
 
 The `render` function is quite similar to the one used in the `PostRender` struct:
+
+**File: src/eng/renderLight.zig**
 
 ```zig
 pub const RenderLight = struct {
@@ -692,6 +720,8 @@ output attachments used in the geometry phase so we can sample them. As you can 
 processing phase. In the `renderInit` function we need to transition the layout of the image used as an output to the
 `color_attachment_optimal` layout once the previous commands have finished.
 
+**File: src/eng/renderLight.zig**
+
 ```zig
 pub const RenderLight = struct {
     ...
@@ -731,6 +761,8 @@ pub const RenderLight = struct {
 The `renderFinish` function jus transitions the output attachment to the `shader_read_only_optimal` layout so it can be sampled in next
 phases:
 
+**File: src/eng/renderLight.zig**
+
 ```zig
 pub const RenderLight = struct {
     ...
@@ -769,6 +801,8 @@ pub const RenderLight = struct {
 
 We also define a resize function:
 
+**File: src/eng/renderLight.zig**
+
 ```zig
 pub const RenderLight = struct {
     ...
@@ -792,6 +826,8 @@ pub const RenderLight = struct {
 ```
 
 The `setImages` function of the `VkDesSet` function is defined like this:
+
+**File: src/eng/vk/vkDescs.zig**
 
 ```zig
 pub const VkDesSet = struct {
@@ -840,6 +876,8 @@ It is similar to the `setImagesArr`, but in this case, each image has a specific
 
 It is now the turn to view the shaders used in the lighting phase, this is the vertex shader (`light_vtx.glsl`):
 
+**File: res/shaders/light_vtx.glsl**
+
 ```glsl
 #version 450
 
@@ -853,6 +891,8 @@ void main()
 ```
 
 You can see that it is identical as the one used in the post processing phase. The fragment shader (`light_frg.glsl`) is defined like this:
+
+**File: res/shaders/light_frg.glsl**
 
 ```glsl
 #version 450
@@ -873,6 +913,8 @@ By now we will not apply lighting, we will just return the albedo color associat
 contains albedo information.
 
 The next step is to update the `Render` struct to use the new `RenderLight` struct:
+
+**File: src/eng/render.zig**
 
 ```zig
 pub const Render = struct {
@@ -955,6 +997,8 @@ We have removed:
 
 Finally, we need to update the other render structs to adapt to the changes in the pipeline creation:
 
+**File: src/eng/renderGui.zig**
+
 ```zig
 pub const RenderGui = struct {
     ...
@@ -971,6 +1015,8 @@ pub const RenderGui = struct {
     ...
 };
 ```
+
+**File: src/eng/renderPost.zig**
 
 ```zig
 pub const RenderPost = struct {
@@ -997,12 +1043,16 @@ pub const RenderPost = struct {
 
 In the `init` function in the `main.zig` file we just remove sound effects code. You need to remove these lines:
 
+**File: src/main.zig**
+
 ```zig
         try engCtx.soundMgr.addSound("music", "res/sounds/music.mp3");
         try engCtx.soundMgr.play("music");
 ```
 
 Finally, since we have added two new shaders, we need to update the `build.zig` file:
+
+**File: build.zig**
 
 ```zig
 pub fn build(b: *std.Build) void {
@@ -1019,9 +1069,11 @@ pub fn build(b: *std.Build) void {
 
 With all these changes, you will get something  like this:
 
-<img src="./rc14-screen-shot.png" title="" alt="Screen Shot" data-align="center">
+![Screen Shot](./rc14-screen-shot.png)
 
 Do not despair, it is exactly the same result as in the previous chapter, you will see in next chapter how we will dramatically improve
 the visuals. In this chapter we have just set the basis for deferred rendering.
 
-[Next chapter](../chapter-15/chapter-15.md)
+[Back to Table of Contents](../README.md)
+
+[Previous chapter](../chapter-13/chapter-13.md) | [Next chapter](../chapter-15/chapter-15.md)

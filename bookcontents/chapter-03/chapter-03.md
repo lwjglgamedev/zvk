@@ -19,6 +19,7 @@ So let's go back to coding and start by encapsulating all the code for selecting
 `VkPhysDevice` (in the file `src/eng/vk/vkDevice.zig`, remember to update the `mod.zig` file to include it:
 `pub const phys = @import("vkPhysDevice.zig");`). It starts like this:
 
+**File: src/eng/vk/vkDevice.zig**
 ```zig
 const std = @import("std");
 const vulkan = @import("vulkan");
@@ -48,6 +49,7 @@ The `QueuesInfo` struct will hold the family indices of the queues used to submi
 properties (`props`), the queues information and the device memory properties (`memProps`). It provides a `create` function which
 instantiates this struct and that starts like this:
 
+**File: src/eng/vk/vkDevice.zig**
 ```zig
 pub const VkPhysDevice = struct {
     ...
@@ -67,6 +69,7 @@ As it has been said before, we may have more than one Vulkan physical device in 
 to retrieve the list of supported vulkan devices (by calling the `enumeratePhysicalDevicesAlloc` function). After that we iterate over that
 list trying to get the most suitable one:
 
+**File: src/eng/vk/vkDevice.zig**
 ```zig
 pub const VkPhysDevice = struct {
     ...
@@ -134,6 +137,7 @@ device has been selected we return an error.
 
 The `checkExtensionSupport` function is defined like this:
 
+**File: src/eng/vk/vkDevice.zig**
 ```zig
 pub const VkPhysDevice = struct {
     ...
@@ -174,6 +178,7 @@ are part of that shape. Commands in those queues are consumed and executed async
  render and compute commands, each of these command types may require to be submitted to different types of queue. In our case, we want to
  be sure that the selected device is capable of handling graphics commands, which is what we check within the `hasGraphicsQueue` function: 
 
+**File: src/eng/vk/vkDevice.zig**
 ```zig
 pub const VkPhysDevice = struct {
     ...
@@ -237,6 +242,7 @@ As in our previous samples, we will create a new struct, named `VkDevice` to wra
 (Remember to update the `mod.zig` file to include it: `pub const dev = @import("vkDevice.zig");`). It provides a `create` function to
 instantiate it which starts like this:
 
+**File: src/eng/vk/vkDevice.zig**
 ```zig
 const std = @import("std");
 const vulkan = @import("vulkan");
@@ -319,6 +325,7 @@ With all of the above we can fill up the structure required to create a logical 
 
 To complete the `VkDevice` struct, here are the rest of the functions:
 
+**File: src/eng/vk/vkDevice.zig**
 ```zig
 pub const VkDevice = struct {
     ...
@@ -348,6 +355,7 @@ we will create a new struct named `VkSurface` (Remember to update the `mod.zig` 
 
 The `VkSurface` struct starts like this:
 
+**File: src/eng/vk/vkCtx.zig**
 ```zig
 const std = @import("std");
 const sdl3 = @import("sdl3");
@@ -384,6 +392,7 @@ used later on to be able to construct the artifacts required to render something
 
 We also provide a function to retrieve surface capabilities:
 
+**File: src/eng/vk/vkCtx.zig**
 ```zig
 pub const VkSurface = struct {
     ...
@@ -396,6 +405,7 @@ pub const VkSurface = struct {
 
 We will also provide a function to retrieve a supported surface format:
 
+**File: src/eng/vk/vkCtx.zig**
 ```zig
 pub const VkSurface = struct {
     ...
@@ -435,6 +445,7 @@ one is not supported.
 
 To complete the `VkSurface` struct source code we just add a `cleanup` function:
 
+**File: src/eng/vk/vkCtx.zig**
 ```zig
 pub const VkSurface = struct {
     ...
@@ -458,6 +469,7 @@ and which synchronization mechanisms are available.
 We will create a new struct which models queue retrieval, named `VkQueue` (Remember to update the `mod.zig` file to include it:
 `pub const queue = @import("vkQueue.zig");`). The `VkQueue` struct itself is very simple:
 
+**File: src/eng/vk/vkCtx.zig**
 ```zig
 const vulkan = @import("vulkan");
 const vk = @import("mod.zig");
@@ -488,6 +500,7 @@ After calling this function we will get a handle to our queue.
 
 Now we need to update the `VkCtx` structure to create the new elements:
 
+**File: src/eng/vk/vkCtx.zig**
 ```zig
 const std = @import("std");
 const sdl3 = @import("sdl3");
@@ -531,6 +544,7 @@ pub const VkCtx = struct {
 
 We added a new configuration variable in the `Constants` struct that allows us to select a specific GPU by name:
 
+**File: src/eng/vk/vkCtx.zig**
 ```zig
 pub const Constants = struct {
     gpu: []const u8,    
@@ -553,6 +567,7 @@ pub const Constants = struct {
 
 You will need to update the `res/cfg/cfg.toml` file to add a new entry named `gpu`, for example:
 
+**File: res/cfg/cfg.toml**
 ```toml
 gpu="NVIDIA GeForce RTX 4060 Laptop GPU"
 ```
@@ -560,6 +575,7 @@ gpu="NVIDIA GeForce RTX 4060 Laptop GPU"
 Since we now need to have access to the window in the `VkCtx` struct we need to update the `Render` struct to properly instantiate it. We
 will also update the `cleanup` function to wait for the device prior to perform any cleanup action:
 
+**File: src/eng/render.zig**
 ```zig
 pub const Render = struct {
     ...
@@ -581,6 +597,7 @@ pub const Render = struct {
 
 Finally, we need to update the `Engine` struct to also pass a reference to the window when creating a `Render` instance:
 
+**File: src/eng/render.zig**
 ```zig
 pub fn Engine(comptime GameLogic: type) type {
     ...
@@ -596,4 +613,6 @@ pub fn Engine(comptime GameLogic: type) type {
 That's all for this chapter, we are slowly defining the structs that we need in order to render something. We have still a long road ahead
 of us, but I hope the pieces will start to make sense soon.
 
-[Next chapter](../chapter-04/chapter-04.md)
+[Back to Table of Contents](../README.md)
+
+[Previous chapter](../chapter-02/chapter-02.md) | [Next chapter](../chapter-04/chapter-04.md)

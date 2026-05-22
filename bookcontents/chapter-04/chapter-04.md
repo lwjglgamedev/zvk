@@ -18,6 +18,7 @@ file to include it: `pub const swap = @import("vkSwapChain.zig");`). Here is the
 
 Let's start with its attributes and the `create` function for the `VkSwapChain` structure:
 
+**File: src/eng/vk/vkSwapChain.zig**
 ```zig
 const std = @import("std");
 const sdl3 = @import("sdl3");
@@ -179,6 +180,7 @@ the maximum refresh rate of our screen. If `vsync` is false we will try to first
 `VK_PRESENT_MODE_IMMEDIATE_KHR` and finally, if none of them are supported, we will use `VK_PRESENT_MODE_FIFO_KHR`. This is done in the
 `calcPresentMode` function:
 
+**File: src/eng/vk/vkSwapChain.zig**
 ```zig
 pub const VkSwapChain = struct {
     ...
@@ -215,6 +217,7 @@ Back, to the `create` function we can finally create swap chain by invoking the 
 swap chain image views. Prior to analyze that we will start by showing pending functions already used in the `create` function. Let's start
 with the definition of `calcNumImages`:
 
+**File: src/eng/vk/vkSwapChain.zig**
 ```zig
 pub const VkSwapChain = struct {
     ...
@@ -240,6 +243,7 @@ try to stick with the requested value if it's within the maximum-minimum range.
 
 Now it is the turn to show the definition of the `calcExtent` function:
 
+**File: src/eng/vk/vkSwapChain.zig**
 ```zig
 pub const VkSwapChain = struct {
     ...
@@ -292,6 +296,7 @@ the next chapters we will need to create images for textures and, their associat
 
 The definition of the `createImageViews` function is as follows:
 
+**File: src/eng/vk/vkSwapChain.zig**
 ```zig
 pub const VkSwapChain = struct {
     ...
@@ -330,6 +335,7 @@ Vulkan image views (Remember to update the `mod.zig` file to include it: `pub co
 parameters to properly set up image views can be quite lengthy, it defines a helper struct named `VkImageViewData` to assist in the
 creation.
 
+**File: src/eng/vk/vkImageView.zig**
 ```zig
 const vk = @import("mod.zig");
 const vulkan = @import("vulkan");
@@ -347,6 +353,7 @@ pub const VkImageViewData = struct {
 ```
 
 You will see how all these parameters in the `create` function of the `VkImageView` struct.
+**File: src/eng/vk/vkImageView.zig**
 ```zig
 ...
 pub const VkImageView = struct {
@@ -400,6 +407,7 @@ With the `ImageViewCreateInfo` structure filled up, we just need to call the `cr
 of the struct is completed with the `cleanup` function to free the resources.
 
 Going back to the `VkSwapChain` struct we need also to create a `cleanup` function to free the resources:
+**File: src/eng/vk/vkSwapChain.zig**
 ```zig
 pub const VkSwapChain = struct {
     ...
@@ -416,6 +424,7 @@ pub const VkSwapChain = struct {
 
 Now we can use the `VkSwapChain` struct in our `VkCtx` struct:
 
+**File: src/eng/vk/vkCtx.zig**
 ```zig
 pub const VkCtx = struct {
     ...
@@ -455,6 +464,7 @@ pub const VkCtx = struct {
 We also have modified the `Constants` struct to read a new property to configure the usage of `vsync` and to define the requested number
 of images for the swap chain:
 
+**File: src/eng/com/common.zig**
 ```zig
 pub const Constants = struct {
     ...
@@ -479,6 +489,7 @@ pub const Constants = struct {
 
 Don't forget to add the changes in the `res/cfg/cfg.toml` file:
 
+**File: res/cfg/cfg.toml**
 ```
 ...
 swapChainImages=3
@@ -489,4 +500,6 @@ vsync=true
 
 And that is all for now, we are still getting a plain white window, but soon we will be able to render something.
 
-[Next chapter](../chapter-05/chapter-05.md)
+[Back to Table of Contents](../README.md)
+
+[Previous chapter](../chapter-03/chapter-03.md) | [Next chapter](../chapter-05/chapter-05.md)

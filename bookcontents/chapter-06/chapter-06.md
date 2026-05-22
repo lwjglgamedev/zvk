@@ -49,6 +49,7 @@ pub const VkBuffer = struct {
     }
     ...
 };
+**File: src/eng/vk/vkBuffer.zig**
 ```
 
 The `create` function just receives the `VkCtx` that will be used to create this buffer, its size, a parameter named `bufferUsage` which
@@ -90,6 +91,7 @@ pub const VkCtx = struct {
         return error.NoSuitableMemoryType;
     }
 };
+**File: src/eng/vk/vkCtx.zig**
 ```
 
 The `memTypeBits` attribute is a bit mask which defines the supported memory types of the physical device. A bit set to `1` means
@@ -114,6 +116,7 @@ pub const VkBuffer = struct {
     }
     ...
 };
+**File: src/eng/vk/vkBuffer.zig**
 ```
 
 To complete the struct, we define two functions to map and unmap the memory associated to the buffer so it can be accessed from our
@@ -132,6 +135,7 @@ pub const VkBuffer = struct {
         vkCtx.vkDevice.deviceProxy.unmapMemory(self.memory);
     }
 };
+**File: src/eng/vk/vkBuffer.zig**
 ```
 
 ## Vertex description
@@ -160,6 +164,7 @@ pub const VtxBuffDesc = struct {
 
     pos: [3]f32,
 };
+**File: src/eng/renderScn.zig**
 ```
 
 We define several structures required for Vulkan to understand how our vertices will be used:
@@ -223,6 +228,7 @@ pub const VulkanModel = struct {
         self.meshes.deinit(allocator);
     }
 };
+**File: src/eng/modelsCache.zig**
 ```
 
 This struct just stores a list of meshes, defined by the `VulkanMesh` struct, which contains the buffers associated to the vertices
@@ -242,6 +248,7 @@ pub const VulkanMesh = struct {
         self.buffIdx.cleanup(vkCtx);
     }
 };
+**File: src/eng/modelsCache.zig**
 ```
 
 It is just a record which contains an identifier, the vertices and indices buffers and the number of indices.
@@ -261,6 +268,7 @@ pub const ModelData = struct {
     id: []const u8,
     meshes: []const MeshData,
 };
+**File: src/eng/modelData.zig**
 ```
 
 As you can see the `ModelData` and `MeshData` are quite simple just structs which hold list of meshes which are arrays of floats and
@@ -291,6 +299,7 @@ pub const ModelsCache = struct {
     }
     ...
 };
+**File: src/eng/modelsCache.zig**
 ```
 
 As you can see all the `VulkanModel`s instances will be stored in a `StringHashMap` indexed by its identifier. As it has been shown before,
@@ -337,6 +346,7 @@ pub const ModelsCache = struct {
     }
     ...
 };
+**File: src/eng/modelsCache.zig**
 ```
 
 The function starts by creating a list, named `srcBuffers`, that will contain the CPU accessible buffers (the staging buffers), so we can
@@ -427,6 +437,7 @@ pub const ModelsCache = struct {
     }
     ...
 };
+**File: src/eng/modelsCache.zig**
 ```
 
 For each of these meshes, we get the vertices and the indices and record the commands that will copy from the staging buffer to the
@@ -469,6 +480,7 @@ fn recordTransfer(
     }};
     vkCtx.vkDevice.deviceProxy.cmdCopyBuffer(cmdHandle, srcBuff.buffer, dstBuff.buffer, &copyRegion);
 }
+**File: src/eng/modelsCache.zig**
 ```
 
 It first defines a copy region, by filling up a `BufferCopy` array, which will have the whole size of the staging buffer. Then we record the
@@ -547,6 +559,7 @@ pub fn build(b: *std.Build) void {
     b.installArtifact(exe);    
     ...
 }
+**File: build.zig**
 ```
 
 In this chapter we will use two shaders (`scn_vtx.glsl` and `scn_frg.glsl`). We will compile them using `glslc` command.
@@ -603,6 +616,7 @@ pub const VkPipeline = struct {
     }
     ...
 };
+**File: src/eng/vk/vkPipeline.zig**
 ```
 
 The `ShaderModuleInfo` struct will hold shader modules that need to be used by the pipeline (we will se later on how to create them). The
@@ -632,6 +646,7 @@ pub const VkPipeline = struct {
     }
     ...
 };
+**File: src/eng/vk/vkPipeline.zig**
 ```
 
 The input assembly stage takes a set of vertices and produces a set of primitives. The primitives to be produced are defined in the
@@ -662,6 +677,7 @@ pub const VkPipeline = struct {
     }
     ...
 };
+**File: src/eng/vk/vkPipeline.zig**
 ```
 
 We will be using dynamic viewports and scissors, therefore, although we have set the count values to `1` we set the `p_viewports` and
@@ -692,6 +708,7 @@ pub const VkPipeline = struct {
     }
     ...
 };
+**File: src/eng/vk/vkPipeline.zig**
 ```
 
 Description of the parameters:
@@ -732,6 +749,7 @@ pub const VkPipeline = struct {
     }
     ...
 };
+**File: src/eng/vk/vkPipeline.zig**
 ```
 
 Pipelines are almost immutable, there are only a few things that we can modify once the pipeline has been created. We can change a fixed
@@ -756,6 +774,7 @@ pub const VkPipeline = struct {
     }
     ...
 };
+**File: src/eng/vk/vkPipeline.zig**
 ```
 
 The next step is to configure color blending. This stage allows combining the color of a fragment with the contents that already exists in
@@ -797,6 +816,7 @@ pub const VkPipeline = struct {
     }
     ...
 };
+**File: src/eng/vk/vkPipeline.zig**
 ```
 
 We need first to configure the blending options for the output attachment through a buffer of `PipelineColorBlendAttachmentState`
@@ -823,6 +843,8 @@ pub const VkPipeline = struct {
     }
     ...
 };
+**File: src/eng/vk/vkPipeline.zig**
+```
 
 While rendering we may to pass additional parameters to the shaders (for example by using uniforms), those parameters need to be associated
 to a binding point. Even though we are still not using those features, we need to create the structure that will hold these definitions:
@@ -843,6 +865,7 @@ pub const VkPipeline = struct {
     }
     ...
 };
+**File: src/eng/vk/vkPipeline.zig**
 ```
 
 Now we have all the information required to create the pipeline. We just need to set a `GraphicsPipelineCreateInfo` structure:
@@ -884,6 +907,7 @@ pub const VkPipeline = struct {
     }
     ...
 };
+**File: src/eng/vk/vkPipeline.zig**
 ```
 
 The `create` function is now finished. To complete the `VkPipeline` struct we just need to define a `cleanup` function for destroying the
@@ -897,6 +921,7 @@ pub const VkPipeline = struct {
         vkCtx.vkDevice.deviceProxy.destroyPipelineLayout(self.pipelineLayout, null);
     }
 };
+**File: src/eng/vk/vkPipeline.zig**
 ```
 
 ## Using the pipeline
@@ -926,6 +951,7 @@ const Game = struct {
     }
     ...
 };
+**File: src/main.zig**
 ```
 
 We create a new instance of the `MeshData` struct that define the vertices and the indices of a triangle. We also create a model with a
@@ -937,6 +963,7 @@ by returning `eng.engine.InitData` which basically just contains the list of mod
 pub const InitData = struct {
     models: []const eng.mdata.ModelData,
 };
+**File: src/eng/eng.zig**
 ```
 
 We will modify the `Engine` struct to retrieve the `InitData` instance and pass it to the `Render` struct in the `init` function:
@@ -959,6 +986,7 @@ pub fn Engine(comptime GameLogic: type) type {
         }
     ...
 };
+**File: src/eng/eng.zig**
 ```
 
 We need now to update the `Render` struct to instantiate `ModelsCache` struct and define the `init` function:
@@ -996,6 +1024,7 @@ pub const Render = struct {
         ...
     }
 }
+**File: src/eng/render.zig**
 ```
 
 The `render` function has been changed also, we will pass the `ModelsCache` instance to the `RenderScn` instance so they can be used to
@@ -1056,6 +1085,7 @@ pub const RenderScn = struct {
     }
     ...
 };
+**File: src/eng/renderScn.zig**
 ```
 
 We will store the reference to the pipeline used by this render as an attribute and free it in the `cleanup` function. In the `create`
@@ -1076,6 +1106,7 @@ pub fn loadFile(allocator: std.mem.Allocator, io: std.Io, filePath: []const u8) 
     const buf = try std.Io.Dir.cwd().readFileAlloc(io, filePath, allocator, .unlimited);
     return buf;
 }
+**File: src/eng/com/utils.zig**
 ```
 
 Now we need to update the `RenderScn` `render` function:
@@ -1138,6 +1169,7 @@ pub const RenderScn = struct {
         device.cmdEndRendering(cmdHandle);
     }
 };
+**File: src/eng/renderScn.zig**
 ```
 
 Once we have started recording, we call to the `cmdBindPipeline` function. Once bound, the next commands that are recorded will be affected
@@ -1179,6 +1211,7 @@ void main()
 {
     gl_Position = vec4(inPos, 1);
 }
+**File: res/shaders/scn_vtx.glsl**
 ```
 
 Our vertices just define a single attribute, at location `0`, for the positions, and we just return that.
@@ -1194,12 +1227,15 @@ void main()
 {
     outFragColor = vec4(1, 0, 0, 1);
 }
+**File: res/shaders/scn_frg.glsl**
 ```
 
 By now, we just return a red color.
 
 With all these changes, after many chapters, we are now able to see a nice triangle on the screen:
 
-<img src="rc06-screen-shot.png" title="" alt="Screen Shot" data-align="center">
+![Screen Shot](rc06-screen-shot.png)
 
-[Next chapter](../chapter-07/chapter-07.md)
+[Back to Table of Contents](../README.md)
+
+[Previous chapter](../chapter-05/chapter-05.md) | [Next chapter](../chapter-07/chapter-07.md)

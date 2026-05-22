@@ -18,6 +18,7 @@ We will need to modify the model generation code to load normal maps and PBR rel
 the generated files. We first need to update the `MeshIntData` struct to store normals and tangent information since they will be
 used for lighting calculations:
 
+**File: src/eng/modelGen.zig**
 ```zig
 ...
 const zm = @import("zmath");
@@ -37,6 +38,7 @@ const MeshIntData = struct {
 
 We will start with the modifications in the `processMaterial` function, in which we will add the following code:
 
+**File: src/eng/modelGen.zig**
 ```zig
 fn processMaterial(
     allocator: std.mem.Allocator,
@@ -86,6 +88,7 @@ You can check a great tutorial on this aspect [here](https://learnopengl.com/Adv
 
 We need to modify the `MaterialData` (in the `src/eng/modelData.zig` file) struct to be able to store that information:
 
+**File: src/eng/modelData.zig**
 ```zig
 pub const MaterialData = struct {
     ...
@@ -98,6 +101,7 @@ pub const MaterialData = struct {
 
 In the same file we also need to update the `loadMaterials` function to handle the new data:
 
+**File: src/eng/modelData.zig**
 ```zig
 pub fn loadMaterials(allocator: std.mem.Allocator, io:std.Io, path: []const u8) !std.ArrayList(MaterialData) {
     ...
@@ -122,6 +126,7 @@ pub fn loadMaterials(allocator: std.mem.Allocator, io:std.Io, path: []const u8) 
 Going back to the model generation code, we need also to get the normals of the model and the tangent data when processing  meshes.
 Therefore, we will modify the `processMesh` function:
 
+**File: src/eng/modelGen.zig**
 ```zig
 fn processMesh(
     allocator: std.mem.Allocator,
@@ -171,6 +176,7 @@ In this case, we just set a default value. We could calculate tangents for this 
 
 Finally, we just need to modify the code that dumps vertices information to a file:
 
+**File: src/eng/modelGen.zig**
 ```zig
 pub fn main(init: std.process.Init) !void {
     ...
@@ -197,6 +203,7 @@ pub fn main(init: std.process.Init) !void {
 
 We will need to include the `zmath` module for the `modelGen` executable in the `build.zig` file:
 
+**File: build.zig**
 ```zig
 pub fn build(b: *std.Build) void {
     ...
@@ -212,6 +219,7 @@ pub fn build(b: *std.Build) void {
 
 We need to update the `MaterialData` (`modelData.zig`)struct to be able to include the new data:
 
+**File: src/eng/modelData.zig**
 ```zig
 pub const MaterialData = struct {
     ...
@@ -224,6 +232,7 @@ pub const MaterialData = struct {
 
 And also modify the `loadMaterials` function:
 
+**File: src/eng/modelData.zig**
 ```zig
 pub fn loadMaterials(allocator: std.mem.Allocator, io:std.Io, path: []const u8) !std.ArrayList(MaterialData) {
     ...
@@ -246,6 +255,7 @@ pub fn loadMaterials(allocator: std.mem.Allocator, io:std.Io, path: []const u8) 
 We need to modify the structure used while rendering the scene to be able to include the normals and tangents as new input attributes so
 they can accessed in shaders:
 
+**File: src/eng/renderScn.zig**
 ```zig
 pub const VtxBuffDesc = struct {
     ...
@@ -273,6 +283,7 @@ pub const VtxBuffDesc = struct {
 We need to modify the `MaterialsCache` struct to hold the associated information for normal map and metallic-roughness textures and
 metallic and roughness factors. First we need to update the `MaterialBuffRecord` struct to include that information:
 
+**File: src/eng/modelsCache.zig**
 ```zig
 const MaterialBuffRecord = struct {
     ...
@@ -288,6 +299,7 @@ const MaterialBuffRecord = struct {
 We need also to update the `init` function of the `MaterialsCache` struct to process that information and load the new textures, when
 present, in the textures cache:
 
+**File: src/eng/modelsCache.zig**
 ```zig
 pub const MaterialsCache = struct {
     ...
@@ -376,6 +388,7 @@ map (adjusting the values to match in the `[0-1]` range) and then and then apply
 
 The changes in the `TextureCache` struct are quite straightforward:
 
+**File: src/eng/textureCache.zig**
 ```zig
 pub const TextureCache = struct {
     ...
@@ -393,6 +406,7 @@ pub const TextureCache = struct {
 In order to apply lighting we need to add support for lights. Therefore, the first thing we should do is create new struct named `Light`
 (defined in the `src/eng/scne.zig` file) which models a light:
 
+**File: src/eng/scene.zig**
 ```zig
 pub const Light = struct {
     color: zm.Vec,
@@ -410,6 +424,7 @@ We will need also to add support for ambient light (a color that will be added t
 normals). We will need a color for that light and an intensity. We will add all this information in the `Scene` struct along with the list
 of lights.
 
+**File: src/eng/scene.zig**
 ```zig
 pub const MAX_LIGHTS: u32 = 10;
 pub const Scene = struct {
@@ -451,6 +466,7 @@ The `RenderScn` struct just require a slight change, we need to use more than on
 we already prepared the code in the previous chapter to be able to support more than one attachment. Therefore, we just need to update the
 constant value used to model the number of attachments to `4`:
 
+**File: src/eng/renderScn.zig**
 ```zig
 pub const RenderScn = struct {
     ...
@@ -475,6 +491,7 @@ roughness and metal factors of the materials.
 In addition to that we will create a new utility function in the `vkUtils.zig` file to be able to create an array of buffers associated,
 each of them, to a descriptor set, to be able to host per frame data, such as camera information, etc. The function is defined like this:
 
+**File: src/eng/vk/vkUtils.zig**
 ```zig
 pub fn createHostVisibleBuffs(
     allocator: std.mem.Allocator,
@@ -505,6 +522,7 @@ pub fn createHostVisibleBuffs(
 We will use this function in the `RenderScene` struct, in the `create` function when initializing the buffers, and their descriptor sets,
 associated to camera information:
 
+**File: src/eng/renderScn.zig**
 ```zig
 pub const RenderScn = struct {
     ...
@@ -529,6 +547,7 @@ Therefore, the `createCamBuffers` function is not needed any more.
 
 It is turn now to examine the shaders. The `scn_vtx.glsl` vertex shader is defined like this:
 
+**File: res/shaders/scn_vtx.glsl**
 ```glsl
 #version 450
 
@@ -570,6 +589,7 @@ are directional vectors and we need to preserve their orthogonality.
 
 The `scn_frg.glsl` fragment shader is defined like this:
 
+**File: res/shaders/scn_frg.glsl**
 ```glsl
 #version 450
 
@@ -679,7 +699,7 @@ rendering non transparent objects first), but all this additional information (n
 mix of the non transparent fragment with the transparent ones. You can see in next figure the effect of applying and not applying this fix,
 when examining some transparent objects:
 
-<img src="rc15-artifacts.png" title="" alt="Transparent artifacts" data-align="center">
+![Transparent artifacts](rc15-artifacts.png)
 
 So, why not just simply apply blending to just the albedo attachment? If we would do that, we would have another problem, which normal
 information we would get? We would be viewing albedo information which is a mix of the different fragments with the normal information of
@@ -693,6 +713,7 @@ OpDemoteToHelperInvocation operation. In this case, the fragment is not usually 
 demote function invocation. We need to enable this, as a feature, in the device creation function. We need also to enable the feature to be
 able to use the scalar layout (we will see where we use it later on):
 
+**File: src/eng/vk/vkDevice.zig**
 ```zig
 pub const VkDevice = struct {
     ...
@@ -715,12 +736,13 @@ pub const VkDevice = struct {
 
 The following picture shows how the output attachments look like (excluding depth attachment) when the scene render finishes.
 
-<img src="rc15-attachments.png" title="" alt="Attachments" data-align="center">
+![Attachments](rc15-attachments.png)
 
 ## Light stage modifications
 
 In order to use lights in the shaders we need modify the `RenderLight` struct:
 
+**File: src/eng/renderLight.zig**
 ```zig
 const DESC_ID_LIGHTS = "RENDER_LIGHT_DESC_ID_LIGHTS";
 const DESC_ID_SCENE_INFO = "RENDER_LIGHT_DESC_ID_SCENE_INFO";
@@ -848,6 +870,7 @@ as frames in flight.
 In the `render` function we will use those new descriptor sets and call two `update` functions (`updateSceneInfo` and `updateLights`) to
 store the proper data in the associated buffers:
 
+**File: LightRender.java**
 ```java
 public class LightRender {
     ...
@@ -869,6 +892,7 @@ public class LightRender {
 
 The `updateSceneInfo` is defined like this:
 
+**File: src/eng/renderLight.zig**
 ```zig
 pub const RenderLight = struct {
     ...
@@ -901,6 +925,7 @@ pub const RenderLight = struct {
 ```
 The `updateLights` function just iterates over the lights array and dump its data to the buffer associated to current frame:
 
+**File: src/eng/renderLight.zig**
 ```zig
 pub const RenderLight = struct {
     ...
@@ -945,6 +970,7 @@ pub const RenderLight = struct {
 In the `updateSceneInfo` function we just dump ambient light, camera position, ambient light values and the number of lights that are
 active (remember that we have a maximum number of lights, but we can just have just one or two active). 
 
+**File: src/eng/renderLight.zig**
 ```zig
 pub const RenderLight = struct {
     ...
@@ -977,6 +1003,7 @@ pub const RenderLight = struct {
 The lighting vertex shader (`light_vtx.glsl`) has not been modified at all. However, the lighting fragment shader (`light_frg.glsl`) has
 been heavily changed. It starts like this:
 
+**File: res/shaders/light_frg.glsl**
 ```glsl
 #version 450
 #extension GL_EXT_scalar_block_layout: require
@@ -1026,6 +1053,7 @@ need to enable the `GL_EXT_scalar_block_layout` GLSL extension to use it, this i
 The next functions apply the PBR techniques to modify the fragment color associated to each light. As it has been said before, you can find
 a great explanation here: [PBR](https://learnopengl.com/PBR/Theory) (It makes no sense to repeat that here):
 
+**File: res/shaders/light_frg.glsl**
 ```glsl
 ...
 float distributionGGX(vec3 N, vec3 H, float roughness) {
@@ -1119,6 +1147,7 @@ vec3 calculateDirectionalLight(Light light, vec3 V, vec3 N, vec3 F0, vec3 albedo
 
 The main block is defined like this:
 
+**File: res/shaders/light_frg.glsl**
 ```glsl
 ...
 void main() {
@@ -1166,6 +1195,7 @@ each light contributes to the final color, which is composed by an ambient facto
 In the `Render` struct, we need to add minimal changes to handle changes in the parameters of the `cleanup` and `render` functions in the
 `RenderLight` struct:
 
+**File: src/eng/render.zig**
 ```zig
 pub const Render = struct {
     ...
@@ -1194,6 +1224,7 @@ pub const Render = struct {
 The last step is to setup some lights in our scene. We will define the ambient light color, a directional light and one green point light.
 We will add also a small GUI to be able to tune light properties:
 
+**File: src/main.zig**
 ```zig
 ...
 const zgui = @import("zgui");
@@ -1331,6 +1362,8 @@ const Game = struct {
 
 With all these changes, you will get something like this:
 
-<img src="rc15-screen-shot.png" title="" alt="Screen Shot" data-align="center">
+![Screen Shot](rc15-screen-shot.png)
 
-[Next chapter](../chapter-16/chapter-16.md)
+[Back to Table of Contents](../README.md)
+
+[Previous chapter](../chapter-14/chapter-14.md) | [Next chapter](../chapter-16/chapter-16.md)

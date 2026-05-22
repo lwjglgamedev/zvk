@@ -8,6 +8,7 @@ chapter [here](../../booksamples/chapter-07).
 We will be using the [zmath](https://github.com/zig-gamedev/zmath) so you will need to include it in the `build.zig.zon` file by executing:
 `zig fetch --save https://github.com/zig-gamedev/zmath/archive/9e42b04a24c970a297b365f3d3022f92dbf3219d.tar.gz`. In addition, you will need to include it in the `build.zig` file:
 
+**File: build.zig**
 ```zig
 pub fn build(b: *std.Build) void {
     ...
@@ -29,6 +30,7 @@ named `VkImage`. Since image creation parameters can be lengthy, we will first c
 build helper struct using a fluent style API. All this code will be located in a new file `src/eng/vk/VkImage.zig`. Remember to  include it
 in the `mod.zig`: `pub const img = @import("vkImage.zig");`.
 
+**File: src/eng/vk/VkImage.zig**
 ```zig
 const vk = @import("mod.zig");
 const vulkan = @import("vulkan");
@@ -58,6 +60,7 @@ The attributes for creating an image are:
 
 The `VkImage` struct starts like this:
 
+**File: src/eng/vk/VkImage.zig**
 ```zig
 pub const VkImage = struct {
     image: vulkan.Image,
@@ -112,6 +115,7 @@ texels are laid out in the best format for each GPU.
 
 Now we can create the image by invoking the `createImage` Vulkan function:
 
+**File: src/eng/vk/VkImage.zig**
 ```zig
 pub const VkImage = struct {
     ...
@@ -128,6 +132,7 @@ After that we need to allocate the memory associated with that image. As in the 
 manually allocate the memory that will host the contents for the image by ourselves. The first step is to get the memory requirements by
 calling the `getImageMemoryRequirements` function:
 
+**File: src/eng/vk/VkImage.zig**
 ```zig
 pub const VkImage = struct {
     ...
@@ -142,6 +147,7 @@ pub const VkImage = struct {
 
 With that information we can populate the `MemoryAllocateInfo` structure which contains the information to perform the memory allocation.
 
+**File: src/eng/vk/VkImage.zig**
 ```zig
 pub const VkImage = struct {
     ...
@@ -161,6 +167,7 @@ Again, the code is similar to the one used with the buffers, once we have obtain
 adequate memory type index (obtained by calling the `findMemoryTypeIndex` from the `VkCtx` structs). After that we can finally allocate the
 memory and bind it to the image:
 
+**File: src/eng/vk/VkImage.zig**
 ```zig
 pub const VkImage = struct {
     ...
@@ -183,6 +190,7 @@ pub const VkImage = struct {
 
 The only missing function of this struct is the `cleanup` one to free resources.
 
+**File: src/eng/vk/VkImage.zig**
 ```zig
 pub const VkImage = struct {
     ...
@@ -200,6 +208,7 @@ constitute an attachment, a depth attachment. Since we will handle both objects 
 that will handle their creation and will be handy for next chapters. The definition is quite simple (it is included in the `render.zig`
 file):
 
+**File: src/eng/render.zig**
 ```zig
 pub const Attachment = struct {
     vkImage: vk.img.VkImage,
@@ -250,6 +259,7 @@ positions. Therefore, we would not need anything more to display 3D models. Howe
 we will reuse in next chapters, we will add texture coordinates. Although we will not be handling textures in this chapter, we can use those
 components to pass some color information (at lest for two color channels). We need to modify the `VtxBuffDesc` struct in this way:
 
+**File: src/eng/renderScn.zig**
 ```zig
 pub const VtxBuffDesc = struct {
     pub const binding_description = vulkan.VertexInputBindingDescription{
@@ -288,6 +298,7 @@ projection matrix in order to avoid distortions and to represent far away object
 model world information in a file named `scene.zig` (located in `src/eng` and that shall be added to
 `mod.zig`: `pub const scn = @import("scene.zig");`). It will include a new struct named `ProjData` that which is defined like this:
 
+**File: src/eng/scene.zig**
 ```zig
 const com = @import("com");
 const eng = @import("mod.zig");
@@ -337,6 +348,7 @@ We will create a 4x4 matrix `projMatrix` that will be created as a projection ma
 
 This struct will be included in a `Camera` struct (defined in the same file):
 
+**File: src/eng/scene.zig**
 ```zig
 pub const Camera = struct {
     projData: ProjData,
@@ -351,6 +363,7 @@ pub const Camera = struct {
 This structure will later hold the view matrix. The parameters of the perspective matrix can be configured in the `cfg.toml` file, so we
 need to update the `Constants` struct:
 
+**File: src/eng/com/common.zig**
 ```zig
 pub const Constants = struct {
     fov: f32,
@@ -378,6 +391,7 @@ pub const Constants = struct {
 
 Remember to include the parameters in the `cfg.toml` file:
 
+**File: res/cfg/cfg.toml**
 ```toml
 fov=60
 ...
@@ -391,6 +405,7 @@ and rotation and will be associated to a model. They can model a player, NPCs or
 `Entity`. It will be included in a the `src/eng/entity.zig` (Remember to include it in `mod.zig` file:
 `pub const ent = @import("entity.zig");`) and it is defined like this:
 
+**File: src/eng/entity.zig**
 ```zig
 const eng = @import("mod.zig");
 const std = @import("std");
@@ -447,6 +462,7 @@ changes.
 Now we can setup the required infrastructure to put the `ProjData` and `Entity` structs into work. We will add this to a new struct named
 `Scene` (defined inside the `scene.zig` file):
 
+**File: src/eng/scene.zig**
 ```zig
 pub const Scene = struct {
     camera: Camera,
@@ -485,6 +501,7 @@ identifiers. The other functions will be used to add entities and the `cleanup` 
 We also need to modify the pipeline to actually use the depth image for depth testing. Since we may have pipelines that do not use depth
 testing at all, we will indicate if it's required in the `VkPipelineCreateInfo` struct:
 
+**File: src/eng/vk/VkPipeline.zig**
 ```zig
 pub const VkPipelineCreateInfo = struct {
     ...
@@ -499,6 +516,7 @@ You may also see that there is another attribute, named `pushConstants`. We will
 `create` function we need to enable the depth stencil state if the `depthFormat` attribute from the `VkPipelineCreateInfo`
 struct is not equal to `vulkan.Format.undefined` (`VK_FORMAT_UNDEFINED`).
 
+**File: src/eng/vk/VkPipeline.zig**
 ```zig
 pub const VkPipeline = struct {
     ...
@@ -562,6 +580,7 @@ set it to `false`.
 
 This structure will be used later on while creating the pipeline:
 
+**File: src/eng/vk/VkPipeline.zig**
 ```zig
 pub const VkPipeline = struct {
     ...
@@ -615,6 +634,7 @@ constants to pass also this information. Keep in mind that this is a temporary s
 We already modified the `VkPipelineCreateInfo` struct to include push constants (by adding the `pushConstants` attribute). We now need to
 use this information in the `VkPipeline` struct:
 
+**File: src/eng/vk/VkPipeline.zig**
 ```zig
 pub const VkPipeline = struct {
     ...
@@ -640,6 +660,7 @@ can use them and also support another missing feature: resizing support. Let's s
 will calculate the projection matrix in the `init` function. We will also add support for window resizing. When a window is resized, we need
 to update the projection matrix and recreate some Vulkan structures.
 
+**File: src/eng/render.zig**
 ```zig
 pub const Render = struct {
     ...
@@ -760,6 +781,7 @@ cleans up the synchronization semaphores and creates new ones. It also updates t
 
 Let's view the changes in the `VkCtx` struct:
 
+**File: src/eng/vk/VkCtx.zig**
 ```zig
 pub const VkCtx = struct {
     ...
@@ -789,6 +811,7 @@ When resizing we just clean up the swap chain and surface and recreate them agai
 
 Let's review the changes in the `RenderScn` struct:
 
+**File: src/eng/renderScn.zig**
 ```zig
 ...
 const zm = @import("zmath");
@@ -865,6 +888,7 @@ struct (two 4x4 matrices).
 
 The `cleanup` function also needs to be modified to free the new resources:
 
+**File: src/eng/renderScn.zig**
 ```zig
 pub const RenderScn = struct {
     ...
@@ -881,6 +905,7 @@ pub const RenderScn = struct {
 
 We need to take into consideration depth attachments in the `render` function:
 
+**File: src/eng/renderScn.zig**
 ```zig
 pub const RenderScn = struct {
     ...
@@ -934,6 +959,7 @@ access flags shall be specifically set for depth attachments: `depth_stencil_att
 (`VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT`) and `depth_stencil_attachment_write_bit`
 (`VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT`).
 
+**File: src/eng/renderScn.zig**
 ```zig
 pub const RenderScn = struct {
     ...
@@ -985,6 +1011,7 @@ For each of the entities, we set, as push constants the model matrix associated 
 efficient to update the projection matrix for each entity, but we will change this later on. The drawing commands are exactly the same, for
 each entity, through its model, we iterate over their meshes in order to render them.
 
+**File: src/eng/renderScn.zig**
 ```zig
 pub const RenderScn = struct {
     ...
@@ -1026,6 +1053,7 @@ visible. Therefore, we do not need to perform any layout transition to presentat
 
 Let's examine the `setPushConstants` function:
 
+**File: src/eng/renderScn.zig**
 ```zig
 pub const RenderScn = struct {
     ...
@@ -1055,6 +1083,7 @@ this in the vertex buffer so we pass the `vertex_bit` (`VK_SHADER_STAGE_VERTEX_B
 Finally, in the `resize` function, we just clean up the render info attributes and recreate them again due to the change in size of the
 underlying images.
 
+**File: src/eng/renderScn.zig**
 ```zig
 pub const RenderScn = struct {
     ...
@@ -1076,6 +1105,7 @@ pub const RenderScn = struct {
 
 The next step missing now is to modify the `init` function in our `Game` struct. We also need to add the `main` function to tie everything together:
 
+**File: src/main.zig**
 ```zig
 ...
 const Game = struct {
@@ -1136,6 +1166,7 @@ We are defining the coordinates of a cube, and setting some random texture coord
 need to create a new `Entity` instance in order to render the cube. We want the cube to spin, so we use the `update` function, that will be
 invoked periodically to update that angle:
 
+**File: src/main.zig**
 ```zig
 const Game = struct {
     ...
@@ -1163,6 +1194,7 @@ to transform the entity position from model coordinates system to word coordinat
 world coordinates to normalized screen coordinates by multiplying by the projection matrix. We also pass the texture coordinates to the
 fragment shader.
 
+**File: res/shaders/scn_vtx.glsl**
 ```glsl
 #version 450
 
@@ -1185,6 +1217,7 @@ void main()
 
 In the fragment shader, we just use the texture coordinates for the R and G channels.
 
+**File: res/shaders/scn_frg.glsl**
 ```glsl
 #version 450
 
@@ -1199,6 +1232,7 @@ void main()
 
 We will also need to update the `EngCtx` and `Engine` structs to use the new `Scene` struct:
 
+**File: src/eng/eng.zig**
 ```zig
 pub const EngCtx = struct {
     ...
@@ -1255,6 +1289,8 @@ pub fn Engine(comptime GameLogic: type) type {
 
 With all those changes we can now see a nice spinning cube in a window that can be resized.
 
-<img src="rc07-screen-shot.png" title="" alt="Screen Shot" data-align="center">
+![Screen Shot](rc07-screen-shot.png)
 
-[Next chapter](../chapter-08/chapter-08.md)
+[Back to Table of Contents](../README.md)
+
+[Previous chapter](../chapter-06/chapter-06.md) | [Next chapter](../chapter-08/chapter-08.md)

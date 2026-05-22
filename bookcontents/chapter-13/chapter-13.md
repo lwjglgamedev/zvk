@@ -16,6 +16,8 @@ executing the following command: `zig fetch --save=zaudio https://github.com/fou
 
 After that we shall modify the `build.zig` file:
 
+**File: build.zig**
+
 ```zig
 pub fn build(b: *std.Build) void {
     ...
@@ -38,6 +40,8 @@ We will define in the `src/eng/sound.zig` file the code to manage sound. Therefo
 `src/eng/mod.zig` file: `pub const snd = @import("sound.zig");`.
 
 We will define a new struct named `SoundMgr` which starts like this:
+
+**File: src/eng/sound.zig**
 
 ```zig
 const std = @import("std");
@@ -83,6 +87,8 @@ function is used to free the resources.
 
 The struct is completed with functions to add new sounds and to play / stop them using their keys:
 
+**File: src/eng/sound.zig**
+
 ```zig
 pub const SoundMgr = struct {
     ...
@@ -110,6 +116,8 @@ pub const SoundMgr = struct {
 ```
 
 We will store a reference to the `SoundMgr` struct in the `EngCtx` one:
+
+**File: src/eng/eng.zig**
 
 ```zig
 pub const EngCtx = struct {
@@ -148,6 +156,8 @@ pub fn Engine(comptime GameLogic: type) type {
 
 And that’s all. We have all the infrastructure we need in order to play sounds. We just need to use it in the `Game` struct:
 
+**File: src/main.zig**
+
 ```zig
 const Game = struct {
     const ENTITY_ID: []const u8 = "SponzaEntity";
@@ -167,4 +177,6 @@ const Game = struct {
 };        
 ```
 
-[Next chapter](../chapter-14/chapter-14.md)
+[Back to Table of Contents](../README.md)
+
+[Previous chapter](../chapter-12/chapter-12.md) | [Next chapter](../chapter-14/chapter-14.md)

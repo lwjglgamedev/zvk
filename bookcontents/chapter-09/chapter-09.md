@@ -11,6 +11,7 @@ You can find the complete source code for this chapter [here](../../booksamples/
 We need to add support to draw transparent objects so the pipeline must use the blending feature. The code for this is already present in
 the `VkPipeline` struct, but let's revisit and review carefully the parameters:
 
+**File: src/eng/vk/vkPipeline.zig**
 ```zig
 pub const VkPipeline = struct {
     ...
@@ -59,7 +60,7 @@ rendering, you may have a transparent object, closer to the camera that gets ren
 that the transparent object gets blended with the background, because the distant objects will be discarded in the depth test. The next
 figure shows this effect (It has been exaggerated with a non black background to see the effect).
 
-<img src="rc09-transparent-artifact.png" title="" alt="Screen Shot" data-align="center">
+![Screen Shot](rc09-transparent-artifact.png)
 
 In order to solve that, we are going to apply an easy fix, we will first draw non transparent objects to force transparent objects to blend
 with non transparent ones. This fix still can make some artifacts (if we have many transparent objects that overlap between them), but
@@ -67,6 +68,7 @@ it is simple enough and produces good results. In order to apply that, we need f
 not. We will add this support in the `VkTexture` struct. We will add a new attribute named `transparent` that will hold `true` if the
 texture has transparent values. We will set up this attribute in the `create` function by calling a new function named `isTransparent`.
 
+**File: src/eng/vk/vkTexture.zig**
 ```zig
 pub const VkTexture = struct {
     ...
@@ -100,6 +102,7 @@ This new function basically, iterates over the image contents, checking if the a
 normalized color components). If so, we consider that the texture has transparencies. With that information, we will add a new field to the
 `VulkanMaterial` struct which states if the material is transparent:
 
+**File: src/eng/modelsCache.zig**
 ```zig
 pub const VulkanMaterial = struct {
     ...
@@ -110,6 +113,7 @@ pub const VulkanMaterial = struct {
 
 We need also to update the `MaterialsCache` to adapt to `VulkanMaterial` changes:
 
+**File: src/eng/modelsCache.zig**
 ```zig
 pub const MaterialsCache = struct {
     ...
@@ -162,7 +166,7 @@ Each of those versions is power of two smaller than the previous version.
 
 The following image shows a mipmap image (obtained from the [Wikipedia]([File:MipMap Example STS101.jpg - Wikipedia](https://en.wikipedia.org/wiki/File:MipMap_Example_STS101.jpg)), Created by [en:User:Mulad](https://en.wikipedia.org/wiki/User:Mulad) based on [File:ISS from Atlantis - Sts101-714-016.jpg](https://commons.wikimedia.org/wiki/File:ISS_from_Atlantis_-_Sts101-714-016.jpg)).
 
-<img src="MipMap_Example_STS101.jpg" title="" alt="" data-align="center">
+![MipMap Example](MipMap_Example_STS101.jpg)
 
 Usually, those mipmaps are pre-generated when creating the game assets using specific texture formats which allow the storage of mipmaps.
 The Khronos Group has defined the [KTX](http://github.khronos.org/KTX-Specification/) file format which supports mipmaps and direct image
@@ -171,6 +175,7 @@ compression in the GPU. However, we will not use that format here, we will see h
 Let's go back to the `VkTexture` struct `create` function. The first we are going to do is calculate the number of mipmap levels that we
 need for a specific image:
 
+**File: src/eng/vk/vkTexture.zig**
 ```zig
 pub const VkTexture = struct {
     ...
@@ -215,6 +220,7 @@ generate the different levels.
 
 The next step is to modify the `recordTransition` function:
 
+**File: src/eng/vk/vkTexture.zig**
 ```zig
 pub const VkTexture = struct {
     ...
@@ -229,6 +235,7 @@ pub const VkTexture = struct {
 After the copy operation we call a new function called `recordMipMap` that will generate the different bitmaps. This function
 will use the `cmdBlitImage` Vulkan function to copy and transform the different mipmap levels of the image. Let's analyze that function:
 
+**File: src/eng/vk/vkTexture.zig**
 ```zig
 pub const VkTexture = struct {
     ...
@@ -264,12 +271,13 @@ pub const VkTexture = struct {
         ...
     }
     ...
-}
+};
 ```
 
 We create a barrier to control the transition layouts, at this moment we just associate it to the image and the resource range. After this,
 we define the loop that will be generating the different levels:
 
+**File: src/eng/vk/vkTexture.zig**
 ```zig
 pub const VkTexture = struct {
     ...
@@ -299,6 +307,7 @@ to the `transfer_dst_optimal` (`VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL`), we need 
 levels.
 
 
+**File: src/eng/vk/vkTexture.zig**
 ```zig
 pub const VkTexture = struct {
     ...
@@ -306,7 +315,7 @@ pub const VkTexture = struct {
         ...
         for (1..self.mipLevels) |i| {
             ...
-            const imageBlit = [_]vulkan.ImageBlit{.{
+            const imageBlit = [_]vulkan.ImageBlit.{{
                 .src_subresource = .{
                     .aspect_mask = .{ .color_bit = true },
                     .mip_level = @as(u32, @intCast(i)) - 1,
@@ -388,6 +397,7 @@ same size as the source image divided by two.
 To complete the loop, we transition the image to the `shader_read_only_optimal` (`VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL`) layout
 in order to be able to access it from a shader:
 
+**File: src/eng/vk/vkTexture.zig**
 ```zig
 pub const VkTexture = struct {
     ...
@@ -419,6 +429,7 @@ pub const VkTexture = struct {
 
 When we finalize the loop we need to transition the layout of the last mip level:
 
+**File: src/eng/vk/vkTexture.zig**
 ```zig
 pub const VkTexture = struct {
     ...
@@ -426,7 +437,7 @@ pub const VkTexture = struct {
         ...
         const lastMip: u32 = self.mipLevels - 1;
         // Record transition to read only optimal
-        const endBarriers = [_]vulkan.ImageMemoryBarrier2{.{
+        const endBarriers = [_]vulkan.ImageMemoryBarrier2.{{
             .old_layout = vulkan.ImageLayout.transfer_dst_optimal,
             .new_layout = vulkan.ImageLayout.shader_read_only_optimal,
             .src_stage_mask = .{ .all_transfer_bit = true },
@@ -464,6 +475,7 @@ to create separate samplers.
 We will create a new struct named `ViewData` to support moving around the scene. It will be included in the `src/eng/scene.zig` file and
 its is quite simple:
 
+**File: src/eng/scene.zig**
 ```zig
 pub const ViewData = struct {
     pos: zm.Vec,
@@ -568,6 +580,7 @@ to apply rotation or to move around the scene. It uses the zmath library to calc
 
 This struct will now be part of the `Camera` struct:
 
+**File: src/eng/scene.zig**
 ```zig
 pub const Camera = struct {
     ...
@@ -588,6 +601,7 @@ Now it is time to modify the `ScnRender` struct. We will need a buffer per frame
 matrix, the contents of the view matrix will change from frame to frame so to avoid modifying the data while we render, we need this array.
 Therefore, the `buffCamera` buffer will be now an array of buffers and will be renamed to `buffsCamera`:
 
+**File: src/eng/renderScn.zig**
 ```zig
 pub const RenderScn = struct {
     buffsCamera: []vk.buf.VkBuffer,
@@ -624,6 +638,7 @@ pub const RenderScn = struct {
 In addition to that, when creating the pipeline we need to setup the `useBlend` attribute to `true` to enable transparencies. The
 `createCamBuffers` function is defined as follows:
 
+**File: src/eng/renderScn.zig**
 ```zig
 pub const RenderScn = struct {
     ...
@@ -653,6 +668,7 @@ rendering we will select which descriptor set to bind depending on the frame in 
 
 We need also to modify the render struct to use the view matrices and to render transparent objects in the last place.
 
+**File: src/eng/renderScn.zig**
 ```zig
 pub const RenderScn = struct {
     ...
@@ -694,6 +710,7 @@ that not.
 The `renderEntities` code is similar to the one used in previous chapter, we just filter entities that match the transparency property
 specified as a function argument.
 
+**File: src/eng/renderScn.zig**
 ```zig
 pub const RenderScn = struct {
     ...
@@ -739,6 +756,7 @@ pub const RenderScn = struct {
 
 The `updateCamera` function needs to be updated as follows:
 
+**File: src/eng/renderScn.zig**
 ```zig
 pub const RenderScn = struct {
     ...
@@ -769,6 +787,7 @@ pub const RenderScn = struct {
 The vertex shader (`scn_vtx.glsl`) needs to be updated now that the uniform not only contains the projection matrix but also the view
 matrix:
 
+**File: res/shaders/scn_vtx.glsl**
 ```glsl
 #version 450
 
@@ -795,6 +814,7 @@ void main()
 
 The `render` function of the `RenderScn` struct now needs to access to the `currentFrame` so we need to update the `Render` struct:
 
+**File: src/eng/render.zig**
 ```zig
 pub const Render = struct {
     ...
@@ -818,6 +838,7 @@ pub const Render = struct {
 The last step is to change the `Game` struct to use the camera and a new model. In this case we will be using the famous Sponza model
 (we are using the models from [GitHub - KhronosGroup/glTF-Sample-Models: glTF Sample Models](https://github.com/KhronosGroup/glTF-Sample-Models)).
 
+**File: src/main.zig**
 ```zig
 const Game = struct {
     const ENTITY_ID: []const u8 = "SponzaEntity";
@@ -850,6 +871,7 @@ const Game = struct {
 
 We have modified the `input` function to update the camera position with the mouse movement when pressing the right button:
 
+**File: src/main.zig**
 ```zig
 const Game = struct {
     ...
@@ -885,6 +907,7 @@ const Game = struct {
 
 The `update` function is empty now:
 
+**File: src/main.zig**
 ```zig
 const Game = struct {
     ...
@@ -900,6 +923,8 @@ const Game = struct {
 With all of these changes you will be able to see the Sponza model. You will be able to move around the scene, and you can see that
 transparent objects are properly rendered.
 
-<img src="rc09-screen-shot.png" title="" alt="Screen Shot" data-align="center">
+![Screen Shot](rc09-screen-shot.png)
 
-[Next chapter](../chapter-10/chapter-10.md)
+[Back to Table of Contents](../README.md)
+
+[Previous chapter](../chapter-08/chapter-08.md) | [Next chapter](../chapter-10/chapter-10.md)

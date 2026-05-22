@@ -15,6 +15,7 @@ We will need to add the [zgui](https://github.com/zig-gamedev/zgui) dependency t
 
 We will need to update the `build.zig` file to include the zgui dependency in the `eng` and `root` modules:
 
+**File: build.zig**
 ```zig
 pub fn build(b: *std.Build) void {
     ...
@@ -41,6 +42,7 @@ applies its own gamma correction we will render the GUI after the post-processin
 `RenderGui` which is defined in the `src/eng/renderGui.zig` and you should include in the `mod.zig` file
 (`pub const rgui = @import("renderGui.zig");`). It starts like this:
 
+**File: src/eng/renderGui.zig**
 ```zig
 const com = @import("com");
 const eng = @import("mod.zig");
@@ -95,6 +97,7 @@ shaders. We will see later on how that ImGui updates dynamically vertex informat
 imposes a vertex structure which is defined by an `x` and `y` positions (We are rendering 2D GUIs), texture coordinates and a color. Let's
 continue with the code:
 
+**File: src/eng/renderGui.zig**
 ```zig
 const TXT_ID_GUI = "TXT_ID_GUI";
 const DESC_ID_TEXT_SAMPLER = "GUI_DESC_ID_TEXT_SAMPLER";
@@ -188,6 +191,7 @@ The `create` function, as in the previous cases, is used to instantiate the `Ren
 which initializes ImGui (we will see the implementation later on). After that, we create a texture sampler, define the push constants range,
 the descriptor set layouts, shader modules and create the pipeline. The `create` function continues like this:
 
+**File: src/eng/renderGui.zig**
 ```zig
 pub const RenderGui = struct {
     ...
@@ -237,6 +241,7 @@ can create the structure.
 
 We will need a `cleanup` function to free the resources:
 
+**File: src/eng/renderGui.zig**
 ```zig
 pub const RenderGui = struct {
     ...
@@ -261,6 +266,7 @@ pub const RenderGui = struct {
 
 In the `create` function we used the `initGUI` function  where we initialize the resources required by ImGui:
 
+**File: src/eng/renderGui.zig**
 ```zig
 pub const RenderGui = struct {
     ...
@@ -287,6 +293,7 @@ match swap chain extent.
 
 We will define a `render` function that looks like this:
 
+**File: src/eng/renderGui.zig**
 ```zig
 pub const RenderGui = struct {
     ...
@@ -422,6 +429,7 @@ store them in the `backend_user_data` attribute.
 
 The `setPushConstants` function is defined like this:
 
+**File: src/eng/renderGui.zig**
 ```zig
 pub const RenderGui = struct {
     ...
@@ -447,6 +455,7 @@ pub const RenderGui = struct {
 
 In the `resize` function we just update the display size of ImGui:
 
+**File: src/eng/renderGui.zig**
 ```zig
 pub const RenderGui = struct {
     ...
@@ -464,6 +473,7 @@ pub const RenderGui = struct {
 
 Let us review now the `updateBuffers` function:
 
+**File: src/eng/renderGui.zig**
 ```zig
 pub const RenderGui = struct {
     ...
@@ -551,6 +561,7 @@ vertices and indices data to those buffers by iterating over the different ImGui
 
 The `updateGuiTextures` function is defined like this:
 
+**File: src/eng/renderGui.zig**
 ```zig
 pub const RenderGui = struct {
     ...
@@ -641,6 +652,7 @@ The `renderGui.zig` file provides also a utility function to create a `zgui.Text
 an image to a ImGui widget. It takes a `zstbi.Image`reference which will contain the image data, and an identifier which shall be unique.
 ImGui will use the `0` identifier for the default texture.
 
+**File: src/eng/renderGui.zig**
 ```zig
 pub fn createTextureData(texId: u32, textureImage: *const zstbi.Image) zgui.TextureData {
     return zgui.TextureData{
@@ -676,6 +688,7 @@ pub fn createTextureData(texId: u32, textureImage: *const zstbi.Image) zgui.Text
 
 We will need to create two new shaders named `gui_vtx.glsl` and `gui_frg.glsl` so we need to include the in the `build.zig` file:
 
+**File: build.zig**
 ```zig
 pub fn build(b: *std.Build) void {
     ...
@@ -691,6 +704,7 @@ pub fn build(b: *std.Build) void {
 The vertex shader used for rendering the GUI (`gui_vtx.glsl`) is quite simple, we just transform the coordinates so they are in the
 `[-1, 1]` range and output the texture coordinates and color so they can be used in the fragment shader:
 
+**File: res/shaders/gui_vtx.glsl**
 ```glsl
 #version 450
 
@@ -721,6 +735,7 @@ void main()
 In the fragment shader (`gui_frg.glsl`) we just output the combination of the vertex color and the texture color associated to its texture
 coordinates:
 
+**File: res/shaders/gui_frg.glsl**
 ```glsl
 #version 450
 
@@ -741,6 +756,7 @@ void main()
 
 The `VkTexture` struct needs to be updated to add the new `update` function:
 
+**File: src/eng/vk/vkTexture.zig**
 ```zig
 pub const VkTexture = struct {
     ...
@@ -767,6 +783,7 @@ layout can transition to the proper state when recording the layout transitions.
 
 The new `getTextureRef` function in the `TextureCache` struct is defined like this:
 
+**File: src/eng/textureCache.zig**
 ```zig
 pub const TextureCache = struct {
     ...
@@ -783,6 +800,7 @@ pub const TextureCache = struct {
 
 Now we need to put the new `RenderGui` struct into play, so we will start with the changes in the `Render` struct:
 
+**File: src/eng/render.zig**
 ```zig
 pub const Render = struct {
     ...
@@ -838,6 +856,7 @@ We will also need to modify the `Wnd` struct to properly handle text input in Im
 By doing so, we will be able to get tetx input processed and handle properly the text taking into consideration the keyboard layout and the
 state of special keys (such as caps lock, etc.):
 
+**File: src/eng/wnd.zig**
 ```zig
 ...
 const zgui = @import("zgui");
@@ -856,6 +875,7 @@ pub const Wnd = struct {
 In the `pollEvents` function we will react to `mouse_wheel`, `key_up`, `key_down` and `text_input` events (If we do not call the
 `startTextInput` function we would not receive the `text_input` event):
 
+**File: src/eng/wnd.zig**
 ```zig
 pub const Wnd = struct {
     ...
@@ -894,6 +914,7 @@ pub const Wnd = struct {
 
 The functions used in the event loop are defined like this:
 
+**File: src/eng/wnd.zig**
 ```zig
 pub const Wnd = struct {
     ...
@@ -930,6 +951,7 @@ wants to process keyboard events (that is, the mouse is over an ImGui Window). T
 down events and pass them to ImGui. We need to translate from SDL3 key codes to ImGui key codes by calling the `toZgui` function which is
 defined like this:
 
+**File: src/eng/wnd.zig**
 ```zig
 pub const Wnd = struct {
     ...
@@ -1049,6 +1071,7 @@ pub const Wnd = struct {
 
 The final step is to modify the `Game` struct:
 
+**File: src/main.zig**
 ```zig
 const Game = struct {
     defaultGui: bool = true,
@@ -1122,6 +1145,8 @@ by the `input` one. It returns a `bool` indictaing if the input has been process
 ImGui widget we need to create `zgui.TextureData` instance which is created in the `init` function. We will show the demo window when
 pressing the `1` key and the simple window with an image when pressing the `2` key.
 
-<img src="rc12-screen-shot.png" title="" alt="Screen Shot" data-align="center">
+![Screen Shot](rc12-screen-shot.png)
 
-[Next chapter](../chapter-13/chapter-13.md)
+[Back to Table of Contents](../README.md)
+
+[Previous chapter](../chapter-11/chapter-11.md) | [Next chapter](../chapter-13/chapter-13.md)

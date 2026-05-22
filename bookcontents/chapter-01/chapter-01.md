@@ -23,6 +23,7 @@ file just execute: `zig fetch --save https://github.com/sam701/zig-toml/archive/
 `zig fetch --save https://github.com/Snektron/vulkan-zig/archive/f75b0011214705d6593e6ad64948c4832b1e6f27.tar.gz`
 - [Vulkan Headers](https://github.com/KhronosGroup/Vulkan-Headers) we will need to add to the `build.zig.zon` file the following entry
 
+**File: build.zig.zon**
 ```zig
 .{
     ...
@@ -46,6 +47,7 @@ file just execute: `zig fetch --save https://github.com/sam701/zig-toml/archive/
 
 The `build.zig` file is defined like this:
 
+**File: build.zig**
 ```zig
 const std = @import("std");
 
@@ -117,6 +119,7 @@ pub fn build(b: *std.Build) void {
 
 So let's start from the beginning with, of all things, our `main.zig` file:
 
+**File: src/main.zig**
 ```zig
 const eng = @import("eng");
 const std = @import("std");
@@ -168,6 +171,7 @@ controlled by the following functions:
 
 Engine code is located under `src/eng` and all the submodules are defined in the `mod.zig` file:
 
+**File: src/eng/mod.zig**
 ```zig
 pub const engine = @import("eng.zig");
 pub const rend = @import("render.zig");
@@ -176,6 +180,7 @@ pub const wnd = @import("wnd.zig");
 
 This is the source code of the `Engine` type defined in the `eng.zig` file:
 
+**File: src/eng/eng.zig**
 ```zig
 const com = @import("com");
 const eng = @import("mod.zig");
@@ -276,12 +281,14 @@ You may have noticed that we use a struct named `Constants`, which in this case 
 which reads a property file that will allow us to configure several parameters of the engine at runtime. It is defined in the `com` module
 (named for common), which requires a new `mod.zig` file:
 
+**File: src/eng/com/mod.zig**
 ```zig
 pub const common = @import("common.zig");
 ```
 
 The `Constants` struct is defined in the `common.zig` file:
 
+**File: src/eng/com/common.zig**
 ```zig
 const std = @import("std");
 const toml = @import("toml");
@@ -316,12 +323,14 @@ configuration parameter.
 
 Right now the `cfg.toml` is defined like this:
 
+**File: res/cfg/cfg.toml**
 ```toml
 ups=40
 ```
 
 At this point, the `Render` struct is just an empty shell:
 
+**File: src/eng/render.zig**
 ```zig
 const eng = @import("mod.zig");
 const std = @import("std");
@@ -349,7 +358,7 @@ Now it's the turn for our `Wnd` structure which mainly deals with window creatio
 first one which shows the first tiny bits of Vulkan. Let's start by examining its main attributes and `create` function used to instantiate
 it.
 
-
+**File: src/eng/wnd.zig**
 ```zig
 const std = @import("std");
 const sdl3 = @import("sdl3");
@@ -427,6 +436,7 @@ the displacement from previous position modeled by `deltaX` and `deltaY` attribu
 
 The rest of the functions are defined like this:
 
+**File: src/eng/wnd.zig**
 ```zig
 pub const Wnd = struct {
     ...
@@ -483,4 +493,6 @@ If you run the sample, you will get a nice black window that you can resize, mov
 the next chapter, we will start viewing the first basic Vulkan concepts.
 
 
-[Next chapter](../chapter-02/chapter-02.md)
+[Back to Table of Contents](../README.md)
+
+[Previous chapter](../chapter-00/chapter-00.md) | [Next chapter](../chapter-02/chapter-02.md)

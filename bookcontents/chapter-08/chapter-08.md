@@ -13,6 +13,7 @@ We will create a new executable to process 3D models ([GLTF](https://github.com/
 process a 3D model and will generate the required files to load the model data into Vulkan. Therefore, in the `build.zig` file we will add
 the following code at the end:
 
+**File: build.zig**
 ```zig
 pub fn build(b: *std.Build) void {
     ...
@@ -38,6 +39,7 @@ add the dependency to the `build-.zig.zon` using `zig fetch --save https://githu
 
 In the `build.zig` file we need to define the zstbi dependency and add it to the `eng` and the root modules:
 
+**File: build.zig**
 ```zig
 pub fn build(b: *std.Build) void {
     ...
@@ -58,6 +60,7 @@ to a JSON file. It is a little bit overkill for a tutorial like this, but it wil
 simplify the loading process at the end. The `main` function defined in the `modelGen.zig` file starts like this (you can skip this part if
 you are not interested in preprocessing the models):
 
+**File: src/eng/modelGen.zig**
 ```zig
 pub fn main(init: std.process.Init) !void {
     var arena = std.heap.ArenaAllocator.init(init.gpa);
@@ -80,6 +83,7 @@ The function expects to receive as a command line argument the path to the model
 directory of the model (used to construct other paths later on) and assign the model identifier using the file name. Then we initialize the
 zmesh library and load  the GLTF file by calling the function `parseAndLoadFile`.
 
+**File: src/eng/modelGen.zig**
 ```zig
 pub fn main() !void {
     ...
@@ -102,6 +106,7 @@ pub fn main() !void {
 
 Then we process the materials defined in the model:
 
+**File: src/eng/modelGen.zig**
 ```zig
 pub fn main() !void {
     ...
@@ -122,6 +127,7 @@ pub fn main() !void {
 We just iterate over the model materials and call the `processMaterial` which will return a `MaterialData` instance which stored in a list.
 The `MaterialData` is defined in a struct like this (in the `src/eng/modelData.zig` file):
 
+**File: src/eng/modelData.zig**
 ```zig
 pub const MaterialData = struct {
     id: []const u8,
@@ -133,6 +139,7 @@ pub const MaterialData = struct {
 It just contains an identifier the path to a texture (for the albedo color by now if available) and a color (for the albedo also).
 Let's continue with the `main` function code:
 
+**File: src/eng/modelGen.zig**
 ```zig
 pub fn main() !void {
     ...
@@ -151,6 +158,7 @@ pub fn main() !void {
 We will create two files, one that will store vertices data and the other that will store the indices. These files will store data
 for all the meshes. Let's continue with the code.
 
+**File: src/eng/modelGen.zig**
 ```zig
 pub fn main() !void {
     ...
@@ -215,6 +223,7 @@ case we will assimilate primitive as meshes in our engines. GLTF primitives will
 be associated to materials, so, from our point of view are the meshes. Each primitive will be processed in the `processMesh` function and
 added to a list as a `MeshIntData` struct. This struct is defined in the beginning of the file as:
 
+**File: src/eng/modelGen.zig**
 ```zig
 const MeshIntData = struct {
     id: []const u8,
@@ -237,6 +246,7 @@ that to the binary files associated to the model and will not need them in the `
 the engine. In the `eng.mdata.MeshData` struct we will just store the offsets inside those binary files for the vertices and indices data
 (Remember that this struct is stored in the `src/eng/modelData.zig` file):
 
+**File: src/eng/modelData.zig**
 ```zig
 pub const MeshData = struct {
     id: []const u8,
@@ -255,6 +265,7 @@ If we have more positions than texture coordinates we just fill up with zeroes.
 
 Going back to the `main` function:
 
+**File: src/eng/modelGen.zig**
 ```zig
 pub fn main() !void {
     ...
@@ -282,6 +293,7 @@ pub fn main() !void {
 Now it is the turn to dump materials information to a JSON file. We will just dump the list of materials using Zig's builtin
 JSON support. After that, we will build the model information:
 
+**File: src/eng/modelGen.zig**
 ```zig
 pub fn main() !void {
     ...
@@ -302,6 +314,7 @@ pub fn main() !void {
 The model data struct has been updated store the path to the vertices and indices files. You will need to modify the struct as
 follows (Remember that this struct is stored in the `src/eng/modelData.zig` file):
 
+**File: src/eng/modelData.zig**
 ```zig
 pub const ModelData = struct {
     id: []const u8,
@@ -323,8 +336,7 @@ pub const ModelData = struct {
 
 After that, going back to the `main` function, we will just dump model information to a JSON file:
 
-Let's review the `processMaterial` function:
-
+**File: src/eng/modelGen.zig**
 ```zig
 pub fn main() !void {
     ...
@@ -353,6 +365,7 @@ pub fn main() !void {
 That's all. Let's review now the missing functions used in `main`. The first one, `normalizePath`, just modifies path
 strings to use `/` as path separator:
 
+**File: src/eng/modelGen.zig**
 ```zig
 pub fn normalizePath(allocator: std.mem.Allocator, input_path: []const u8) ![]const u8 {
     var result = try allocator.alloc(u8, input_path.len);
@@ -365,6 +378,7 @@ pub fn normalizePath(allocator: std.mem.Allocator, input_path: []const u8) ![]co
 
 The next function is the `processMaterial` one:
 
+**File: src/eng/modelGen.zig**
 ```zig
 fn processMaterial(
     allocator: std.mem.Allocator,
@@ -398,6 +412,7 @@ GLTF file) by now.
 
 The next function is the `processMesh` one, which processes GLTF primitives and converts them to `MeshIntData` instances:
 
+**File: src/eng/modelGen.zig**
 ```zig
 fn processMesh(
     allocator: std.mem.Allocator,
@@ -445,6 +460,7 @@ associates the mes with its material. Each primitive will have a pointer to the 
 of that material in the list that we constructed previously taking that pointer as a input. This what the `materialIndexFromPtr` function
 does:
 
+**File: src/eng/modelGen.zig**
 ```zig
 fn materialIndexFromPtr(
     data: *const zmesh.io.zcgltf.Data,
@@ -462,6 +478,7 @@ size to get an index.
 
 Finally the last function just prints some help text if the wrong number of arguments have been passed to the model generation executable:
 
+**File: src/eng/modelGen.zig**
 ```zig
 fn printHelp() void {
     std.debug.print(
@@ -482,6 +499,7 @@ this. It will be included in a new file under `src/eng/vk/vkTexture` file. You w
 `pub const text = @import("vkTexture.zig");`. In order to create textures we will a helper struct that will hold relevant information for
 texture creation. It will be named `VkTextureInfo` (defined in the same file):
 
+**File: src/eng/vk/vkTexture.zig**
 ```zig
 pub const VkTextureInfo = struct {
     data: []const u8,
@@ -494,6 +512,7 @@ pub const VkTextureInfo = struct {
 It will store the texture data, its dimensions and the format of the image data. We will review now the `VkTexture` struct which starts like
 this:
 
+**File: src/eng/vk/vkTexture.zig**
 ```zig
 pub const VkTexture = struct {
     vkImage: vk.img.VkImage,
@@ -554,6 +573,7 @@ The `recorded` attribute will control if a texture has been recorded (transition
 At the end of the `create` function we just copy the image data to the staging buffer associated to the image by calling a function
 that is located in the `vkBuffer.zig`:
 
+**File: src/eng/vk/vkBuffer.zig**
 ```zig
 pub fn copyDataToBuffer(vkCtx: *const vk.ctx.VkCtx, vkBuffer: *const VkBuffer, data: *const []const u8) !void {
     const buffData = try vkBuffer.map(vkCtx);
@@ -568,6 +588,7 @@ pub fn copyDataToBuffer(vkCtx: *const vk.ctx.VkCtx, vkBuffer: *const VkBuffer, d
 The `VkTexture` struct defines a `cleanup` function to free the resources and a specific `cleanupStgBuffer` to clean the staging
 buffer (this should be called when the texture transition recording has been finished):
 
+**File: src/eng/vk/vkTexture.zig**
 ```zig
 pub const VkTexture = struct {
     ...
@@ -596,6 +617,7 @@ so we can copy the contents of the buffer.
 We will do all of these operations by recording image memory barriers and copy operations inside a command buffer in a
 function called `recordTransition`, which is defined like this:
 
+**File: src/eng/vk/vkTexture.zig**
 ```zig
 pub const VkTexture = struct {
     ...
@@ -705,6 +727,7 @@ Now that the `VkTexture` struct is complete, we are ready to use it. In 3D model
 texture file, we want to control that to avoid loading the same resource multiple times. We will create a new struct named `TextureCache` to
 control this:
 
+**File: src/eng/textureCache.zig**
 ```zig
 const com = @import("com");
 const std = @import("std");
@@ -745,6 +768,7 @@ the information required to create a `VkTexture` and will check if the texture h
 multiple textures for the same data. If it does not exists it will just instantiate a new `VkTexture` and store it in the cache. We have
 another variant that receives a path to a texture and another one receiving a `TextureInfo` will receive the path to the texture image:
 
+**File: src/eng/textureCache.zig**
 ```zig
 pub const TextureCache = struct {
     ...
@@ -794,6 +818,7 @@ pub const TextureCache = struct {
 We will add also the classical `cleanup` function to free the images and a function to get a texture using its
 identifier.
 
+**File: src/eng/textureCache.zig**
 ```zig
 pub const TextureCache = struct {
     ...
@@ -821,6 +846,7 @@ pub const TextureCache = struct {
 The only missing function is `recordTextures` which performs layout transitions over all the textures stored in the cache.
 It is defined like this:
 
+**File: src/eng/textureCache.zig**
 ```zig
 pub const TextureCache = struct {
     ...
@@ -857,6 +883,7 @@ and the work has been completed, we can free the staging buffers of all the text
 In order to generate the identifiers of the "dummy" textures we will create an UUID identifiers so we guarantee that they ar unique. The
 function `generateUuid` (defined in the `src/eng/com/utils.zig` file) is defined like this:
 
+**File: src/eng/com/utils.zig**
 ```zig
 pub fn generateUuid(allocator: std.mem.Allocator, io: std.Io) ![]const u8 {
     var bytes: [16]u8 = undefined;
@@ -893,6 +920,7 @@ pub fn generateUuid(allocator: std.mem.Allocator, io: std.Io) ![]const u8 {
 
 The next step is to update the `VulkanMesh` struct to hold a reference to the material identifier it is associated:
 
+**File: src/eng/modelsCache.zig**
 ```zig
 pub const VulkanMesh = struct {
     buffIdx: vk.buf.VkBuffer,
@@ -912,6 +940,7 @@ pub const VulkanMesh = struct {
 
 We will also add a new `VulkanMaterial` struct which will just store an identifier by now:
 
+**File: src/eng/modelsCache.zig**
 ```zig
 pub const VulkanMaterial = struct {
     id: []const u8,
@@ -925,6 +954,7 @@ pub const VulkanMaterial = struct {
 Let's update now the `ModelsCache` struct to be able to load preprocessed models. Remember that prior to use any model you need to
 preprocess it by using the model generator executable. Let's start with the `init` function:
 
+**File: src/eng/modelsCache.zig**
 ```zig
 const com = @import("com");
 ...
@@ -1035,6 +1065,7 @@ vertices and indices.
 In order to manage materials we will need to create a new struct named `MaterialsCache` which starts like this (it will be defined
 in the same file as `ModelsCache`: `src/eng/modelsCache.zig`):
 
+**File: src/eng/modelsCache.zig**
 ```zig
 ...
 const MaterialBuffRecord = struct {
@@ -1078,6 +1109,7 @@ This struct, will create a single `VkBuffer` which will store all the materials 
 We will need to store the materials in an `ArrayHashMap` since we will need to get he position of the material in the buffer.
 Now we need a function to load the materials:
 
+**File: src/eng/modelsCache.zig**
 ```zig
 pub const MaterialsCache = struct {
     ...
@@ -1199,6 +1231,7 @@ managing descriptor sets. It will be include din the `src/eng/vk/vkDescs.zig` so
 
 Let's start first by defining a new struct to handle a descriptor pool named `VkDescPool` (also in `vkDescs.zig`):
 
+**File: src/eng/vk/vkDescs.zig**
 ```zig
 pub const VkDescPool = struct {
     descPool: vulkan.DescriptorPool,
@@ -1236,6 +1269,8 @@ longer used.
 
 
 Before continuing with more code, let us clarify some concepts. Imagine we have, in GLSL, a definition of the following descriptor sets:
+
+**File: Example — shader descriptor set layout**
 ```glsl
 layout(set = 0, binding = 0) uniform A {
     vec4 data;
@@ -1255,6 +1290,7 @@ see two descriptor sets using different buffers associated to the same layout, f
 need first to define a struct which contains information for a descriptor set inside a descriptor set layout. In this case, it will be
 named `LayoutInfo`:
 
+**File: src/eng/vk/vkDescs.zig**
 ```zig
 pub const LayoutInfo = struct {
     binding: u32,
@@ -1273,6 +1309,7 @@ the length of the array).
 
 We will create a struct to help us create descriptor set layouts:
 
+**File: src/eng/vk/vkDescs.zig**
 ```zig
 pub const VkDescSetLayout = struct {
     descSetLayout: vulkan.DescriptorSetLayout,
@@ -1313,6 +1350,7 @@ the  `createDescriptorSetLayout` function. The struct is completed by the classi
 assuming we will use the descriptors at the vertex stage, we could define the layout information as follows (it is just an example to
 understand the usage, not included in the code):
 
+**File: Example — descriptor set layout usage**
 ```zig
 const descLayoutAB = try vk.desc.VkDescSetLayout.create(
     allocator,
@@ -1355,6 +1393,7 @@ textures. When we access a texture, we usually want to apply some type of filter
 patterns. All that is handled through a sampler. We have already created images and image views, but in order to access them in shaders we
 will need texture samplers. Therefore we will create a new struct named `TextureSampler` (it will be included in the `vkTexture.zig` file): 
 
+**File: src/eng/vk/vkTexture.zig**
 ```zig
 pub const VkTextSamplerInfo = struct {
     addressMode: vulkan.SamplerAddressMode,
@@ -1427,6 +1466,7 @@ sampling from a texture. The struct completes with classical `cleanup` function 
 
 It is now time to create the a struct to represent descriptor sets. The struct, named `VkDesSet`, starts like this:
 
+**File: src/eng/vk/vkDescs.zig**
 ```zig
 pub const VkDesSet = struct {
     descSet: vulkan.DescriptorSet,
@@ -1454,6 +1494,7 @@ which describes the descriptor set.
 Now let's add some functions to associate a descriptor set with buffers or images, so we can use them in our shaders. Let's start with the
 `setBuffer` function:
 
+**File: src/eng/vk/vkDescs.zig**
 ```zig
 pub const VkDesSet = struct {
     ...
@@ -1506,6 +1547,7 @@ in this function so we just pass an empty array.
 After that, we update the descriptor set by calling the `updateDescriptorSets` function. Let's add now a new function
 to associate a descriptor set with an image view:
 
+**File: src/eng/vk/vkDescs.zig**
 ```zig
 pub const VkDesSet = struct {
     ...
@@ -1542,6 +1584,7 @@ the `p_image_info` when writing to a descriptor set. In this case, we provide a 
 
 Finally, let's add a new function to associate an array of images to a descriptor set:
 
+**File: src/eng/vk/vkDescs.zig**
 ```zig
 pub const VkDesSet = struct {
     ...
@@ -1589,6 +1632,7 @@ We will use this to associate an array of textures for the materials.
 
 Now it is the time to put everything in place in the `VkDescAllocator` struct which starts like this:
 
+**File: src/eng/vk/vkDescs.zig**
 ```zig
 pub const VkDescAllocator = struct {
     poolInfoList: std.ArrayList(*PoolInfo),
@@ -1617,6 +1661,7 @@ The `poolInfoList` will store the list of  descriptor pools. Remember that we wi
 The `descSetMap` will just contain the references to the descriptor sets to the pool used to create it (using the pool position). We
 initialize the `poolInfoList` with one entry. Let's review how the `PoolInfo` struct looks like:
 
+**File: src/eng/vk/vkDescs.zig**
 ```zig
 const PoolInfo = struct {
     descCount: std.AutoArrayHashMapUnmanaged(vulkan.DescriptorType, u32),
@@ -1668,6 +1713,7 @@ buffers (`max_descriptor_set_storage_buffers`).
 
 Let's go back to the `VkDescAllocator` struct and review the function to add a single a descriptor set:
 
+**File: src/eng/vk/vkDescs.zig**
 ```zig
 pub const VkDescAllocator = struct {
     ...
@@ -1766,6 +1812,7 @@ structures.
 
 The rest of the functions of the struct are as follows:
 
+**File: src/eng/vk/vkDescs.zig**
 ```zig
 pub const VkDescAllocator = struct {
     ...
@@ -1792,6 +1839,7 @@ pub const VkDescAllocator = struct {
 The `cleanup` function just iterates over the created pools and destroys them. The `getDescSet` just returns a descriptor set using its
 identifier. We will instantiate the `VkDescAllocator` struct in the `VkCtx` one so it can be used along the code:
 
+**File: src/eng/vk/vkCtx.zig**
 ```zig
 pub const VkCtx = struct {
     ...
@@ -1826,6 +1874,7 @@ We are almost finishing, we just need to put all the pieces together. First, we 
 set layouts into consideration. We will first update the `VkPipelineCreateInfo` struct to be able to store an array of descriptor set
 layouts:
 
+**File: src/eng/vk/VkPipeline.zig**
 ```zig
 pub const VkPipelineCreateInfo = struct {
     ...
@@ -1836,6 +1885,7 @@ pub const VkPipelineCreateInfo = struct {
 
 With that information, we can update the `VkPipeline` struct:
 
+**File: src/eng/vk/VkPipeline.zig**
 ```zig
 pub const VkPipeline = struct {
     ...
@@ -1860,6 +1910,7 @@ hold a pointer to the descriptor set layouts and `set_layout_count` which will c
 Prior to see what the changes will be in the `RenderScn` struct, let's update first the shaders. This is the source code of the vertex
 shader (`scn_vtx.glsl`):
 
+**File: res/shaders/scn_vtx.glsl**
 ```glsl
 #version 450
 
@@ -1889,6 +1940,7 @@ each mesh. It will be set just once.
 
 The fragment shader source code (`scn_frg.glsl`) looks like this:
 
+**File: res/shaders/scn_frg.glsl**
 ```glsl
 #version 450
 
@@ -1940,6 +1992,7 @@ output color either form the associated texture or the material diffuse color.
 
 Now it is the time to use all these concepts together in the `RenderScn` struct:
 
+**File: src/eng/renderScn.zig**
 ```zig
 ...
 const PushConstantsVtx = struct {
@@ -2079,6 +2132,7 @@ which will have a descriptor set associated to it, we will create an utility fun
 new file: `src/eng/vk/VkUtils.zig` (Remember to include it in the `mod.zig` file: `pub const util = @import("vkUtils.zig");`). It is defined
  like this:
 
+**File: src/eng/vk/VkUtils.zig**
 ```zig
 const std = @import("std");
 const vulkan = @import("vulkan");
@@ -2121,6 +2175,7 @@ associate it with the buffer we created in the `MaterialsCache` struct. We will 
 the textures loaded in the `TextureCache` function. This function will need to be invoked during initialization so descriptor sets are ready
 during render process.
 
+**File: src/eng/renderScn.zig**
 ```zig
 pub const RenderScn = struct {
     ...
@@ -2159,6 +2214,7 @@ pub const RenderScn = struct {
 
 We will need also to update the `render` function to use the descriptor sets:
 
+**File: src/eng/renderScn.zig**
 ```zig
 pub const RenderScn = struct {
     ...
@@ -2224,6 +2280,7 @@ the push constants accordingly.
 
 The `setPushConstants` function also needs to be changed to use the new push constants:
 
+**File: src/eng/renderScn.zig**
 ```zig
 pub const RenderScn = struct {
     ...
@@ -2257,6 +2314,7 @@ pub const RenderScn = struct {
 
 Finally, the `updateCamera` function is defined like this:
 
+**File: src/eng/renderScn.zig**
 ```zig
 pub const RenderScn = struct {
     ...
@@ -2277,6 +2335,7 @@ pub const RenderScn = struct {
 The changes required in the `Render` struct are smaller, we basically instantiate the `MaterialsCache` and `TextureCache` struct and adapt
 some functions to the new parameters added:
 
+**File: src/eng/render.zig**
 ```zig
 const log = std.log.scoped(.eng);
 ...
@@ -2379,6 +2438,7 @@ will not work).
 We will need also to update the `Engine` struct to initialize the zstbi library prior to any texture loading code gets executed. In the
 `create` function we will add the following line prior to the `Render` instance creation: 
 
+**File: src/eng/eng.zig**
 ```zig
 pub fn Engine(comptime GameLogic: type) type {
     ...
@@ -2393,6 +2453,7 @@ pub fn Engine(comptime GameLogic: type) type {
 
 In the `src/eng/modelData.zig` we will add to functions to load models and materials from the JSON files:
 
+**File: src/eng/modelData.zig**
 ```zig
 pub fn loadMaterials(allocator: std.mem.Allocator, io: std.Io, path: []const u8) !std.ArrayList(MaterialData) {
     log.debug("Loading materials from [{s}]", .{path});
@@ -2458,6 +2519,7 @@ pub fn loadModel(allocator: std.mem.Allocator, io: std.Io, path: []const u8) !Mo
 We need to change we load the models in the `Game` struct. Instead of defining the data in the `init` function we just use the `loadModel`
 and `loadMaterials` functions to load the data:
 
+**File: src/main.zig**
 ```zig
 const Game = struct {
     ...
@@ -2484,6 +2546,8 @@ const Game = struct {
 ```
 With all of these changes you will be able to see a nice rotating cube with a texture:
 
-<img src="rc08-screen-shot.png" title="" alt="Screen Shot" data-align="center">
+![Screen Shot](rc08-screen-shot.png)
 
-[Next chapter](../chapter-09/chapter-09.md)
+[Back to Table of Contents](../README.md)
+
+[Previous chapter](../chapter-07/chapter-07.md) | [Next chapter](../chapter-09/chapter-09.md)
