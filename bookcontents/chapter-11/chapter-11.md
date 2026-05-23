@@ -451,7 +451,7 @@ The next figure shows the resulting triangle with texture coordinates in red and
 within clip space coordinates ([-1,1], [1, -1]). As you can see by drawing a triangle we get a quad within clip space that we will use to
 generate the post-processing image.
 
-[quad](./rc11-quad.svg)
+![Quad](rc11-quad.svg)
 
 The fragment shader is defined like this:
 
