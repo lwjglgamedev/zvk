@@ -3,7 +3,7 @@
 In this chapter, we will add shadows to the scene applying Cascaded Shadow Maps (CSM). This chapter applies the techniques shown by Sascha
 Willems in his Vulkan examples. Specifically, it uses part of the source code for the examples related to
 [cascaded shadow mapping](https://github.com/SaschaWillems/Vulkan/blob/master/examples/shadowmappingcascade). I cannot stress enough how
-good the examples are provided by Sascha Willems, you should carefully have a look at them. Over that code we will implement some changes
+good the examples are provided by Sascha Willems, you should carefully have a look at them. On top of that code, we will implement some changes
 to improve shadow quality and render them in a more efficient way.
 
 You can find the complete source code for this chapter [here](../../booksamples/chapter-16).
@@ -1213,8 +1213,8 @@ scaled with distance, the larger the distance, the larger is the scale. Basicall
  loss of precision when using larger distances). Sampling employs `16`locations around current UV coordinate.
     - Each sample reads two values: depth, and depth squared.
     - We use chebyshevUpperBound to compute visibility for each sample. VSM does not store depths, it stores probability distributions,
-    we use that inequality to check if a sample is visible or not, generating softer shadows. Basically, it we do not use this appraach
-    the result is binary based just in the depth value, by using the variance we basically measure how far we are from full light, the
+    we use that inequality to check if a sample is visible or not, generating softer shadows. Basically, if we do not use this approach
+    the result is binary based just on the depth value, by using the variance we basically measure how far we are from full light, the
     higher the gap, the harder the shadow.
 - If `SAMPLING` is not active we just get current depth and depth squared and also apply the inequality, but with just a single fragment.
 

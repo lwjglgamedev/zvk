@@ -1,6 +1,6 @@
 # Chapter 06 - Drawing a triangle
 
-In this chapter we will be finally rendering a shape, developing the required structs and functions to load data to the GPU and using the
+In this chapter we will finally be rendering a shape, developing the required structs and functions to load data to the GPU and using the
 graphics pipeline. We will start, as in the previous chapters, by explaining the elements that we will need later on to use together to draw
 something to the screen.
 
@@ -658,7 +658,7 @@ can leave that parameter fixed to the `triangle_list` value.
 The next step is to define how many view ports and scissors we are going to use. The view port describes the region from the output
 attachments that we will be using for rendering (normally we will use the whole size of those buffers). The view port defines the
 transformation from normalized coordinates to screen coordinates. Since it is a transformation, the rendered image will be stretched or
-enlarged to fit the dimensions of the view port. The scissor defines a rectangle where outputs can be made, any pixel that lays out side
+enlarged to fit the dimensions of the view port. The scissor defines a rectangle where outputs can be made, any pixel that lies outside
 that region will be discarded. Scissors are not transformations, they simply cut out regions that do not fit their dimensions. In our case,
 we will be using just one view port and one scissor (we need at least one). 
 
@@ -714,8 +714,8 @@ pub const VkPipeline = struct {
 Description of the parameters:
 
 - `depth_clamp_enable`: It controls if depth values should be clamped or not.
-- `rasterizer_discard_enable`: When set to true it will stop after vertex processing and wil not perform rasterization or fragment
-processing. It can be used when processing vertices ofr geometry calculations. We wil not use this feature so we will set up to false. 
+- `rasterizer_discard_enable`: When set to true it will stop after vertex processing and will not perform rasterization or fragment
+processing. It can be used when processing vertices for geometry calculations. We will not use this feature so we will set up to false. 
 - `polygon_mode`: It specifies how triangles should be rendered: In our case we want the triangles to be filled up with the color assigned
 in the fragments. For example, if we want to draw it as lines (as in OpenGL, the equivalent would be to use this line: `glPolygonMode`
 (`GL_FRONT_AND_BACK, GL_LINE )`) we should use `line` (`VK_POLYGON_MODE_LINE`)).
@@ -825,7 +825,7 @@ enabled for writing by setting the `color_write_mask` attribute. In our case we 
 all those configurations on a `PipelineColorBlendStateCreateInfo` structure (this structure also defines other parameters to setup global
 blending settings).
 
-After this we need to define ow to read your vertex buffers and transform them into vertex shader inputs. We use the format defined in
+After this we need to define how to read your vertex buffers and transform them into vertex shader inputs. We use the format defined in
 `createInfo`:
 
 ```zig
@@ -1174,7 +1174,7 @@ pub const RenderScn = struct {
 
 Once we have started recording, we call to the `cmdBindPipeline` function. Once bound, the next commands that are recorded will be affected
 by this pipeline. The `vulkan.PipelineBindPoint.graphics` parameter (`VK_PIPELINE_BIND_POINT_GRAPHICS`) specifies that this refers to
-graphics binding point. Graphic commands will be affected by this biding, but compute commands are only affected by pipelines bound using
+graphics binding point. Graphic commands will be affected by this binding, but compute commands are only affected by pipelines bound using
 the `vulkan.PipelineBindPoint.compute` (`VK_PIPELINE_BIND_POINT_COMPUTE`) binding point. Then we define the view port. The `x` and `y`
 values define the screen coordinates of upper left corner of the view port, which dimensions are completed by specifying its `width` and
 `height`. The `min_depth` and `max_depth` values define the range of valid depth values for the view port (any depth value outside that

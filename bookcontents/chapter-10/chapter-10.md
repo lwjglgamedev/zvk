@@ -54,7 +54,6 @@ pub fn build(b: *std.Build) void {
     const vmaDep = b.dependency("vma", .{});
     const vmaIncludePath = vmaDep.path("include");
     exe.root_module.link_libcpp = true;
-    exe.root_module.link_libcpp = true;
     ...
     vk.addIncludePath(vmaIncludePath);
     vk.addIncludePath(vkIncludePath);

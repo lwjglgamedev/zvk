@@ -26,7 +26,7 @@ All that information is stored in attachments, as the depth attachment used in p
 
 The second step is called the lighting phase. This phase takes a shape that fills the whole screen and generates the final color
 information, using lighting, for each fragment using as inputs the attachment outputs generated in the previous phase. When performing the
-lighting phase, the depth test in the geometry phase will have already removed all the scene data that is not be seen. Hence, the number of
+lighting phase, the depth test in the geometry phase will have already removed all the scene data that is not to be seen. Hence, the number of
 operations to be done are restricted to what will be displayed on the screen.
 
 ## Pipeline modifications
@@ -758,7 +758,7 @@ pub const RenderLight = struct {
 };
 ```
 
-The `renderFinish` function jus transitions the output attachment to the `shader_read_only_optimal` layout so it can be sampled in next
+The `renderFinish` function just transitions the output attachment to the `shader_read_only_optimal` layout so it can be sampled in next
 phases:
 
 **File: src/eng/renderLight.zig**

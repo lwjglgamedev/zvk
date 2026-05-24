@@ -37,7 +37,7 @@ pub fn build(b: *std.Build) void {
 
 ## Render the GUI
 
-In this case, we will be rendering the GUI elements over the scene. Since we do not want to applyany additional filtering, since ImGui
+In this case, we will be rendering the GUI elements over the scene. Since we do not want to apply any additional filtering, since ImGui
 applies its own gamma correction we will render the GUI after the post-processing stage. We will perform the render in a new struct named
 `RenderGui` which is defined in the `src/eng/renderGui.zig` and you should include in the `mod.zig` file
 (`pub const rgui = @import("renderGui.zig");`). It starts like this:
@@ -554,8 +554,8 @@ pub const RenderGui = struct {
 As it has been described before, we will have two set of buffers, one for the vertices and the other one for the indices. We will have as
 many buffers frames in flight we have, We first check if `drawData` is null, which may be caused because we have not initialized the GUI
 or we do not have anything to render. After that, we retrieve the total size of the vertices and indices buffers to accommodate the
-render of the GUI elements in this frame. If there are no vertices or no indices, we just return. If the buffers doe not have enough space
-we create new Vulkan buffers cleaning up the old ones. The buffers need to be accessed from both the GPU and the application so we
+render of the GUI elements in this frame. If there are no vertices or no indices, we just return. If the buffers do not have enough space
+we create new Vulkan buffers cleaning up the old ones. The buffers need to be accessed from both the GPU and the application so
 we set `VmaAllocationCreateHostAccessSequentialWriteBit` and `MemoryPropertyHostVisibleBitAndCoherent` flags. After that, we just copy the
 vertices and indices data to those buffers by iterating over the different ImGui drawing commands.
 

@@ -2,7 +2,7 @@
 
 In this chapter we will introduce new concepts that are required to render a scene to the screen. We will finally combine all these new
 concepts with the elements described in previous chapters to clear the screen. Therefore, it is crucial to understand all of them and how
-are they related in order to be able to progress in the book.
+they are related in order to be able to progress in the book.
 
 You can find the complete source code for this chapter [here](../../booksamples/chapter-05).
 
@@ -11,7 +11,7 @@ You can find the complete source code for this chapter [here](../../booksamples/
 When we talked about queues we already mentioned that in Vulkan, work is submitted by recording commands (stored in a command buffer), and
 submitting them to a queue. It is time now to implement the support for these elements. Command buffers need to be instantiated through a
 command pool. Therefore, let's encapsulate Command pool creation in a struct named `VkCmdPool`. Its definition is quite simple (it's defined
-in the file `src/eng/vkVkCmd.zig` remember to include it in the `mod.zig` file: `pub const cmd = @import("vkCmd.zig");`):
+in the file `src/eng/vk/vkCmd.zig` (remember to include it in the `mod.zig` file: `pub const cmd = @import("vkCmd.zig");`):
 
 **File: src/eng/vk/vkCmd.zig**
 ```zig
@@ -120,8 +120,8 @@ pub const VkCmdBuff = struct {
 }
 ```
 
-The `VkCmdBuff` struct is now almost complete, there is still one function missing which basically submits it to a queue and waits it to be
-processed. But,  prior to showing that function we need to introduce new concepts.
+The `VkCmdBuff` struct is now almost complete, there is still one function missing which basically submits it to a queue and waits for it to be
+processed. But, prior to showing that function we need to introduce new concepts.
 
 ![CommandBuffer](rc05-yuml-01.svg)
 
@@ -297,7 +297,7 @@ pub const FRAMES_IN_FLIGHT = 2;
 There is an excellent resource [here](https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/03_Drawing/03_Frames_in_flight.html)
 which provides additional information.
 
-So then just create as many semaphores and fences as frames in flight an that's all, right? Again, it is not so easy!. We need to take care
+So then just create as many semaphores and fences as frames in flight and that's all, right? Again, it is not so easy!. We need to take care
 with swap chain image presentation. We will use a semaphore when submitting the work to a queue to be signaled after all the work has been
 done. We will use an array of semaphores for that, called `semsRenderComplete`. When presenting the acquired swap chain image we will use
 the proper index `semsRenderComplete[i]` when calling the `queuePresentKHR` function so presentation cannot start until render work has been
@@ -665,7 +665,7 @@ In order to present an image we need to call the `queuePresentKHR` function whic
 
 The `PresentInfoKHR` structure can be used to present more than one image. In this case we will be presenting just once at a time. The
 `p_wait_semaphores` will hold the list of semaphores that will be used to wait to present the images. Remember that this structure can refer
- to more than one image. In our case, is the semaphore that we use to signal that the render has been completed (we cannot present the image
+ to more than one image. In our case, it is the semaphore that we use to signal that the render has been completed (we cannot present the image
  until render has finished). The rest of attributes refer to the swap chain Vulkan handle and the indices of the images to be presented
  (the `p_image_indices` parameter in the function).
 
@@ -673,9 +673,9 @@ The `PresentInfoKHR` structure can be used to present more than one image. In th
 
 In this book we will use Vulkan dynamic rendering vs the traditional approach based on render passes. Dynamic rendering provides a simpler
 API in which we just refer to the attachments (the images) that we want to render to vs having to specify them upfront through render
-passes and frame buffers. The result is fewer code and reduced setup steps. Dynamic rendering provides more flexibility and we can change
+passes and frame buffers. The result is less code and reduced setup steps. Dynamic rendering provides more flexibility and we can change
 the target attachments at runtime without recreating the associated elements (render passes and frame buffers). However, for certain tasks
-it is a little bit more explicit than the traditional approach. For example, with render passes you get som implicit image transitions
+it is a little bit more explicit than the traditional approach. For example, with render passes you get some implicit image transitions
 (which basically prepared images from undefined layouts to the proper render one). Dynamic rendering requires us to explicitly define layout
 transitions and synchronization, which requires a little bit more of code, but is not so dramatic. In addition, I personally find more
 clear the dynamic render approach, where everything is explicit and you do not have to guess what automatic transition or locking is
@@ -743,7 +743,7 @@ attributes:
 
 - `image_view`: This is the image view that will be used for rendering. In our case a swap chain image (the one that we have acquired).
 - `image_layout`: The layout that the image will be when rendering. Vulkan image layouts define how the GPU interprets the memory of an
-image at any given time. Is like the "mode" into which an image is in in order to read/write data to/from it.
+image at any given time. Is like the "mode" into which an image is in order to read/write data to/from it.
 - `load_op`: Specifies what will happen to the contents of this attachment when the render starts. In our case we want to clear the
 contents so we use the `vulkan.AttachmentLoadOp.clear` value (equivalent to `VK_ATTACHMENT_LOAD_OP_CLEAR` value). Other possible values are
 `vulkan.AttachmentLoadOp.load` (equivalent to `VK_ATTACHMENT_LOAD_OP_LOAD`) to preserve the contents of the attachment (from a previous

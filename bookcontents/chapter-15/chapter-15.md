@@ -8,8 +8,8 @@ visuals. You can find the complete source code for this chapter [here](../../boo
 PBR tries to bring a more realistic way of handling lights, compared with simpler models such as Phong or Blinn-Phong models, but still
 keeping it simple enough so it can be applied in real time. Instead of trying to summarize here what PBR consists of I will link to the best
 tutorial I've found about this: [https://learnopengl.com/PBR/Theory](https://learnopengl.com/PBR/Theory). In that link you will be able to
-read about theory and to see how it can be implemented. In fact, most of the PBR computation functions lighting fragment shader source
-code are a copy of the ones defined in that page (developed by [Joey de Vries](https://twitter.com/JoeyDeVriez) and licensed under the
+read about theory and to see how it can be implemented. In fact, most of the PBR computation functions in the lighting fragment shader source
+code are a copy of the ones defined in that page (developed by [Joey de Vries](https://twitter.com/JoeyDeVries) and licensed under the
 terms of the [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/legalcode)).
 
 ## Material changes
@@ -80,7 +80,7 @@ fn processMaterial(
 }
 ```
 
-We try to get the metal-roughness texture if the material has PBR information. We also try to get normal map texture if its available.
+We try to get the metal-roughness texture if the material has PBR information. We also try to get normal map texture if it's available.
 Normal maps are defined in the so called tangent space. The tangent space is a coordinate system that is local to each triangle of the
 model. In that coordinate space the `z` axis always points out of the surface. This is the reason why a normal map is usually bluish,
 even for complex models with opposing faces.
@@ -383,7 +383,7 @@ As you can see, we have modified the way we add textures in the texture cache to
 metallic-roughness maps will have a different texture format (`r8g8b8a8_unorm` in this case) than the textures that will be used for the
 albedo (`r8g8b8a8_srgb`). We do not want any color conversion to the normal maps. But, `r8g8b8a8_unorm` holds unsigned values, shouldn't
 normal values contain signed values? The answer is yes, normals can have negative values. We will store as unsigned values in the texture
-map (adjusting the values to match in the `[0-1]` range) and then and then apply a conversion when reading from the normal map.
+map (adjusting the values to match in the `[0-1]` range) and then apply a conversion when reading from the normal map.
 
 
 The changes in the `TextureCache` struct are quite straightforward:
@@ -863,7 +863,7 @@ pub const RenderLight = struct {
 
 We will use two new descriptor sets, one to store light information and the other one to store general scene information (ambient light,
 total number of active lights, and the camera position which will be used in light computation). Lights information will be exposed to the
-shader as an storage buffer (it will be basically an array of lights) while scene information will be a uniform. For both descriptor sets
+shader as a storage buffer (it will be basically an array of lights) while scene information will be a uniform. For both descriptor sets
 we will use buffers. Since the information stored in them may change in each frame we will use an array of buffers with as many instances
 as frames in flight.
 
@@ -1009,7 +1009,7 @@ been heavily changed. It starts like this:
 #extension GL_EXT_scalar_block_layout: require
 
 // CREDITS: Most of the functions here have been obtained from this link: https://github.com/SaschaWillems/Vulkan
-// developed by Sascha Willems, https://twitter.com/JoeyDeVriez, and licensed under the terms of the MIT License (MIT)
+// developed by Sascha Willems, https://twitter.com/JoeyDeVries, and licensed under the terms of the MIT License (MIT)
 
 layout(location = 0) in vec2 inTextCoord;
 
@@ -1043,8 +1043,8 @@ layout(scalar, set = 2, binding = 0) uniform SceneInfo {
 
 The fragment shader still only receives the texture coordinates and generates an output color. It uses four input attachments that
 will be sampled as textures. These are the outputs generated in the scene render stage. We define some constants and then the structure to
-hold lights information (a position, if its directional or not, its intensity and color). Lights are contained in an storage buffer which
-defines an array of lights. Finally there is a uniform that stores camera  position, the ambient color and the number of lights. You may have
+hold lights information (a position, if it's directional or not, its intensity and color). Lights are contained in a storage buffer which
+defines an array of lights. Finally there is a uniform that stores camera position, the ambient color and the number of lights. You may have
 noticed that we are using a new layout format in the uniform, the `scalar` one. This layout allows us to use a more flexible layout of data,
 without having to fulfill `std140` constraints. Basically it will remove the need to use padding data. In order to use it in the shaders, we
 need to enable the `GL_EXT_scalar_block_layout` GLSL extension to use it, this is why we include the line

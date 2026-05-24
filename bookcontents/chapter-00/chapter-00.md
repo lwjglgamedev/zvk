@@ -22,9 +22,9 @@ also cross-platform?
 
 - As a modern API, it has been designed with modern hardware capabilities in mind (GPUs and CPUs).
   For example, [concurrency support](https://en.wikipedia.org/wiki/Concurrency_(computer_science)) is part one of the strongest points of Vulkan.
-  This dramatically improves the performance of applications that may now be CPU constrained by the single-threaded nature of some other APIs (such us OpenGL).
+  This dramatically improves the performance of applications that may now be CPU constrained by the single-threaded nature of some other APIs (such as OpenGL).
 
-- It is a lower overhead API, in the sense that most part of the work must be done explicitly done in the application.
+- It is a lower overhead API, in the sense that most of the work must be done explicitly in the application.
   Hence, developers need to be very direct and precisely control every aspect.
   This simplifies the Vulkan drivers which provide a very thin layer on top of the hardware.
 

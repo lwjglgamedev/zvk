@@ -35,7 +35,7 @@ pub fn build(b: *std.Build) void {
 The code for that executable will be located in the `src/eng/modelGen.zig` file.
 
 Since we will also need to load textures, we will use the [Zstbi](https://github.com/zig-gamedev/zstbi) library. Therefore, you will need to
-add the dependency to the `build-.zig.zon` using `zig fetch --save https://github.com/zig-gamedev/zstbi/archive/664305dd52640be15cbebd7cd73d1199679933e1.tar.gz`.
+add the dependency to the `build.zig.zon` using `zig fetch --save https://github.com/zig-gamedev/zstbi/archive/664305dd52640be15cbebd7cd73d1199679933e1.tar.gz`.
 
 In the `build.zig` file we need to define the zstbi dependency and add it to the `eng` and the root modules:
 
@@ -218,7 +218,7 @@ pub fn main() !void {
 }
 ```
 
-After that, we get the meshes and their primitives. In GLTF a model is composed by meshes and a meshes is composed by primitives. In our
+After that, we get the meshes and their primitives. In GLTF a model is composed by meshes and a mesh is composed by primitives. In our
 case we will assimilate primitive as meshes in our engines. GLTF primitives will define the vertices, texture coordinates, indices and will
 be associated to materials, so, from our point of view are the meshes. Each primitive will be processed in the `processMesh` function and
 added to a list as a `MeshIntData` struct. This struct is defined in the beginning of the file as:
@@ -405,8 +405,8 @@ fn processMaterial(
 }
 ```
 
-This functions is executed for each of the materials found in the model file. First we retrieve the diffuse texture path (if present) and
-then, the diffuse color accesing `zmesh.io.zcgltf.Material`'s `pbr_metallic_roughness` attribute. We just dump that information into a
+This function is executed for each of the materials found in the model file. First we retrieve the diffuse texture path (if present) and
+then, the diffuse color accessing `zmesh.io.zcgltf.Material`'s `pbr_metallic_roughness` attribute. We just dump that information into a
 `eng.mdata.MaterialData` instance and return it. We will not be supporting embedded textures (textures contained inside the
 GLTF file) by now.
 
@@ -456,8 +456,8 @@ fn processMesh(
 ```
 
 This function extracts indices, positions and texture coordinates from a GLTF primitive by calling the `appendMeshPrimitive`. It also
-associates the mes with its material. Each primitive will have a pointer to the associated material the vertices, we need to get the index
-of that material in the list that we constructed previously taking that pointer as a input. This what the `materialIndexFromPtr` function
+associates the mesh with its material. Each primitive will have a pointer to the associated material the vertices, we need to get the index
+of that material in the list that we constructed previously taking that pointer as an input. This is what the `materialIndexFromPtr` function
 does:
 
 **File: src/eng/modelGen.zig**
@@ -473,7 +473,7 @@ fn materialIndexFromPtr(
 ```
 
 All the materials pointers are basically an offset over the base pointer which address the materials list, so subtracting the material
-pointer form the base pointer we basically get an offset in bytes which we can divided by the `zmesh.io.zcgltf.Material`
+pointer from the base pointer we basically get an offset in bytes which we can divide by the `zmesh.io.zcgltf.Material`
 size to get an index.
 
 Finally the last function just prints some help text if the wrong number of arguments have been passed to the model generation executable:
@@ -561,14 +561,14 @@ pub const VkTexture = struct {
 
 The `create` function will create new instances of `VkTexture` structs and will receive, in addition of the Vulkan the context, an instance
 of the `vkTextureInfo` struct that will hold all the required data. It creates first an image and image view and then a staging buffer
-which is CPU accessible to copy image contents.It is interesting to review the usage flags we are using in in this case:
+which is CPU accessible to copy image contents. It is interesting to review the usage flags we are using in this case:
 
 - `transfer_dst_bit` (`VK_IMAGE_USAGE_TRANSFER_DST_BIT`): The image can be used as a destination of a transfer command.
 We need this, because in our case, we will copy from a staging buffer to the image.
 - `sampled_bit` (`VK_IMAGE_USAGE_SAMPLED_BIT`): The image can be used to occupy a descriptor set (more on this later).
 In our case, the image needs to be used by a sampler in a fragment shader, so we need to set this flag.
 
-The `recorded` attribute will control if a texture has been recorded (transitioned to ist final layout) or not.
+The `recorded` attribute will control if a texture has been recorded (transitioned to its final layout) or not.
 
 At the end of the `create` function we just copy the image data to the staging buffer associated to the image by calling a function
 that is located in the `vkBuffer.zig`:
@@ -1204,14 +1204,14 @@ We will always have a default material, to fall back to when rendering if the as
 default material, and create a list which stores references of the provided materials and this new default one which be located at position
 `0`. As in the case of the models, we create a staging buffer and a GPU only accessible buffer for the materials. We iterate over the
 materials populating the buffer. We also populate the texture cache with the textures that we find associated to the materials. Keep in mind
-that we may use more textures than the ones strictly used by models. You will see that We need to add padding data, because due to the
+that we may use more textures than the ones strictly used by models. You will see that we need to add padding data, because due to the
 layout rules used in shaders, the minimum size of data will be multiples of `vec4`, therefore since we initially only need 6 bytes, we need
 to compensate with two more. At the end of the loop, we just record the transfer command, submit it to the queue, and wait for it to be
 finished. 
 
 ## Descriptors
 
-Descriptors represent shader resources such us buffers, images or samplers. We will need to use descriptors in order to access the textures
+Descriptors represent shader resources such as buffers, images or samplers. We will need to use descriptors in order to access the textures
 from the shaders and also for uniforms (in Vulkan uniforms are just the way to access buffers in the shaders). Descriptors are grouped in
 descriptor sets, whose general structure is defined through descriptor layouts. Descriptors are like handles to access resources from
 shaders, and they are created through a descriptor pool.
@@ -1579,7 +1579,7 @@ pub const VkDesSet = struct {
 ```
 
 In this case, the process is quite similar, but we use a `DescriptorImageInfo` to associate with an image view instead of a buffer and use
-the `p_image_info` when writing to a descriptor set. In this case, we provide a function to associate to a image view. We need to use a
+the `p_image_info` when writing to a descriptor set. In this case, we provide a function to associate to an image view. We need to use a
 `VkTextSampler`, which if you recall will specify how we will access the image.
 
 Finally, let's add a new function to associate an array of images to a descriptor set:
@@ -2274,7 +2274,7 @@ pub const RenderScn = struct {
 ```
 
 We need to update the projection matrix buffer by calling the `updateCamera` function. After that we will use the `VkDescAllocator` struct,
-we can fill a list with the descriptor sets handles retrieving them by their id. In order to use them we need to bind those descriptor sets
+we can fill a list with the descriptor set handles retrieving them by their id. In order to use them we need to bind those descriptor sets
 while rendering by calling the `cmdBindDescriptorSets` Vulkan function. While iterating over the meshes, we get the material index and set
 the push constants accordingly.
 
