@@ -5,23 +5,23 @@
     .minimum_zig_version = "0.16.0",
     .dependencies = .{
         .sdl3 = .{
-            .url = "https://codeberg.org/7Games/zig-sdl3/archive/v0.2.0.tar.gz",
-            .hash = "sdl3-0.2.0-NmT1Q0mFJwBi9kZmArzh2rfJ_mFshydV0zPGULVlpACc",
+            .url = "https://codeberg.org/7Games/zig-sdl3/archive/v0.2.1.tar.gz",
+            .hash = "sdl3-0.2.1-NmT1Q9YZKAAmuTV7fFuZHwH2jFQtw2uvVahQSMSD6DbK",
         },
         .vulkan = .{
-            .url = "https://github.com/Snektron/vulkan-zig/archive/f75b0011214705d6593e6ad64948c4832b1e6f27.tar.gz",
-            .hash = "vulkan-0.0.0-r7Ytx759AwBNdwE-gHKt3vzRQaU7RFerBg3FmD7iTEv4",
+            .url = "https://github.com/Snektron/vulkan-zig/archive/b496a6a561ffbbeb530b0f9ed4e059f88c0723a5.tar.gz",
+            .hash = "vulkan-0.0.0-r7Ytx7N9AwD7IZt5_XNHtkJ4G9qY0pCH-cpcOsbL8wzD",
         },
         .vulkan_headers = .{
-            .url = "https://github.com/KhronosGroup/Vulkan-Headers/archive/refs/tags/v1.4.351.tar.gz",
-            .hash = "N-V-__8AAMZuLQIcPe--JSv0kn_Ga8tsjgbkaojW0OHW2Rfd",
+            .url = "https://github.com/KhronosGroup/Vulkan-Headers/archive/refs/tags/v1.4.353.tar.gz",
+            .hash = "N-V-__8AAA_gewLAqvkaEZqi4gTYHHr2t1zlcXTnm1S3GNin",
         },
         .toml = .{
-            .url = "https://github.com/sam701/zig-toml/archive/a73c9423d88ed413204b39638fab7e9bccdb83fd.tar.gz",
-            .hash = "toml-0.3.0-bV14Be6EAQDr0fkyURz4jYFyTAMPcwlNN0FEPVjDnXTR",
+            .url = "https://github.com/sam701/zig-toml/archive/24e0deeceaad1b7f1b12027ebae1c65ff1d86e33.tar.gz",
+            .hash = "toml-0.3.0-bV14BVqIAQANb68hDuVPZ72hrcIhT-fv_fcIbetQIAyg",
         },
         .vma = .{
-            .url = "https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator/archive/refs/tags/v3.3.0.tar.gz",
+            .url = "https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator/archive/refs/tags/v3.4.0.tar.gz",
             .hash = "N-V-__8AAIutPgABk6NlXZhlJ5P8qVECvakZIKoO94h7xUOw",
         },
         .zmath = .{
