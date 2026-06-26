@@ -66,6 +66,7 @@ pub const Render = struct {
     mustResize: bool,
     queueGraphics: vk.queue.VkQueue,
     queuePresent: vk.queue.VkQueue,
+    renderAnim: eng.ranm.RenderAnim,
     renderGui: eng.rgui.RenderGui,
     renderLight: eng.rlgt.RenderLight,
     renderPost: eng.rpst.RenderPost,
@@ -78,6 +79,7 @@ pub const Render = struct {
     pub fn cleanup(self: *Render, allocator: std.mem.Allocator) !void {
         try self.vkCtx.vkDevice.wait();
 
+        self.renderAnim.cleanup(allocator, &self.vkCtx);
         self.renderGui.cleanup(allocator, &self.vkCtx);
         self.renderPost.cleanup(&self.vkCtx);
         self.renderScn.cleanup(allocator, &self.vkCtx);
@@ -147,6 +149,7 @@ pub const Render = struct {
         const queueGraphics = vk.queue.VkQueue.create(&vkCtx, vkCtx.vkPhysDevice.queuesInfo.graphics_family);
         const queuePresent = vk.queue.VkQueue.create(&vkCtx, vkCtx.vkPhysDevice.queuesInfo.present_family);
 
+        const renderAnim = try eng.ranm.RenderAnim.create(allocator, io, &vkCtx);
         const renderGui = try eng.rgui.RenderGui.create(allocator, io, &vkCtx);
         const renderScn = try eng.rscn.RenderScn.create(allocator, io, &vkCtx);
         const renderShadow = try eng.rsha.RenderShadow.create(allocator, io, &vkCtx, constants);
@@ -174,6 +177,7 @@ pub const Render = struct {
             .mustResize = false,
             .queueGraphics = queueGraphics,
             .queuePresent = queuePresent,
+            .renderAnim = renderAnim,
             .renderGui = renderGui,
             .renderLight = renderLight,
             .renderPost = renderPost,

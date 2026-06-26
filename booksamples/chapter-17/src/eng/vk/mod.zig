@@ -1,5 +1,6 @@
 pub const buf = @import("vkBuffer.zig");
 pub const cmd = @import("vkCmd.zig");
+pub const cpipe = @import("vkCompPipeline.zig");
 pub const ctx = @import("vkCtx.zig");
 pub const dev = @import("vkDevice.zig");
 pub const desc = @import("vkDescs.zig");
