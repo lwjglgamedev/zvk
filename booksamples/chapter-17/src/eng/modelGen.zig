@@ -194,6 +194,16 @@ pub fn normalizePath(allocator: std.mem.Allocator, input_path: []const u8) ![]co
     return result;
 }
 
+fn printHelp() void {
+    std.debug.print(
+        \\Usage: model-gen [OPTIONS]
+        \\
+        \\Options:
+        \\  -m  FILE       Path to the model file
+        \\
+    , .{});
+}
+
 fn processMaterial(
     allocator: std.mem.Allocator,
     io: std.Io,
@@ -246,6 +256,75 @@ fn embeddedTextureIndex(path: []const u8) ?usize {
     return std.fmt.parseInt(usize, path[1..], 10) catch null;
 }
 
+fn processMesh(
+    allocator: std.mem.Allocator,
+    mesh: *const zassimp.aiMesh,
+    materialList: std.ArrayListUnmanaged(eng.mdata.MaterialData),
+) !MeshIntData {
+    const id = try std.fmt.allocPrint(allocator, "mesh-{}", .{@intFromPtr(mesh)});
+    const numVertices = mesh.mNumVertices;
+
+    var indices: std.ArrayListUnmanaged(u32) = .empty;
+    var positions: std.ArrayListUnmanaged([3]f32) = .empty;
+    var texcoords: std.ArrayListUnmanaged([2]f32) = .empty;
+    var normals: std.ArrayListUnmanaged([3]f32) = .empty;
+    var tangents: std.ArrayListUnmanaged([3]f32) = .empty;
+
+    // Material
+    var materialId: []const u8 = "";
+    const matIdx = mesh.mMaterialIndex;
+    if (matIdx < materialList.items.len) {
+        materialId = materialList.items[matIdx].id;
+    }
+
+    // Positions
+    const vtx = mesh.mVertices[0..numVertices];
+    try positions.ensureTotalCapacity(allocator, numVertices);
+    for (vtx) |v| try positions.append(allocator, .{ v.x, v.y, v.z });
+
+    // Normals
+    if (mesh.mNormals) |normsPtr| {
+        const norms = normsPtr[0..numVertices];
+        try normals.ensureTotalCapacity(allocator, numVertices);
+        for (norms) |n| try normals.append(allocator, .{ n.x, n.y, n.z });
+    }
+
+    // Tangents
+    if (mesh.mTangents) |tangsPtr| {
+        const tangs = tangsPtr[0..numVertices];
+        try tangents.ensureTotalCapacity(allocator, numVertices);
+        for (tangs) |t| try tangents.append(allocator, .{ t.x, t.y, t.z });
+    }
+
+    // Texcoords
+    if (mesh.mTextureCoords[0]) |uvPtr| {
+        const uvArray: [*c]zassimp.aiVector3D = @ptrCast(uvPtr);
+        const uvs = uvArray[0..numVertices];
+        try texcoords.ensureTotalCapacity(allocator, numVertices);
+        for (uvs) |uv| try texcoords.append(allocator, .{ uv.x, 1 - uv.y });
+    }
+
+    // Indices
+    var totalIndices: usize = 0;
+    const faces = mesh.mFaces[0..mesh.mNumFaces];
+    for (faces) |face| totalIndices += face.mNumIndices;
+    try indices.ensureTotalCapacity(allocator, totalIndices);
+    for (faces) |face| {
+        const faceIndices = face.mIndices[0..face.mNumIndices];
+        for (faceIndices) |idx| try indices.append(allocator, idx);
+    }
+
+    return MeshIntData{
+        .id = id,
+        .materialId = materialId,
+        .indices = indices,
+        .positions = positions,
+        .texcoords = texcoords,
+        .normals = normals,
+        .tangents = tangents,
+    };
+}
+
 fn processTexture(
     allocator: std.mem.Allocator,
     io: std.Io,
@@ -282,83 +361,4 @@ fn processTexture(
 
     const fileName = std.fs.path.basename(texturePathSlice);
     return try std.fmt.allocPrint(allocator, "{s}/{s}", .{ baseDir, fileName });
-}
-
-fn processMesh(
-    allocator: std.mem.Allocator,
-    mesh: *const zassimp.aiMesh,
-    materialList: std.ArrayListUnmanaged(eng.mdata.MaterialData),
-) !MeshIntData {
-    const id = try std.fmt.allocPrint(allocator, "mesh-{}", .{@intFromPtr(mesh)});
-    const numVertices = mesh.mNumVertices;
-
-    var indices: std.ArrayListUnmanaged(u32) = .empty;
-    var positions: std.ArrayListUnmanaged([3]f32) = .empty;
-    var texcoords: std.ArrayListUnmanaged([2]f32) = .empty;
-    var normals: std.ArrayListUnmanaged([3]f32) = .empty;
-    var tangents: std.ArrayListUnmanaged([3]f32) = .empty;
-
-    // Material
-    var materialId: []const u8 = "";
-    const matIdx = mesh.mMaterialIndex;
-    if (matIdx < materialList.items.len) {
-        materialId = materialList.items[matIdx].id;
-    }
-
-    // Positions
-    const vtx = mesh.mVertices[0..numVertices];
-    try positions.ensureTotalCapacity(allocator, numVertices);
-    for (vtx) |v| try positions.append(allocator, .{ v.x, v.y, v.z });
-
-    // Normals
-    if (mesh.mNormals) |normsPtr| {
-        const norms = normsPtr[0..numVertices];
-        try normals.ensureTotalCapacity(allocator, numVertices);
-        for (norms) |n| try normals.append(allocator, .{ n.x, n.y, n.z });
-    }
-
-    // Tangents (aiMesh stores [4]f32, we take the first 3)
-    if (mesh.mTangents) |tangsPtr| {
-        const tangs = tangsPtr[0..numVertices];
-        try tangents.ensureTotalCapacity(allocator, numVertices);
-        for (tangs) |t| try tangents.append(allocator, .{ t.x, t.y, t.z });
-    }
-
-    // Texcoords (UV set 0)
-    if (mesh.mTextureCoords[0]) |uvPtr| {
-        const uvArray: [*c]zassimp.aiVector3D = @ptrCast(uvPtr);
-        const uvs = uvArray[0..numVertices];
-        try texcoords.ensureTotalCapacity(allocator, numVertices);
-        for (uvs) |uv| try texcoords.append(allocator, .{ uv.x, 1 - uv.y });
-    }
-
-    // Indices (from faces)
-    var totalIndices: usize = 0;
-    const faces = mesh.mFaces[0..mesh.mNumFaces];
-    for (faces) |face| totalIndices += face.mNumIndices;
-    try indices.ensureTotalCapacity(allocator, totalIndices);
-    for (faces) |face| {
-        const faceIndices = face.mIndices[0..face.mNumIndices];
-        for (faceIndices) |idx| try indices.append(allocator, idx);
-    }
-
-    return MeshIntData{
-        .id = id,
-        .materialId = materialId,
-        .indices = indices,
-        .positions = positions,
-        .texcoords = texcoords,
-        .normals = normals,
-        .tangents = tangents,
-    };
-}
-
-fn printHelp() void {
-    std.debug.print(
-        \\Usage: model-gen [OPTIONS]
-        \\
-        \\Options:
-        \\  -m  FILE       Path to the model file
-        \\
-    , .{});
 }
