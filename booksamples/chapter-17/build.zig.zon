@@ -28,10 +28,6 @@
             .url = "https://github.com/zig-gamedev/zmath/archive/9e42b04a24c970a297b365f3d3022f92dbf3219d.tar.gz",
             .hash = "zmath-0.11.0-dev-wjwivTwtAwDOjG2_KGP-HLtHrONfsFfHttalmxFAGVAK",
         },
-        .zmesh = .{
-            .url = "https://github.com/zig-gamedev/zmesh/archive/a0efcc452eab17550ad5525df2293009e9cbaf66.tar.gz",
-            .hash = "zmesh-0.11.0-dev-oO3A5kqTCgAF9nWzOGHywV6-07-wJRUIMm1RH7BlCTHb",
-        },
         .zstbi = .{
             .url = "https://github.com/zig-gamedev/zstbi/archive/3813f5f113b26f644cfa01a30155cc76b3526e91.tar.gz",
             .hash = "zstbi-0.11.0-dev-L0Ea_3GWBwAh7m54XX055vwLKPTPij5hyqyeq92MXPE2",
@@ -43,6 +39,10 @@
         .zaudio = .{
             .url = "https://github.com/fourlexboehm/zaudio/archive/557f8fcdf0c26e86a57f83e2a67affd09aa6498b.tar.gz",
             .hash = "zaudio-0.11.0-dev-_M-91qoyQQDfje5uM1OSx8a67bMWZMza4gWUhbqKJCV2",
+        },
+        .zig_assimp = .{
+            .url = "git+https://github.com/lwjglgamedev/assimp#2a7b8937141e79ee808cb288642ac7a0c3f7a9cf",
+            .hash = "zig_assimp-6.0.5-8EpygiG9AABqzVJGVqsg4ZsTC5-Yae_1ShSGloK3OJSV",
         },
     },
     .paths = .{

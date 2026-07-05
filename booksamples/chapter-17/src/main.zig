@@ -18,6 +18,7 @@ pub fn main(init: std.process.Init) !void {
 
 const Game = struct {
     const ENTITY_ID: []const u8 = "SponzaEntity";
+    const BOB_ENTITY_ID: []const u8 = "BobEntity";
 
     lightAngle: f32 = 90.0,
 
@@ -27,7 +28,7 @@ const Game = struct {
 
     pub fn init(self: *Game, engCtx: *eng.engine.EngCtx, arenaAlloc: std.mem.Allocator) !eng.engine.InitData {
         const sponzaModel = try eng.mdata.loadModel(arenaAlloc, engCtx.io, "res/models/sponza/Sponza.json");
-        const models = try arenaAlloc.alloc(eng.mdata.ModelData, 1);
+        const models = try arenaAlloc.alloc(eng.mdata.ModelData, 2);
         models[0] = sponzaModel;
 
         const sponzaEntity = try eng.ent.Entity.create(engCtx.allocator, ENTITY_ID, sponzaModel.id);
@@ -36,9 +37,21 @@ const Game = struct {
         sponzaEntity.update();
         try engCtx.scene.addEntity(sponzaEntity);
 
+        const bobModel = try eng.mdata.loadModel(arenaAlloc, engCtx.io, "res/models/bob/boblamp.json");
+        models[1] = bobModel;
+
+        const bobEntity = try eng.ent.Entity.create(engCtx.allocator, BOB_ENTITY_ID, bobModel.id);
+        bobEntity.setPos(0.0, 0.0, 0.0);
+        bobEntity.scale = 0.04;
+        bobEntity.update();
+        try engCtx.scene.addEntity(bobEntity);
+
         var materials = try std.ArrayList(eng.mdata.MaterialData).initCapacity(arenaAlloc, 1);
         const sponzaMaterials = try eng.mdata.loadMaterials(arenaAlloc, engCtx.io, "res/models/sponza/Sponza-mat.json");
         try materials.appendSlice(arenaAlloc, sponzaMaterials.items);
+
+        const bobMaterials = try eng.mdata.loadMaterials(arenaAlloc, engCtx.io, "res/models/bob/boblamp-mat.json");
+        try materials.appendSlice(arenaAlloc, bobMaterials.items);
 
         var viewData = &engCtx.scene.camera.viewData;
         viewData.pos = zm.Vec{ 0.0, 3.0, -4.0, 0.0 };

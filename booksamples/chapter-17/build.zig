@@ -112,6 +112,7 @@ pub fn build(b: *std.Build) void {
         .{ .path = "res/shaders/gui_frg.glsl", .stage = "fragment" },
         .{ .path = "res/shaders/shadow_vtx.glsl", .stage = "vertex" },
         .{ .path = "res/shaders/shadow_frg.glsl", .stage = "fragment" },
+        .{ .path = "res/shaders/anim_comp.glsl", .stage = "compute" },
     };
     for (shaders) |shader| {
         std.log.debug("Compiling [{s}]", .{shader.path});
@@ -150,9 +151,9 @@ pub fn build(b: *std.Build) void {
             .optimize = optimize,
         }),
     });
-    const zmesh = b.dependency("zmesh", .{});
-    modelGen.root_module.addImport("zmesh", zmesh.module("root"));
-    modelGen.root_module.linkLibrary(zmesh.artifact("zmesh"));
+    // assimp
+    const zassimpDep = b.dependency("zig_assimp", .{});
+    modelGen.root_module.addImport("zassimp", zassimpDep.module("root"));
     modelGen.root_module.addImport("zmath", zmath);
     b.installArtifact(modelGen);
 }
