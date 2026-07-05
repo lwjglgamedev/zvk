@@ -329,7 +329,7 @@ fn processMesh(
         const uvArray: [*c]zassimp.aiVector3D = @ptrCast(uvPtr);
         const uvs = uvArray[0..numVertices];
         try texcoords.ensureTotalCapacity(allocator, numVertices);
-        for (uvs) |uv| try texcoords.append(allocator, .{ uv.x, uv.y });
+        for (uvs) |uv| try texcoords.append(allocator, .{ uv.x, 1 - uv.y });
     }
 
     // Indices (from faces)
