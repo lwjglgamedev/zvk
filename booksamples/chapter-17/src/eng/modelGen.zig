@@ -21,6 +21,155 @@ const MeshIntData = struct {
     }
 };
 
+fn buildFrameMatrices(
+    aiAnimation: *const zassimp.aiAnimation,
+    boneList: *const std.ArrayListUnmanaged(eng.mdata.Bone),
+    animatedFrame: *eng.mdata.AnimatedFrame,
+    frameIdx: usize,
+    node: *const eng.mdata.NodeData,
+    nodeParentTransform: zm.Mat,
+    globalInverseTransform: zm.Mat,
+) void {
+    // Find the animation channel for this node
+    var channel: ?*const zassimp.aiNodeAnim = null;
+    const numChannels = aiAnimation.mNumChannels;
+    if (aiAnimation.mChannels) |channelsPtr| {
+        const channels = channelsPtr[0..numChannels];
+        for (channels) |channelPtr| {
+            if (channelPtr) |cp| {
+                const ch: *const zassimp.aiNodeAnim = @ptrCast(cp);
+                if (std.mem.eql(u8, ch.mNodeName.data[0..ch.mNodeName.length], node.name)) {
+                    channel = ch;
+                    break;
+                }
+            }
+        }
+    }
+
+    // Compute this node's local transformation
+    var nodeTransform = zm.matFromArr(node.transformation);
+    if (channel) |ch| {
+        const pos = calculatePosition(ch, frameIdx);
+        const rot = calculateRotation(ch, frameIdx);
+        const scl = calculateScaling(ch, frameIdx);
+
+        const translation = zm.translation(pos[0], pos[1], pos[2]);
+        const rotation = zm.quatToMat(.{ rot[0], rot[1], rot[2], rot[3] });
+        const scaling = zm.scaling(scl[0], scl[1], scl[2]);
+        nodeTransform = zm.mul(zm.mul(scaling, rotation), translation);
+    }
+
+    // World transform = parent * local
+    const worldTransform = zm.mul(nodeTransform, nodeParentTransform);
+
+    // If this node is a bone, compute the joint matrix
+    for (boneList.items, 0..) |bone, boneId| {
+        if (std.mem.eql(u8, bone.name, node.name)) {
+            if (boneId < animatedFrame.joint_matrices.len) {
+                const offsetMat = zm.matFromArr(bone.offset_matrix);
+                animatedFrame.joint_matrices[boneId] = @bitCast(zm.mul(
+                    offsetMat,
+                    zm.mul(worldTransform, globalInverseTransform),
+                ));
+            }
+            break;
+        }
+    }
+
+    // Recurse children
+    for (node.children) |*child| {
+        buildFrameMatrices(aiAnimation, boneList, animatedFrame, frameIdx, child, worldTransform, globalInverseTransform);
+    }
+}
+
+fn buildNodesTree(
+    allocator: std.mem.Allocator,
+    aiNode: *const zassimp.aiNode,
+    parent: ?*const eng.mdata.NodeData,
+) !eng.mdata.NodeData {
+    _ = parent;
+
+    const name = try allocator.dupe(u8, aiNode.mName.data[0..aiNode.mName.length]);
+    const transformation = toMatrix(aiNode.mTransformation);
+
+    // Copy mesh indices
+    const numMeshes = aiNode.mNumMeshes;
+    var meshes: []u32 = &.{};
+    if (numMeshes > 0 and aiNode.mMeshes != null) {
+        meshes = try allocator.alloc(u32, numMeshes);
+        const srcMeshes = aiNode.mMeshes[0..numMeshes];
+        for (srcMeshes, 0..) |meshIdx, i| {
+            meshes[i] = meshIdx;
+        }
+    }
+
+    // Recurse children
+    const numChildren = aiNode.mNumChildren;
+    var children: []eng.mdata.NodeData = &.{};
+    if (numChildren > 0 and aiNode.mChildren != null) {
+        children = try allocator.alloc(eng.mdata.NodeData, numChildren);
+        const srcChildren = aiNode.mChildren[0..numChildren];
+        for (srcChildren, 0..) |childPtr, i| {
+            if (childPtr) |child| {
+                children[i] = try buildNodesTree(allocator, child, null);
+            }
+        }
+    }
+
+    return eng.mdata.NodeData{
+        .name = name,
+        .transformation = @bitCast(transformation),
+        .children = children,
+        .meshes = meshes,
+    };
+}
+
+fn calcAnimationMaxFrames(aiAnimation: *const zassimp.aiAnimation) usize {
+    var maxFrames: usize = 0;
+    const numChannels = aiAnimation.mNumChannels;
+    if (aiAnimation.mChannels) |channelsPtr| {
+        const channels = channelsPtr[0..numChannels];
+        for (channels) |channelPtr| {
+            if (channelPtr) |cp| {
+                const channel: *const zassimp.aiNodeAnim = @ptrCast(cp);
+                if (channel.mNumPositionKeys > maxFrames) maxFrames = channel.mNumPositionKeys;
+                if (channel.mNumRotationKeys > maxFrames) maxFrames = channel.mNumRotationKeys;
+                if (channel.mNumScalingKeys > maxFrames) maxFrames = channel.mNumScalingKeys;
+            }
+        }
+    }
+    return maxFrames;
+}
+
+fn calculatePosition(channel: *const zassimp.aiNodeAnim, frameIdx: usize) [3]f32 {
+    if (channel.mNumPositionKeys == 0) return .{ 0.0, 0.0, 0.0 };
+    const keys = channel.mPositionKeys[0..channel.mNumPositionKeys];
+    const idx = @min(frameIdx, keys.len - 1);
+    const val = keys[idx].mValue;
+    return .{ val.x, val.y, val.z };
+}
+
+fn calculateRotation(channel: *const zassimp.aiNodeAnim, frameIdx: usize) [4]f32 {
+    if (channel.mNumRotationKeys == 0) return .{ 0.0, 0.0, 0.0, 1.0 };
+    const keys = channel.mRotationKeys[0..channel.mNumRotationKeys];
+    const idx = @min(frameIdx, keys.len - 1);
+    const val = keys[idx].mValue;
+    return .{ val.x, val.y, val.z, val.w };
+}
+
+fn calculateScaling(channel: *const zassimp.aiNodeAnim, frameIdx: usize) [3]f32 {
+    if (channel.mNumScalingKeys == 0) return .{ 1.0, 1.0, 1.0 };
+    const keys = channel.mScalingKeys[0..channel.mNumScalingKeys];
+    const idx = @min(frameIdx, keys.len - 1);
+    const val = keys[idx].mValue;
+    return .{ val.x, val.y, val.z };
+}
+
+fn embeddedTextureIndex(path: []const u8) ?usize {
+    if (path.len < 2 or path[0] != '*') return null;
+    return std.fmt.parseInt(usize, path[1..], 10) catch null;
+}
+
 pub fn main(init: std.process.Init) !void {
     var arena = std.heap.ArenaAllocator.init(init.gpa);
     const allocator = arena.allocator();
@@ -44,7 +193,7 @@ pub fn main(init: std.process.Init) !void {
     defer dir.close(io);
 
     const flags = zassimp.aiProcess_GenSmoothNormals | zassimp.aiProcess_JoinIdenticalVertices |
-        zassimp.aiProcess_Triangulate | zassimp.aiProcess_FixInfacingNormals | zassimp.aiProcess_CalcTangentSpace;
+        zassimp.aiProcess_Triangulate | zassimp.aiProcess_FixInfacingNormals | zassimp.aiProcess_CalcTangentSpace | zassimp.aiProcess_LimitBoneWeights;
     const scene = zassimp.aiImportFile(modelPath, flags) orelse {
         const err = std.mem.sliceTo(zassimp.aiGetErrorString(), 0);
         std.debug.print("Failed to import mode: {s}\n", .{err});
@@ -136,6 +285,35 @@ pub fn main(init: std.process.Init) !void {
         }
     }
 
+    const numAnimations = scene.mNumAnimations;
+    std.debug.print("Animations [{d}]\n", .{numAnimations});
+
+    var boneList: std.ArrayListUnmanaged(eng.mdata.Bone) = .empty;
+    defer boneList.deinit(allocator);
+
+    var animMeshDataList: std.ArrayListUnmanaged(eng.mdata.AnimMeshData) = .empty;
+    defer animMeshDataList.deinit(allocator);
+
+    var animations: std.ArrayListUnmanaged(eng.mdata.AnimationData) = .empty;
+    defer animations.deinit(allocator);
+
+    if (numAnimations > 0) {
+        std.debug.print("Processing animations\n", .{});
+
+        for (0..numMeshes) |i| {
+            const mesh = scene.mMeshes[i];
+            const animMeshData = try processBones(allocator, mesh, &boneList);
+            try animMeshDataList.append(allocator, animMeshData);
+        }
+
+        const rootNode = try buildNodesTree(allocator, scene.mRootNode.?, null);
+
+        const rootTransform = toMatrix(scene.mRootNode.?.mTransformation);
+        const globalInverseTransform = zm.inverse(rootTransform);
+
+        try processAnimations(allocator, scene, &boneList, &rootNode, globalInverseTransform, &animations);
+    }
+
     // Dump materials file
     var writerMaterials = std.Io.Writer.Allocating.init(allocator);
     var jsonMat = std.json.Stringify{
@@ -204,6 +382,143 @@ fn printHelp() void {
     , .{});
 }
 
+fn processAnimations(
+    allocator: std.mem.Allocator,
+    scene: *const zassimp.aiScene,
+    boneList: *const std.ArrayListUnmanaged(eng.mdata.Bone),
+    rootNode: *const eng.mdata.NodeData,
+    globalInverseTransform: zm.Mat,
+    outAnimations: *std.ArrayListUnmanaged(eng.mdata.AnimationData),
+) !void {
+    const numAnimations = scene.mNumAnimations;
+    if (scene.mAnimations) |animationsPtr| {
+        const aiAnimations = animationsPtr[0..numAnimations];
+
+        for (aiAnimations) |aiAnimPtr| {
+            if (aiAnimPtr) |aiAnim| {
+                const aiAnimation: *const zassimp.aiAnimation = @ptrCast(aiAnim);
+                const name = try allocator.dupe(u8, aiAnimation.mName.data[0..aiAnimation.mName.length]);
+                const maxFrames = calcAnimationMaxFrames(aiAnimation);
+                if (maxFrames == 0) continue;
+
+                const frameMillis: f32 = if (aiAnimation.mTicksPerSecond > 0.0)
+                    @floatCast(aiAnimation.mDuration / aiAnimation.mTicksPerSecond)
+                else
+                    0.0;
+
+                var frames = try allocator.alloc(eng.mdata.AnimatedFrame, maxFrames);
+
+                for (0..maxFrames) |frameIdx| {
+                    const jointMatrices = try allocator.alloc(?[16]f32, boneList.items.len);
+                    // Fill with identity
+                    const identity = zm.identity();
+                    const identityArr = zm.matToArr(identity);
+                    for (jointMatrices) |*jm| {
+                        jm.* = identityArr;
+                    }
+
+                    var animatedFrame = eng.mdata.AnimatedFrame{
+                        .joint_matrices = jointMatrices,
+                    };
+
+                    buildFrameMatrices(
+                        aiAnimation,
+                        boneList,
+                        &animatedFrame,
+                        frameIdx,
+                        rootNode,
+                        zm.identity(),
+                        globalInverseTransform,
+                    );
+
+                    frames[frameIdx] = animatedFrame;
+                }
+
+                try outAnimations.append(allocator, .{
+                    .name = name,
+                    .frame_millis = frameMillis,
+                    .frames = frames,
+                });
+            }
+        }
+    }
+}
+
+fn processBones(
+    allocator: std.mem.Allocator,
+    mesh: *const zassimp.aiMesh,
+    boneList: *std.ArrayListUnmanaged(eng.mdata.Bone),
+) !eng.mdata.AnimMeshData {
+    const numVertices = mesh.mNumVertices;
+
+    // Map: vertex_index -> list of VertexWeight
+    var weightSet = std.AutoHashMap(u32, std.ArrayListUnmanaged(eng.mdata.VertexWeight)).init(allocator);
+    defer {
+        var it = weightSet.valueIterator();
+        while (it.next()) |list| list.deinit(allocator);
+        weightSet.deinit();
+    }
+
+    const numBones = mesh.mNumBones;
+    if (mesh.mBones) |bonesPtr| {
+        const aiBones = bonesPtr[0..numBones];
+        for (aiBones) |aiBonePtr| {
+            const aiBone = aiBonePtr.*;
+            const boneId = boneList.items.len;
+            const boneName = try allocator.dupe(u8, aiBone.mName.data[0..aiBone.mName.length]);
+            const offsetMatrix = zm.matToArr(toMatrix(aiBone.mOffsetMatrix));
+
+            try boneList.append(allocator, .{
+                .id = boneId,
+                .name = boneName,
+                .offset_matrix = offsetMatrix,
+            });
+
+            const numWeights = aiBone.mNumWeights;
+            const aiWeights = aiBone.mWeights[0..numWeights];
+            for (aiWeights) |aiWeight| {
+                const gop = try weightSet.getOrPut(aiWeight.mVertexId);
+                if (!gop.found_existing) {
+                    gop.value_ptr.* = .empty;
+                }
+                try gop.value_ptr.append(allocator, .{
+                    .bone_id = boneId,
+                    .vertex_id = aiWeight.mVertexId,
+                    .weight = aiWeight.mWeight,
+                });
+            }
+        }
+    }
+
+    const totalFloats = numVertices * eng.mdata.MAX_WEIGHTS;
+    var weights = try allocator.alloc(f32, totalFloats);
+    var boneIds = try allocator.alloc(i32, totalFloats);
+    @memset(weights, 0.0);
+    @memset(boneIds, 0);
+
+    for (0..numVertices) |i| {
+        const vertexWeightList = weightSet.get(@intCast(i));
+        const size = if (vertexWeightList) |vl| vl.items.len else 0;
+
+        for (0..eng.mdata.MAX_WEIGHTS) |j| {
+            const offset = i * eng.mdata.MAX_WEIGHTS + j;
+            if (j < size) {
+                const vw = vertexWeightList.?.items[j];
+                weights[offset] = vw.weight;
+                boneIds[offset] = @intCast(vw.bone_id);
+            } else {
+                weights[offset] = 0.0;
+                boneIds[offset] = 0;
+            }
+        }
+    }
+
+    return eng.mdata.AnimMeshData{
+        .weights = weights,
+        .bone_ids = boneIds,
+    };
+}
+
 fn processMaterial(
     allocator: std.mem.Allocator,
     io: std.Io,
@@ -249,11 +564,6 @@ fn processMaterial(
         .metallicFactor = metallic,
         .roughFactor = roughness,
     };
-}
-
-fn embeddedTextureIndex(path: []const u8) ?usize {
-    if (path.len < 2 or path[0] != '*') return null;
-    return std.fmt.parseInt(usize, path[1..], 10) catch null;
 }
 
 fn processMesh(
@@ -324,7 +634,6 @@ fn processMesh(
         .tangents = tangents,
     };
 }
-
 fn processTexture(
     allocator: std.mem.Allocator,
     io: std.Io,
@@ -361,4 +670,13 @@ fn processTexture(
 
     const fileName = std.fs.path.basename(texturePathSlice);
     return try std.fmt.allocPrint(allocator, "{s}/{s}", .{ baseDir, fileName });
+}
+
+fn toMatrix(m: zassimp.aiMatrix4x4) zm.Mat {
+    return zm.matFromArr(.{
+        m.a1, m.a2, m.a3, m.a4,
+        m.b1, m.b2, m.b3, m.b4,
+        m.c1, m.c2, m.c3, m.c4,
+        m.d1, m.d2, m.d3, m.d4,
+    });
 }
