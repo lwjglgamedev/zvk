@@ -41,8 +41,8 @@
             .hash = "zgui-0.6.0-dev--L6sZJhIbgAjWdK5h6xuVUrsOcD-RdqEOEPf03Zgi4mF",
         },
         .zaudio = .{
-            .url = "https://github.com/fourlexboehm/zaudio/archive/557f8fcdf0c26e86a57f83e2a67affd09aa6498b.tar.gz",
-            .hash = "zaudio-0.11.0-dev-_M-91qoyQQDfje5uM1OSx8a67bMWZMza4gWUhbqKJCV2",
+            .url = "https://github.com/fourlexboehm/zaudio/archive/b9997fc34640d9c80e25b7829b9ad53db8bcf7f2.tar.gz",
+            .hash = "zaudio-0.11.0-dev-_M-91owyQQD3MVQa4F1xkPgwSFWQi4HhhNfDwKI0PBWX",
         },
     },
     .paths = .{

@@ -341,6 +341,7 @@ pub fn main(init: std.process.Init) !void {
         .meshes = meshDataList,
         .idxFilename = idxRelPath,
         .vtxFilename = vtxRelPath,
+        .animMeshes = animMeshDataList,
     };
 
     // Dump model file

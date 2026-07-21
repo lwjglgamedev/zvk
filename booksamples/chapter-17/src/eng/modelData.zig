@@ -63,6 +63,7 @@ pub const ModelData = struct {
     meshes: std.ArrayListUnmanaged(MeshData),
     idxFilename: []const u8,
     vtxFilename: []const u8,
+    animMeshes: std.ArrayListUnmanaged(AnimMeshData),
 
     pub fn cleanup(self: *const ModelData, allocator: std.mem.Allocator) void {
         allocator.free(self.id);

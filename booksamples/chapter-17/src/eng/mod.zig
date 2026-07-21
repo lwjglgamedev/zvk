@@ -1,3 +1,4 @@
+pub const acach = @import("animsCache.zig");
 pub const engine = @import("eng.zig");
 pub const ent = @import("entity.zig");
 pub const mcach = @import("modelsCache.zig");

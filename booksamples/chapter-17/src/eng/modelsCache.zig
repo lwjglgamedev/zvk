@@ -18,6 +18,19 @@ const MaterialBuffRecord = struct {
     roughFactor: f32,
 };
 
+pub const VulkanAnimation = struct {
+    id: []const u8,
+    buffers: std.ArrayList(vk.buf.VkBuffer),
+
+    pub fn cleanup(self: *VulkanAnimation, allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx) void {
+        allocator.free(self.id);
+        for (self.buffers.items) |buffer| {
+            buffer.cleanup(vkCtx);
+        }
+        self.buffers.deinit(allocator);
+    }
+};
+
 pub const VulkanMesh = struct {
     buffIdx: vk.buf.VkBuffer,
     buffVtx: vk.buf.VkBuffer,
@@ -36,6 +49,7 @@ pub const VulkanMesh = struct {
 pub const VulkanModel = struct {
     id: []const u8,
     meshes: std.ArrayList(VulkanMesh),
+    animations: std.ArrayList(VulkanAnimation),
 
     pub fn cleanup(self: *VulkanModel, allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx) void {
         allocator.free(self.id);
@@ -43,6 +57,10 @@ pub const VulkanModel = struct {
             mesh.cleanup(allocator, vkCtx);
         }
         self.meshes.deinit(allocator);
+        for (self.animations.items) |*anim| {
+            anim.cleanup(allocator, vkCtx);
+        }
+        self.animations.deinit(allocator);
     }
 };
 
@@ -318,7 +336,11 @@ pub const ModelsCache = struct {
                 recordTransfer(vkCtx, cmdHandle, &srcIdxBuffer, &dstIdxBuffer);
             }
 
-            const vulkanModel = VulkanModel{ .id = try allocator.dupe(u8, modelData.id), .meshes = vulkanMeshes };
+            const vulkanModel = VulkanModel{
+                .id = try allocator.dupe(u8, modelData.id),
+                .meshes = vulkanMeshes,
+                .animations = std.ArrayList(VulkanAnimation).initCapacity(allocator, 0) catch unreachable,
+            };
             try self.modelsMap.put(try allocator.dupe(u8, modelData.id), vulkanModel);
         }
 
