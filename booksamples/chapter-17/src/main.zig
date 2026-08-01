@@ -41,6 +41,7 @@ const Game = struct {
         models[1] = bobModel;
 
         const bobEntity = try eng.ent.Entity.create(engCtx.allocator, BOB_ENTITY_ID, bobModel.id);
+        bobEntity.setAnimation(0, true);
         bobEntity.setPos(0.0, 0.0, 0.0);
         bobEntity.scale = 0.04;
         bobEntity.update();

@@ -2,7 +2,14 @@ const eng = @import("mod.zig");
 const std = @import("std");
 const zm = @import("zmath");
 
+pub const EntityAnimation = struct {
+    animationIdx: usize,
+    currentFrame: usize,
+    started: bool,
+};
+
 pub const Entity = struct {
+    animation: ?EntityAnimation = null,
     id: []const u8,
     modelId: []const u8,
     pos: zm.F32x4,
@@ -28,6 +35,22 @@ pub const Entity = struct {
         allocator.free(self.id);
         allocator.free(self.modelId);
         allocator.destroy(self);
+    }
+
+    pub fn nextFrame(self: *Entity, maxFrames: usize) void {
+        if (self.animation) |*anim| {
+            if (anim.started) {
+                anim.currentFrame = (anim.currentFrame + 1) % maxFrames;
+            }
+        }
+    }
+
+    pub fn setAnimation(self: *Entity, animationIdx: usize, started: bool) void {
+        self.animation = .{
+            .animationIdx = animationIdx,
+            .currentFrame = 0,
+            .started = started,
+        };
     }
 
     pub fn setPos(self: *Entity, x: f32, y: f32, z: f32) void {

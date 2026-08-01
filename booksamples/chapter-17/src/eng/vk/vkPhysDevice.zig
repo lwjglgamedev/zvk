@@ -7,6 +7,7 @@ const log = std.log.scoped(.vk);
 const reqExtensions = [_][*:0]const u8{vulkan.extensions.khr_swapchain.name};
 
 const QueuesInfo = struct {
+    compute_family: u32,
     graphics_family: u32,
     present_family: u32,
 };
@@ -72,6 +73,7 @@ pub const VkPhysDevice = struct {
         const families = try instance.getPhysicalDeviceQueueFamilyPropertiesAlloc(pdev, allocator);
         defer allocator.free(families);
 
+        var compute_family: ?u32 = null;
         var graphics_family: ?u32 = null;
         var present_family: ?u32 = null;
 
@@ -89,10 +91,15 @@ pub const VkPhysDevice = struct {
             {
                 present_family = family;
             }
+
+            if (compute_family == null and properties.queue_count > 0 and properties.queue_flags.compute_bit) {
+                compute_family = family;
+            }
         }
 
         if (graphics_family != null and present_family != null) {
             return QueuesInfo{
+                .compute_family = compute_family.?,
                 .graphics_family = graphics_family.?,
                 .present_family = present_family.?,
             };

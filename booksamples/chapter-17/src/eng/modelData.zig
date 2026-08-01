@@ -63,6 +63,7 @@ pub const ModelData = struct {
     meshes: std.ArrayListUnmanaged(MeshData),
     idxFilename: []const u8,
     vtxFilename: []const u8,
+    animations: std.ArrayListUnmanaged(AnimationData),
     animMeshes: std.ArrayListUnmanaged(AnimMeshData),
 
     pub fn cleanup(self: *const ModelData, allocator: std.mem.Allocator) void {
@@ -131,6 +132,10 @@ pub fn loadModel(allocator: std.mem.Allocator, io: std.Io, path: []const u8) !Mo
     modelData.id = try allocator.dupe(u8, modelData.id);
     modelData.idxFilename = try allocator.dupe(u8, modelData.idxFilename);
     modelData.vtxFilename = try allocator.dupe(u8, modelData.vtxFilename);
+
+    for (modelData.animations.items) |*animData| {
+        animData.name = try allocator.dupe(u8, animData.name);
+    }
 
     for (modelData.meshes.items) |*meshData| {
         meshData.id = try allocator.dupe(u8, meshData.id);

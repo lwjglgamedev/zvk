@@ -341,6 +341,7 @@ pub fn main(init: std.process.Init) !void {
         .meshes = meshDataList,
         .idxFilename = idxRelPath,
         .vtxFilename = vtxRelPath,
+        .animations = animations,
         .animMeshes = animMeshDataList,
     };
 

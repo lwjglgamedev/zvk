@@ -57,6 +57,7 @@ pub const Attachment = struct {
 
 pub const Render = struct {
     vkCtx: vk.ctx.VkCtx,
+    animsCache: eng.acach.AnimsCache,
     cmdPools: []vk.cmd.VkCmdPool,
     cmdBuffs: []vk.cmd.VkCmdBuff,
     currentFrame: u8,
@@ -86,6 +87,7 @@ pub const Render = struct {
         self.renderShadow.cleanup(&self.vkCtx);
         self.renderLight.cleanup(allocator, &self.vkCtx);
 
+        self.animsCache.cleanup(allocator, &self.vkCtx);
         self.textureCache.cleanup(allocator, &self.vkCtx);
         self.materialsCache.cleanup(allocator, &self.vkCtx);
         self.modelsCache.cleanup(allocator, &self.vkCtx);
@@ -165,9 +167,11 @@ pub const Render = struct {
         const materialsCache = eng.mcach.MaterialsCache.create();
         const modelsCache = eng.mcach.ModelsCache.create(allocator);
         const textureCache = eng.tcach.TextureCache.create();
+        const animsCache = eng.acach.AnimsCache.create();
 
         return .{
             .vkCtx = vkCtx,
+            .animsCache = animsCache,
             .cmdPools = cmdPools,
             .cmdBuffs = cmdBuffs,
             .currentFrame = 0,
@@ -232,6 +236,7 @@ pub const Render = struct {
 
         try self.renderScn.init(allocator, &self.vkCtx, &self.textureCache, &self.materialsCache);
         try self.renderShadow.init(allocator, &self.vkCtx, &self.textureCache, &self.materialsCache);
+        try self.renderAnim.init(allocator, &self.vkCtx, engCtx, &self.modelsCache, &self.animsCache);
         log.debug("Finished render init", .{});
     }
 
@@ -244,6 +249,12 @@ pub const Render = struct {
 
         const vkCmdBuff = self.cmdBuffs[self.currentFrame];
         try vkCmdBuff.begin(&self.vkCtx);
+
+        try self.renderAnim.render(
+            &self.vkCtx,
+            engCtx,
+            &self.modelsCache,
+        );
 
         const res = try self.vkCtx.vkSwapChain.acquire(self.vkCtx.vkDevice, self.semsPresComplete[self.currentFrame]);
         if (engCtx.wnd.resized or self.mustResize or res == .recreate) {

@@ -34,6 +34,7 @@ pub const VulkanAnimation = struct {
 pub const VulkanMesh = struct {
     buffIdx: vk.buf.VkBuffer,
     buffVtx: vk.buf.VkBuffer,
+    buffWeights: ?vk.buf.VkBuffer,
     id: []const u8,
     materialId: []const u8,
     numIndices: usize,
@@ -41,6 +42,9 @@ pub const VulkanMesh = struct {
     pub fn cleanup(self: *const VulkanMesh, allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx) void {
         self.buffVtx.cleanup(vkCtx);
         self.buffIdx.cleanup(vkCtx);
+        if (self.buffWeights) |buffWeights| {
+            buffWeights.cleanup(vkCtx);
+        }
         allocator.free(self.id);
         allocator.free(self.materialId);
     }
@@ -61,6 +65,10 @@ pub const VulkanModel = struct {
             anim.cleanup(allocator, vkCtx);
         }
         self.animations.deinit(allocator);
+    }
+
+    pub fn hasAnimations(self: *const VulkanModel) bool {
+        return self.animations.items.len > 0;
     }
 };
 
@@ -246,6 +254,110 @@ pub const ModelsCache = struct {
         };
     }
 
+    fn createJointMatricesBuffers(
+        vkCtx: *const vk.ctx.VkCtx,
+        allocator: std.mem.Allocator,
+        cmdHandle: vulkan.CommandBuffer,
+        srcBuffers: *std.ArrayList(vk.buf.VkBuffer),
+        animatedFrame: eng.mdata.AnimatedFrame,
+    ) !vk.buf.VkBuffer {
+        const numMatrices = animatedFrame.joint_matrices.len;
+        const bufferSize = numMatrices * @sizeOf([16]f32);
+
+        const srcJointBuffer = try vk.buf.VkBuffer.create(
+            vkCtx,
+            bufferSize,
+            vulkan.BufferUsageFlags{ .transfer_src_bit = true },
+            @intFromEnum(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSequentialWriteBit),
+            vk.vma.VmaUsage.VmaUsageAuto,
+            vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBitAndCoherent,
+        );
+        try srcBuffers.append(allocator, srcJointBuffer);
+
+        const dstJointBuffer = try vk.buf.VkBuffer.create(
+            vkCtx,
+            bufferSize,
+            vulkan.BufferUsageFlags{ .storage_buffer_bit = true, .transfer_dst_bit = true },
+            @intFromEnum(vk.vma.VmaFlags.None),
+            vk.vma.VmaUsage.VmaUsageAuto,
+            vk.vma.VmaMemoryFlags.None,
+        );
+
+        const dataJoints = try srcJointBuffer.map(vkCtx);
+        const gpuJoints: [*]u8 = @ptrCast(@alignCast(dataJoints));
+
+        const identity = [16]f32{
+            1, 0, 0, 0,
+            0, 1, 0, 0,
+            0, 0, 1, 0,
+            0, 0, 0, 1,
+        };
+        for (animatedFrame.joint_matrices, 0..) |maybeMatrix, i| {
+            const matrix = maybeMatrix orelse identity;
+            @memcpy(gpuJoints[i * 64 .. i * 64 + 64], std.mem.sliceAsBytes(&matrix));
+        }
+        srcJointBuffer.unMap(vkCtx);
+
+        recordTransfer(vkCtx, cmdHandle, &srcJointBuffer, &dstJointBuffer);
+
+        return dstJointBuffer;
+    }
+
+    fn createWeightsBuffers(
+        vkCtx: *const vk.ctx.VkCtx,
+        allocator: std.mem.Allocator,
+        cmdHandle: vulkan.CommandBuffer,
+        srcBuffers: *std.ArrayList(vk.buf.VkBuffer),
+        animMeshData: eng.mdata.AnimMeshData,
+    ) !vk.buf.VkBuffer {
+        const weights = animMeshData.weights;
+        const boneIds = animMeshData.bone_ids;
+        const bufferSize = weights.len * @sizeOf(f32) + boneIds.len * @sizeOf(i32);
+
+        const srcWeightsBuffer = try vk.buf.VkBuffer.create(
+            vkCtx,
+            bufferSize,
+            vulkan.BufferUsageFlags{ .transfer_src_bit = true },
+            @intFromEnum(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSequentialWriteBit),
+            vk.vma.VmaUsage.VmaUsageAuto,
+            vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBitAndCoherent,
+        );
+        try srcBuffers.append(allocator, srcWeightsBuffer);
+
+        const dstWeightsBuffer = try vk.buf.VkBuffer.create(
+            vkCtx,
+            bufferSize,
+            vulkan.BufferUsageFlags{ .vertex_buffer_bit = true, .storage_buffer_bit = true, .transfer_dst_bit = true },
+            @intFromEnum(vk.vma.VmaFlags.None),
+            vk.vma.VmaUsage.VmaUsageAuto,
+            vk.vma.VmaMemoryFlags.None,
+        );
+
+        const dataWeights = try srcWeightsBuffer.map(vkCtx);
+        const gpuWeights: [*]u8 = @ptrCast(@alignCast(dataWeights));
+
+        const rows = weights.len / 4;
+        var data = try allocator.alloc(f32, weights.len + boneIds.len);
+        defer allocator.free(data);
+        for (0..rows) |row| {
+            const startPos = row * 4;
+            data[startPos] = weights[startPos];
+            data[startPos + 1] = weights[startPos + 1];
+            data[startPos + 2] = weights[startPos + 2];
+            data[startPos + 3] = weights[startPos + 3];
+            data[startPos + 4] = @bitCast(boneIds[startPos]);
+            data[startPos + 5] = @bitCast(boneIds[startPos + 1]);
+            data[startPos + 6] = @bitCast(boneIds[startPos + 2]);
+            data[startPos + 7] = @bitCast(boneIds[startPos + 3]);
+        }
+        @memcpy(gpuWeights[0..bufferSize], std.mem.sliceAsBytes(data));
+        srcWeightsBuffer.unMap(vkCtx);
+
+        recordTransfer(vkCtx, cmdHandle, &srcWeightsBuffer, &dstWeightsBuffer);
+
+        return dstWeightsBuffer;
+    }
+
     pub fn init(
         self: *ModelsCache,
         allocator: std.mem.Allocator,
@@ -270,8 +382,20 @@ pub const ModelsCache = struct {
             const idxData = try com.utils.loadFile(allocator, io, modelData.idxFilename);
             defer allocator.free(idxData);
 
-            var vulkanMeshes = try std.ArrayList(VulkanMesh).initCapacity(allocator, modelData.meshes.items.len);
+            var vulkanAnimations = try std.ArrayList(VulkanAnimation).initCapacity(allocator, modelData.animations.items.len);
+            for (modelData.animations.items) |animData| {
+                var buffers = try std.ArrayList(vk.buf.VkBuffer).initCapacity(allocator, animData.frames.len);
+                for (animData.frames) |frame| {
+                    try buffers.append(allocator, try createJointMatricesBuffers(vkCtx, allocator, cmdHandle, &srcBuffers, frame));
+                }
+                try vulkanAnimations.append(allocator, .{
+                    .id = try allocator.dupe(u8, animData.name),
+                    .buffers = buffers,
+                });
+            }
 
+            var vulkanMeshes = try std.ArrayList(VulkanMesh).initCapacity(allocator, modelData.meshes.items.len);
+            var meshCount: usize = 0;
             for (modelData.meshes.items) |meshData| {
                 const verticesSize = meshData.vtxSize;
                 const srcVtxBuffer = try vk.buf.VkBuffer.create(
@@ -286,7 +410,7 @@ pub const ModelsCache = struct {
                 const dstVtxBuffer = try vk.buf.VkBuffer.create(
                     vkCtx,
                     verticesSize,
-                    vulkan.BufferUsageFlags{ .vertex_buffer_bit = true, .transfer_dst_bit = true },
+                    vulkan.BufferUsageFlags{ .vertex_buffer_bit = true, .storage_buffer_bit = true, .transfer_dst_bit = true },
                     @intFromEnum(vk.vma.VmaFlags.None),
                     vk.vma.VmaUsage.VmaUsageAuto,
                     vk.vma.VmaMemoryFlags.None,
@@ -323,9 +447,15 @@ pub const ModelsCache = struct {
                 @memcpy(gpuIndices, idxData[meshData.idxOffset..endIdx]);
                 srcIdxBuffer.unMap(vkCtx);
 
+                var buffWeights: ?vk.buf.VkBuffer = null;
+                if (modelData.animMeshes.items.len > 0) {
+                    buffWeights = try createWeightsBuffers(vkCtx, allocator, cmdHandle, &srcBuffers, modelData.animMeshes.items[meshCount]);
+                }
+
                 const vulkanMesh = VulkanMesh{
                     .buffIdx = dstIdxBuffer,
                     .buffVtx = dstVtxBuffer,
+                    .buffWeights = buffWeights,
                     .id = try allocator.dupe(u8, meshData.id),
                     .materialId = try allocator.dupe(u8, meshData.materialId),
                     .numIndices = indicesSize / @sizeOf(u32),
@@ -334,12 +464,14 @@ pub const ModelsCache = struct {
 
                 recordTransfer(vkCtx, cmdHandle, &srcVtxBuffer, &dstVtxBuffer);
                 recordTransfer(vkCtx, cmdHandle, &srcIdxBuffer, &dstIdxBuffer);
+
+                meshCount += 1;
             }
 
             const vulkanModel = VulkanModel{
                 .id = try allocator.dupe(u8, modelData.id),
                 .meshes = vulkanMeshes,
-                .animations = std.ArrayList(VulkanAnimation).initCapacity(allocator, 0) catch unreachable,
+                .animations = vulkanAnimations,
             };
             try self.modelsMap.put(try allocator.dupe(u8, modelData.id), vulkanModel);
         }
