@@ -8,6 +8,7 @@ pub const AnimsCache = struct {
     pub fn cleanup(self: *AnimsCache, allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx) void {
         var outerIt = self.entitiesAnimBuffers.iterator();
         while (outerIt.next()) |entry| {
+            allocator.free(entry.key_ptr.*);
             var innerIt = entry.value_ptr.iterator();
             while (innerIt.next()) |innerEntry| {
                 innerEntry.value_ptr.cleanup(vkCtx);
@@ -44,21 +45,21 @@ pub const AnimsCache = struct {
                 continue;
             }
 
-            var bufferMap = std.StringHashMap(vk.buf.VkBuffer).init(allocator);
+            var bufferMap: std.StringArrayHashMapUnmanaged(vk.buf.VkBuffer) = .empty;
 
-            for (vulkanModel.getVulkanMeshList()) |vulkanMesh| {
-                const animation_buffer = try vk.buf.VkBuffer.init(
+            for (vulkanModel.?.meshes.items) |vulkanMesh| {
+                const animBuffer = try vk.buf.VkBuffer.create(
                     vkCtx,
-                    vulkanMesh.verticesBuffer().getRequestedSize(),
-                    vk.VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | vk.VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                    vk.VMA_MEMORY_USAGE_AUTO,
-                    vk.VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT,
-                    0,
+                    vulkanMesh.buffVtx.size,
+                    .{ .vertex_buffer_bit = true, .storage_buffer_bit = true },
+                    @intFromEnum(vk.vma.VmaFlags.None),
+                    vk.vma.VmaUsage.VmaUsageAuto,
+                    vk.vma.VmaMemoryFlags.None,
                 );
-                try bufferMap.put(vulkanMesh.id(), animation_buffer);
+                try bufferMap.put(allocator, vulkanMesh.id, animBuffer);
             }
 
-            try self.entitiesAnimBuffers.put(entity.getId(), bufferMap);
+            try self.entitiesAnimBuffers.put(allocator, try allocator.dupe(u8, entity.id), bufferMap);
         }
     }
 };

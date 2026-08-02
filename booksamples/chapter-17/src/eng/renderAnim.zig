@@ -12,10 +12,11 @@ pub const RenderAnim = struct {
     descLayout: vk.desc.VkDescSetLayout,
     grpSizeMap: std.StringHashMap(u32),
     vkPipeline: vk.cpipe.VkCompPipeline,
+    queue: vk.queue.VkQueue,
+    fence: vk.sync.VkFence,
 
-    pub fn cleanup(self: *RenderAnim, allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx) void {
-        // TODO: Check if allocator is needed
-        _ = allocator;
+    pub fn cleanup(self: *RenderAnim, vkCtx: *const vk.ctx.VkCtx) void {
+        self.fence.cleanup(vkCtx);
         self.descLayout.cleanup(vkCtx);
         self.vkPipeline.cleanup(vkCtx);
         self.cmdPool.cleanup(vkCtx);
@@ -25,6 +26,8 @@ pub const RenderAnim = struct {
     pub fn create(allocator: std.mem.Allocator, io: std.Io, vkCtx: *const vk.ctx.VkCtx) !RenderAnim {
         var cmdPool = try vk.cmd.VkCmdPool.create(vkCtx, vkCtx.vkPhysDevice.queuesInfo.compute_family, false);
         const cmdBuff = try vk.cmd.VkCmdBuff.create(vkCtx, &cmdPool, true);
+        const queue = vk.queue.VkQueue.create(vkCtx, vkCtx.vkPhysDevice.queuesInfo.compute_family);
+        const fence = try vk.sync.VkFence.create(vkCtx);
 
         const descLayout = try vk.desc.VkDescSetLayout.create(
             allocator,
@@ -65,6 +68,8 @@ pub const RenderAnim = struct {
             .descLayout = descLayout,
             .grpSizeMap = grpSizeMap,
             .vkPipeline = vkPipeline,
+            .queue = queue,
+            .fence = fence,
         };
     }
 
@@ -140,7 +145,8 @@ pub const RenderAnim = struct {
         engCtx: *const eng.engine.EngCtx,
         modelsCache: *const eng.mcach.ModelsCache,
     ) !void {
-        // TODO: Fences
+        try self.fence.wait(vkCtx);
+        try self.fence.reset(vkCtx);
 
         try self.cmdPool.reset(vkCtx);
         try self.cmdBuff.begin(vkCtx);
@@ -148,6 +154,18 @@ pub const RenderAnim = struct {
         const cmdHandle = self.cmdBuff.cmdBuffProxy.handle;
         const device = vkCtx.vkDevice.deviceProxy;
         const descAllocator = &vkCtx.vkDescAllocator;
+
+        const memBarrier = [_]vulkan.MemoryBarrier2{.{
+            .src_stage_mask = .{ .vertex_input_bit = true },
+            .dst_stage_mask = .{ .compute_shader_bit = true },
+            .src_access_mask = .{},
+            .dst_access_mask = .{ .shader_write_bit = true },
+        }};
+        const depInfo = vulkan.DependencyInfo{
+            .memory_barrier_count = memBarrier.len,
+            .p_memory_barriers = &memBarrier,
+        };
+        device.cmdPipelineBarrier2(cmdHandle, &depInfo);
 
         device.cmdBindPipeline(cmdHandle, vulkan.PipelineBindPoint.compute, self.vkPipeline.pipeline);
 
@@ -206,5 +224,12 @@ pub const RenderAnim = struct {
             }
         }
         try self.cmdBuff.end(vkCtx);
+
+        const cmdBufferSubmitInfo = [_]vulkan.CommandBufferSubmitInfo{.{
+            .device_mask = 0,
+            .command_buffer = self.cmdBuff.cmdBuffProxy.handle,
+        }};
+        const emptySemphs = [_]vulkan.SemaphoreSubmitInfo{};
+        try self.queue.submit(vkCtx, &cmdBufferSubmitInfo, &emptySemphs, &emptySemphs, self.fence);
     }
 };

@@ -80,7 +80,7 @@ pub const Render = struct {
     pub fn cleanup(self: *Render, allocator: std.mem.Allocator) !void {
         try self.vkCtx.vkDevice.wait();
 
-        self.renderAnim.cleanup(allocator, &self.vkCtx);
+        self.renderAnim.cleanup(&self.vkCtx);
         self.renderGui.cleanup(allocator, &self.vkCtx);
         self.renderPost.cleanup(&self.vkCtx);
         self.renderScn.cleanup(allocator, &self.vkCtx);
@@ -234,6 +234,8 @@ pub const Render = struct {
 
         try self.modelsCache.init(allocator, engCtx.io, &self.vkCtx, &self.cmdPools[0], self.queueGraphics, initData);
 
+        try self.animsCache.init(allocator, &self.vkCtx, engCtx, &self.modelsCache);
+
         try self.renderScn.init(allocator, &self.vkCtx, &self.textureCache, &self.materialsCache);
         try self.renderShadow.init(allocator, &self.vkCtx, &self.textureCache, &self.materialsCache);
         try self.renderAnim.init(allocator, &self.vkCtx, engCtx, &self.modelsCache, &self.animsCache);
@@ -270,6 +272,7 @@ pub const Render = struct {
             vkCmdBuff,
             &self.modelsCache,
             &self.materialsCache,
+            &self.animsCache,
             self.currentFrame,
         );
         try self.renderShadow.render(

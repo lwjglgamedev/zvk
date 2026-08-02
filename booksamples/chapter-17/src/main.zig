@@ -21,6 +21,8 @@ const Game = struct {
     const BOB_ENTITY_ID: []const u8 = "BobEntity";
 
     lightAngle: f32 = 90.0,
+    bobEntity: ?*eng.ent.Entity = null,
+    maxFrames: usize = 0,
 
     pub fn cleanup(self: *Game) void {
         _ = self;
@@ -41,6 +43,8 @@ const Game = struct {
         models[1] = bobModel;
 
         const bobEntity = try eng.ent.Entity.create(engCtx.allocator, BOB_ENTITY_ID, bobModel.id);
+        self.bobEntity = bobEntity;
+        self.maxFrames = bobModel.animations.items[0].frames.len;
         bobEntity.setAnimation(0, true);
         bobEntity.setPos(0.0, 0.0, 0.0);
         bobEntity.scale = 0.04;
@@ -204,8 +208,10 @@ const Game = struct {
     }
 
     pub fn update(self: *Game, engCtx: *eng.engine.EngCtx, deltaSec: f32) void {
-        _ = self;
         _ = engCtx;
         _ = deltaSec;
+        if (self.bobEntity) |bobEntity| {
+            bobEntity.nextFrame(self.maxFrames);
+        }
     }
 };
