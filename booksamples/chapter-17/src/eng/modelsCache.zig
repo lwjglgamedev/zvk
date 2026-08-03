@@ -339,16 +339,18 @@ pub const ModelsCache = struct {
         const rows = weights.len / 4;
         var data = try allocator.alloc(f32, weights.len + boneIds.len);
         defer allocator.free(data);
+        var dstPos: usize = 0;
         for (0..rows) |row| {
-            const startPos = row * 4;
-            data[startPos] = weights[startPos];
-            data[startPos + 1] = weights[startPos + 1];
-            data[startPos + 2] = weights[startPos + 2];
-            data[startPos + 3] = weights[startPos + 3];
-            data[startPos + 4] = @bitCast(boneIds[startPos]);
-            data[startPos + 5] = @bitCast(boneIds[startPos + 1]);
-            data[startPos + 6] = @bitCast(boneIds[startPos + 2]);
-            data[startPos + 7] = @bitCast(boneIds[startPos + 3]);
+            const srcPos = row * 4;
+            data[dstPos] = weights[srcPos];
+            data[dstPos + 1] = weights[srcPos + 1];
+            data[dstPos + 2] = weights[srcPos + 2];
+            data[dstPos + 3] = weights[srcPos + 3];
+            data[dstPos + 4] = @floatFromInt(boneIds[srcPos]);
+            data[dstPos + 5] = @floatFromInt(boneIds[srcPos + 1]);
+            data[dstPos + 6] = @floatFromInt(boneIds[srcPos + 2]);
+            data[dstPos + 7] = @floatFromInt(boneIds[srcPos + 3]);
+            dstPos += 8;
         }
         @memcpy(gpuWeights[0..bufferSize], std.mem.sliceAsBytes(data));
         srcWeightsBuffer.unMap(vkCtx);
