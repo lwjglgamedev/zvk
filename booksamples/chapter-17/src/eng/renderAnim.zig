@@ -105,7 +105,7 @@ pub const RenderAnim = struct {
             }
 
             for (vulkanModel.meshes.items) |*mesh| {
-                const vertexSize: f32 = 14.0 * 4.0;
+                const vertexSize: f32 = 11.0 * 4.0;
                 const groupSize: u32 = @intFromFloat(@ceil(@as(f32, @floatFromInt(mesh.buffVtx.size)) / vertexSize / LOCAL_SIZE_X));
                 const vtxId = try std.fmt.allocPrint(allocator, "{s}_VTX", .{mesh.id});
                 defer allocator.free(vtxId);
