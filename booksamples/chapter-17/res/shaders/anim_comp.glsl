@@ -35,10 +35,15 @@ void main()
     dstVector.data[baseIdxSrcBuf + 1] = position.y / position.w;
     dstVector.data[baseIdxSrcBuf + 2] = position.z / position.w;
 
+    baseIdxSrcBuf += 3;
+    vec2 textCoords = vec2(srcVector.data[baseIdxSrcBuf], srcVector.data[baseIdxSrcBuf + 1]);
+    dstVector.data[baseIdxSrcBuf] = textCoords.x;
+    dstVector.data[baseIdxSrcBuf + 1] = textCoords.y;
+
     mat3 matJoint1 = mat3(transpose(inverse(jointMatrices.data[joints.x])));
     mat3 matJoint2 = mat3(transpose(inverse(jointMatrices.data[joints.y])));
     mat3 matJoint3 = mat3(transpose(inverse(jointMatrices.data[joints.z])));
-    baseIdxSrcBuf += 3;
+    baseIdxSrcBuf += 2;
     vec3 normal = vec3(srcVector.data[baseIdxSrcBuf], srcVector.data[baseIdxSrcBuf + 1], srcVector.data[baseIdxSrcBuf + 2]);
     normal =
     weights.x * matJoint1 * normal +
@@ -59,9 +64,4 @@ void main()
     dstVector.data[baseIdxSrcBuf] = tangent.x;
     dstVector.data[baseIdxSrcBuf + 1] = tangent.y;
     dstVector.data[baseIdxSrcBuf + 2] = tangent.z;
-
-    baseIdxSrcBuf += 3;
-    vec2 textCoords = vec2(srcVector.data[baseIdxSrcBuf], srcVector.data[baseIdxSrcBuf + 1]);
-    dstVector.data[baseIdxSrcBuf] = textCoords.x;
-    dstVector.data[baseIdxSrcBuf + 1] = textCoords.y;
 }
