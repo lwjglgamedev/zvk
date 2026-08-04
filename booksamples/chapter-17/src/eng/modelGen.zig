@@ -47,7 +47,8 @@ fn buildFrameMatrices(
     }
 
     // Compute this node's local transformation
-    var nodeTransform = zm.matFromArr(node.transformation);
+    //var nodeTransform = zm.matFromArr(node.transformation);
+    var nodeTransform = zm.transpose(zm.matFromArr(node.transformation));
     if (channel) |ch| {
         const pos = calculatePosition(ch, frameIdx);
         const rot = calculateRotation(ch, frameIdx);
@@ -59,26 +60,32 @@ fn buildFrameMatrices(
         nodeTransform = zm.mul(zm.mul(scaling, rotation), translation);
     }
 
-    // World transform = parent * local
-    const worldTransform = zm.mul(nodeTransform, nodeParentTransform);
+    const nodeGlobalTransform = zm.mul(nodeTransform, nodeParentTransform);
 
     // If this node is a bone, compute the joint matrix
     for (boneList.items, 0..) |bone, boneId| {
         if (std.mem.eql(u8, bone.name, node.name)) {
             if (boneId < animatedFrame.joint_matrices.len) {
-                const offsetMat = zm.matFromArr(bone.offset_matrix);
-                animatedFrame.joint_matrices[boneId] = @bitCast(zm.mul(
-                    offsetMat,
-                    zm.mul(worldTransform, globalInverseTransform),
-                ));
+                //const offsetMat = zm.matFromArr(bone.offset_matrix);
+                const offsetMat = zm.transpose(zm.matFromArr(bone.offset_matrix));
+                const mat1 = zm.mul(nodeGlobalTransform, globalInverseTransform);
+                const mat2 = zm.mul(offsetMat, mat1);
+                animatedFrame.joint_matrices[boneId] = @bitCast(mat2);
             }
-            break;
         }
     }
 
     // Recurse children
     for (node.children) |*child| {
-        buildFrameMatrices(aiAnimation, boneList, animatedFrame, frameIdx, child, worldTransform, globalInverseTransform);
+        buildFrameMatrices(
+            aiAnimation,
+            boneList,
+            animatedFrame,
+            frameIdx,
+            child,
+            nodeGlobalTransform,
+            globalInverseTransform,
+        );
     }
 }
 
