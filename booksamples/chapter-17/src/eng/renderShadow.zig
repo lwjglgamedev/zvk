@@ -405,6 +405,7 @@ pub const RenderShadow = struct {
         vkCmd: vk.cmd.VkCmdBuff,
         modelsCache: *const eng.mcach.ModelsCache,
         materialsCache: *const eng.mcach.MaterialsCache,
+        animsCache: *const eng.acach.AnimsCache,
     ) !void {
         const allocator = engCtx.allocator;
         const scene = &engCtx.scene;
@@ -482,7 +483,7 @@ pub const RenderShadow = struct {
 
         try self.updateShadowUniforms(vkCtx);
 
-        self.renderEntities(vkCtx, engCtx, modelsCache, materialsCache, cmdHandle);
+        self.renderEntities(vkCtx, engCtx, modelsCache, materialsCache, animsCache, cmdHandle);
 
         device.cmdEndRendering(cmdHandle);
 
@@ -495,6 +496,7 @@ pub const RenderShadow = struct {
         engCtx: *const eng.engine.EngCtx,
         modelsCache: *const eng.mcach.ModelsCache,
         materialsCache: *const eng.mcach.MaterialsCache,
+        animsCache: *const eng.acach.AnimsCache,
         cmdHandle: vulkan.CommandBuffer,
     ) void {
         const device = vkCtx.vkDevice.deviceProxy;
@@ -512,7 +514,11 @@ pub const RenderShadow = struct {
                     }
                     self.setPushConstants(vkCtx, cmdHandle, entity, materialIdx);
                     device.cmdBindIndexBuffer(cmdHandle, mesh.buffIdx.buffer, 0, vulkan.IndexType.uint32);
-                    device.cmdBindVertexBuffers(cmdHandle, 0, @ptrCast(&mesh.buffVtx.buffer), &offset);
+                    const vtxBuffer: *const vk.buf.VkBuffer = if (vm.hasAnimations())
+                        (animsCache.getBuffer(entity.id, mesh.id) orelse &mesh.buffVtx)
+                    else
+                        &mesh.buffVtx;
+                    device.cmdBindVertexBuffers(cmdHandle, 0, @ptrCast(&vtxBuffer.buffer), &offset);
                     device.cmdDrawIndexed(cmdHandle, @as(u32, @intCast(mesh.numIndices)), 1, 0, 0, 0);
                 }
             } else {

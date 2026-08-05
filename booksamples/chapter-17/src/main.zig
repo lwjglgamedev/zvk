@@ -46,10 +46,11 @@ const Game = struct {
         const maxFrames = bobModel.animations.items[0].frames.len;
         bobEntity.setPos(0.0, 0.0, 0.0);
         bobEntity.setAnimation(0, maxFrames, true);
-        bobEntity.setPos(8.0, 0.0, -4.0);
-        bobEntity.scale = 0.06;
-        const rotationAngle = std.math.degreesToRadians(90.0);
-        bobEntity.rotation = zm.quatFromAxisAngle(zm.Vec{ 1.0, 0.0, 0.0, 0.0 }, rotationAngle);
+        bobEntity.setPos(6.0, 0.0, -4.0);
+        bobEntity.scale = 0.05;
+        const standUp = zm.quatFromAxisAngle(zm.Vec{ 1.0, 0.0, 0.0, 0.0 }, std.math.degreesToRadians(90.0));
+        const faceCamera = zm.quatFromAxisAngle(zm.Vec{ 0.0, 1.0, 0.0, 0.0 }, std.math.degreesToRadians(-90.0));
+        bobEntity.rotation = zm.qmul(standUp, faceCamera);
         bobEntity.update();
         try engCtx.scene.addEntity(bobEntity);
 

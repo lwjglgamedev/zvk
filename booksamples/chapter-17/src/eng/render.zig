@@ -281,6 +281,7 @@ pub const Render = struct {
             vkCmdBuff,
             &self.modelsCache,
             &self.materialsCache,
+            &self.animsCache,
         );
         try self.renderLight.render(
             &self.vkCtx,
