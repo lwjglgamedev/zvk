@@ -30,7 +30,6 @@ fn buildFrameMatrices(
     nodeParentTransform: zm.Mat,
     globalInverseTransform: zm.Mat,
 ) void {
-    // Find the animation channel for this node
     var channel: ?*const zassimp.aiNodeAnim = null;
     const numChannels = aiAnimation.mNumChannels;
     if (aiAnimation.mChannels) |channelsPtr| {
@@ -46,8 +45,6 @@ fn buildFrameMatrices(
         }
     }
 
-    // Compute this node's local transformation
-    //var nodeTransform = zm.matFromArr(node.transformation);
     var nodeTransform = zm.transpose(zm.matFromArr(node.transformation));
     if (channel) |ch| {
         const pos = calculatePosition(ch, frameIdx);
@@ -62,11 +59,9 @@ fn buildFrameMatrices(
 
     const nodeGlobalTransform = zm.mul(nodeTransform, nodeParentTransform);
 
-    // If this node is a bone, compute the joint matrix
     for (boneList.items, 0..) |bone, boneId| {
         if (std.mem.eql(u8, bone.name, node.name)) {
             if (boneId < animatedFrame.joint_matrices.len) {
-                //const offsetMat = zm.matFromArr(bone.offset_matrix);
                 const offsetMat = zm.transpose(zm.matFromArr(bone.offset_matrix));
                 const mat1 = zm.mul(nodeGlobalTransform, globalInverseTransform);
                 const mat2 = zm.mul(offsetMat, mat1);
@@ -75,7 +70,6 @@ fn buildFrameMatrices(
         }
     }
 
-    // Recurse children
     for (node.children) |*child| {
         buildFrameMatrices(
             aiAnimation,
@@ -99,7 +93,6 @@ fn buildNodesTree(
     const name = try allocator.dupe(u8, aiNode.mName.data[0..aiNode.mName.length]);
     const transformation = toMatrix(aiNode.mTransformation);
 
-    // Copy mesh indices
     const numMeshes = aiNode.mNumMeshes;
     var meshes: []u32 = &.{};
     if (numMeshes > 0 and aiNode.mMeshes != null) {
@@ -110,7 +103,6 @@ fn buildNodesTree(
         }
     }
 
-    // Recurse children
     const numChildren = aiNode.mNumChildren;
     var children: []eng.mdata.NodeData = &.{};
     if (numChildren > 0 and aiNode.mChildren != null) {
@@ -151,7 +143,7 @@ fn calcAnimationMaxFrames(aiAnimation: *const zassimp.aiAnimation) usize {
 fn calculatePosition(channel: *const zassimp.aiNodeAnim, frameIdx: usize) [3]f32 {
     if (channel.mNumPositionKeys == 0) return .{ 0.0, 0.0, 0.0 };
     const keys = channel.mPositionKeys[0..channel.mNumPositionKeys];
-    const idx = @min(frameIdx, keys.len - 1);
+    const idx = if (frameIdx >= keys.len) keys.len - 1 else frameIdx;
     const val = keys[idx].mValue;
     return .{ val.x, val.y, val.z };
 }
@@ -159,7 +151,7 @@ fn calculatePosition(channel: *const zassimp.aiNodeAnim, frameIdx: usize) [3]f32
 fn calculateRotation(channel: *const zassimp.aiNodeAnim, frameIdx: usize) [4]f32 {
     if (channel.mNumRotationKeys == 0) return .{ 0.0, 0.0, 0.0, 1.0 };
     const keys = channel.mRotationKeys[0..channel.mNumRotationKeys];
-    const idx = @min(frameIdx, keys.len - 1);
+    const idx = if (frameIdx >= keys.len) keys.len - 1 else frameIdx;
     const val = keys[idx].mValue;
     return .{ val.x, val.y, val.z, val.w };
 }
@@ -167,7 +159,7 @@ fn calculateRotation(channel: *const zassimp.aiNodeAnim, frameIdx: usize) [4]f32
 fn calculateScaling(channel: *const zassimp.aiNodeAnim, frameIdx: usize) [3]f32 {
     if (channel.mNumScalingKeys == 0) return .{ 1.0, 1.0, 1.0 };
     const keys = channel.mScalingKeys[0..channel.mNumScalingKeys];
-    const idx = @min(frameIdx, keys.len - 1);
+    const idx = if (frameIdx >= keys.len) keys.len - 1 else frameIdx;
     const val = keys[idx].mValue;
     return .{ val.x, val.y, val.z };
 }
@@ -406,9 +398,9 @@ fn processAnimations(
         for (aiAnimations) |aiAnimPtr| {
             if (aiAnimPtr) |aiAnim| {
                 const aiAnimation: *const zassimp.aiAnimation = @ptrCast(aiAnim);
-                const name = try allocator.dupe(u8, aiAnimation.mName.data[0..aiAnimation.mName.length]);
                 const maxFrames = calcAnimationMaxFrames(aiAnimation);
                 if (maxFrames == 0) continue;
+                const name = try allocator.dupe(u8, aiAnimation.mName.data[0..aiAnimation.mName.length]);
 
                 const frameMillis: f32 = if (aiAnimation.mTicksPerSecond > 0.0)
                     @floatCast(aiAnimation.mDuration / aiAnimation.mTicksPerSecond)

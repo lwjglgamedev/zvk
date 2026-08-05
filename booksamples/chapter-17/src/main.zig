@@ -22,7 +22,6 @@ const Game = struct {
 
     lightAngle: f32 = 90.0,
     bobEntity: ?*eng.ent.Entity = null,
-    maxFrames: usize = 0,
 
     pub fn cleanup(self: *Game) void {
         _ = self;
@@ -44,10 +43,13 @@ const Game = struct {
 
         const bobEntity = try eng.ent.Entity.create(engCtx.allocator, BOB_ENTITY_ID, bobModel.id);
         self.bobEntity = bobEntity;
-        self.maxFrames = bobModel.animations.items[0].frames.len;
-        bobEntity.setAnimation(0, true);
+        const maxFrames = bobModel.animations.items[0].frames.len;
         bobEntity.setPos(0.0, 0.0, 0.0);
-        bobEntity.scale = 0.04;
+        bobEntity.setAnimation(0, maxFrames, true);
+        bobEntity.setPos(8.0, 0.0, -4.0);
+        bobEntity.scale = 0.06;
+        const rotationAngle = std.math.degreesToRadians(90.0);
+        bobEntity.rotation = zm.quatFromAxisAngle(zm.Vec{ 1.0, 0.0, 0.0, 0.0 }, rotationAngle);
         bobEntity.update();
         try engCtx.scene.addEntity(bobEntity);
 
@@ -211,7 +213,7 @@ const Game = struct {
         _ = engCtx;
         _ = deltaSec;
         if (self.bobEntity) |bobEntity| {
-            bobEntity.nextFrame(self.maxFrames);
+            bobEntity.nextFrame();
         }
     }
 };

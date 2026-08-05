@@ -41,8 +41,8 @@
             .hash = "zaudio-0.11.0-dev-_M-91owyQQD3MVQa4F1xkPgwSFWQi4HhhNfDwKI0PBWX",
         },
         .zig_assimp = .{
-            .url = "git+https://github.com/lwjglgamedev/assimp#eef40044a733203492e6525f40af3b4b2078fb15",
-            .hash = "zig_assimp-6.0.5-8EpygivDAACOcMCMIh8hq2MAI0xL25rXePKLt2yKpUgM",
+            .url = "git+https://github.com/lwjglgamedev/assimp#8813349e5d85412a8284b95b4170dd63a2fb0252",
+            .hash = "zig_assimp-6.0.5-8Epygn7DAABKBm6F6kE0a2v9LwHrhIhq96MH3q1YIlTl",
         },
     },
     .paths = .{

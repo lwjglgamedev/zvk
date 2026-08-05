@@ -5,6 +5,7 @@ const zm = @import("zmath");
 pub const EntityAnimation = struct {
     animationIdx: usize,
     currentFrame: usize,
+    maxFrames: usize,
     started: bool,
 };
 
@@ -37,18 +38,19 @@ pub const Entity = struct {
         allocator.destroy(self);
     }
 
-    pub fn nextFrame(self: *Entity, maxFrames: usize) void {
+    pub fn nextFrame(self: *Entity) void {
         if (self.animation) |*anim| {
             if (anim.started) {
-                anim.currentFrame = (anim.currentFrame + 1) % maxFrames;
+                anim.currentFrame = (anim.currentFrame + 1) % anim.maxFrames;
             }
         }
     }
 
-    pub fn setAnimation(self: *Entity, animationIdx: usize, started: bool) void {
+    pub fn setAnimation(self: *Entity, animationIdx: usize, maxFrames: usize, started: bool) void {
         self.animation = .{
             .animationIdx = animationIdx,
             .currentFrame = 0,
+            .maxFrames = maxFrames,
             .started = started,
         };
     }
