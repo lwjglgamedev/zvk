@@ -43,12 +43,14 @@ void main()
     mat3 matJoint1 = mat3(transpose(inverse(jointMatrices.data[joints.x])));
     mat3 matJoint2 = mat3(transpose(inverse(jointMatrices.data[joints.y])));
     mat3 matJoint3 = mat3(transpose(inverse(jointMatrices.data[joints.z])));
+    mat3 matJoint4 = mat3(transpose(inverse(jointMatrices.data[joints.w])));
     baseIdxSrcBuf += 2;
     vec3 normal = vec3(srcVector.data[baseIdxSrcBuf], srcVector.data[baseIdxSrcBuf + 1], srcVector.data[baseIdxSrcBuf + 2]);
     normal =
     weights.x * matJoint1 * normal +
     weights.y * matJoint2 * normal +
-    weights.z * matJoint3 * normal;
+    weights.z * matJoint3 * normal +
+    weights.w * matJoint4 * normal;
     normal = normalize(normal);
     dstVector.data[baseIdxSrcBuf] = normal.x;
     dstVector.data[baseIdxSrcBuf + 1] = normal.y;
@@ -59,7 +61,8 @@ void main()
     tangent =
     weights.x * matJoint1 * tangent +
     weights.y * matJoint2 * tangent +
-    weights.z * matJoint3 * tangent;
+    weights.z * matJoint3 * tangent +
+    weights.w * matJoint4 * tangent;
     tangent = normalize(tangent);
     dstVector.data[baseIdxSrcBuf] = tangent.x;
     dstVector.data[baseIdxSrcBuf + 1] = tangent.y;
