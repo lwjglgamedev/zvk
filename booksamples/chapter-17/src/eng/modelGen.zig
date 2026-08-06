@@ -635,6 +635,7 @@ fn processMesh(
         .tangents = tangents,
     };
 }
+
 fn processTexture(
     allocator: std.mem.Allocator,
     io: std.Io,

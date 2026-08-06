@@ -5,8 +5,8 @@
     .minimum_zig_version = "0.16.0",
     .dependencies = .{
         .sdl3 = .{
-            .url = "https://codeberg.org/7Games/zig-sdl3/archive/v0.2.1.tar.gz",
-            .hash = "sdl3-0.2.1-NmT1Q9YZKAAmuTV7fFuZHwH2jFQtw2uvVahQSMSD6DbK",
+            .url = "https://codeberg.org/7Games/zig-sdl3/archive/v0.2.2.tar.gz",
+            .hash = "sdl3-0.2.2-NmT1Q-2jKQBa4uSXUwuVwdmXpXe-eYwim7Wkyx531v6O",
         },
         .vulkan = .{
             .url = "https://github.com/Snektron/vulkan-zig/archive/b496a6a561ffbbeb530b0f9ed4e059f88c0723a5.tar.gz",
@@ -32,6 +32,10 @@
             .url = "https://github.com/zig-gamedev/zstbi/archive/3813f5f113b26f644cfa01a30155cc76b3526e91.tar.gz",
             .hash = "zstbi-0.11.0-dev-L0Ea_3GWBwAh7m54XX055vwLKPTPij5hyqyeq92MXPE2",
         },
+        .zig_assimp = .{
+            .url = "https://github.com/lwjglgamedev/assimp/archive/8813349e5d85412a8284b95b4170dd63a2fb0252.tar.gz",
+            .hash = "zig_assimp-6.0.5-8Epygn7DAABKBm6F6kE0a2v9LwHrhIhq96MH3q1YIlTl",
+        },
         .zgui = .{
             .url = "https://github.com/zig-gamedev/zgui/archive/bfbebed372723d1f585f86fc0a550232b3427f4d.tar.gz",
             .hash = "zgui-0.6.0-dev--L6sZJhIbgAjWdK5h6xuVUrsOcD-RdqEOEPf03Zgi4mF",
@@ -39,10 +43,6 @@
         .zaudio = .{
             .url = "https://github.com/fourlexboehm/zaudio/archive/b9997fc34640d9c80e25b7829b9ad53db8bcf7f2.tar.gz",
             .hash = "zaudio-0.11.0-dev-_M-91owyQQD3MVQa4F1xkPgwSFWQi4HhhNfDwKI0PBWX",
-        },
-        .zig_assimp = .{
-            .url = "git+https://github.com/lwjglgamedev/assimp#8813349e5d85412a8284b95b4170dd63a2fb0252",
-            .hash = "zig_assimp-6.0.5-8Epygn7DAABKBm6F6kE0a2v9LwHrhIhq96MH3q1YIlTl",
         },
     },
     .paths = .{

@@ -151,7 +151,7 @@ pub fn build(b: *std.Build) void {
             .optimize = optimize,
         }),
     });
-    // assimp
+    // zassimp
     const zassimpDep = b.dependency("zig_assimp", .{});
     modelGen.root_module.addImport("zassimp", zassimpDep.module("root"));
     modelGen.root_module.addImport("zmath", zmath);

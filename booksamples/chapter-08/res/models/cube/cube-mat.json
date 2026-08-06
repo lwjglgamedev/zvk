@@ -9,6 +9,16 @@
         1,
         1
       ]
+    },
+    {
+      "id": "cube-mat-1",
+      "texturePath": "",
+      "color": [
+        1,
+        1,
+        1,
+        1
+      ]
     }
   ],
   "capacity": 3

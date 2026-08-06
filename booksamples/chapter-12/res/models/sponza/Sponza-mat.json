@@ -12,26 +12,6 @@
     },
     {
       "id": "Sponza-mat-1",
-      "texturePath": "res/models/sponza/7268504077753552595.jpg",
-      "color": [
-        0.5879999995231628,
-        0.5879999995231628,
-        0.5879999995231628,
-        1
-      ]
-    },
-    {
-      "id": "Sponza-mat-2",
-      "texturePath": "res/models/sponza/white.png",
-      "color": [
-        0.5879999995231628,
-        0.5879999995231628,
-        0.5879999995231628,
-        1
-      ]
-    },
-    {
-      "id": "Sponza-mat-3",
       "texturePath": "res/models/sponza/8006627369776289000.png",
       "color": [
         0.5879999995231628,
@@ -41,7 +21,17 @@
       ]
     },
     {
-      "id": "Sponza-mat-4",
+      "id": "Sponza-mat-2",
+      "texturePath": "res/models/sponza/7268504077753552595.jpg",
+      "color": [
+        0.5879999995231628,
+        0.5879999995231628,
+        0.5879999995231628,
+        1
+      ]
+    },
+    {
+      "id": "Sponza-mat-3",
       "texturePath": "res/models/sponza/8750083169368950601.jpg",
       "color": [
         0.5879999995231628,
@@ -51,7 +41,7 @@
       ]
     },
     {
-      "id": "Sponza-mat-5",
+      "id": "Sponza-mat-4",
       "texturePath": "res/models/sponza/5792855332885324923.jpg",
       "color": [
         0.5879999995231628,
@@ -61,7 +51,7 @@
       ]
     },
     {
-      "id": "Sponza-mat-6",
+      "id": "Sponza-mat-5",
       "texturePath": "res/models/sponza/14650633544276105767.jpg",
       "color": [
         0.5879999995231628,
@@ -71,7 +61,7 @@
       ]
     },
     {
-      "id": "Sponza-mat-7",
+      "id": "Sponza-mat-6",
       "texturePath": "res/models/sponza/15295713303328085182.jpg",
       "color": [
         0.5879999995231628,
@@ -81,7 +71,7 @@
       ]
     },
     {
-      "id": "Sponza-mat-8",
+      "id": "Sponza-mat-7",
       "texturePath": "res/models/sponza/6047387724914829168.jpg",
       "color": [
         0.5879999995231628,
@@ -91,7 +81,7 @@
       ]
     },
     {
-      "id": "Sponza-mat-9",
+      "id": "Sponza-mat-8",
       "texturePath": "res/models/sponza/5823059166183034438.jpg",
       "color": [
         0.5879999995231628,
@@ -101,7 +91,7 @@
       ]
     },
     {
-      "id": "Sponza-mat-10",
+      "id": "Sponza-mat-9",
       "texturePath": "res/models/sponza/7441062115984513793.jpg",
       "color": [
         0.5879999995231628,
@@ -111,7 +101,7 @@
       ]
     },
     {
-      "id": "Sponza-mat-11",
+      "id": "Sponza-mat-10",
       "texturePath": "res/models/sponza/11490520546946913238.jpg",
       "color": [
         0.5879999995231628,
@@ -121,8 +111,18 @@
       ]
     },
     {
-      "id": "Sponza-mat-12",
+      "id": "Sponza-mat-11",
       "texturePath": "res/models/sponza/6151467286084645207.jpg",
+      "color": [
+        0.5879999995231628,
+        0.5879999995231628,
+        0.5879999995231628,
+        1
+      ]
+    },
+    {
+      "id": "Sponza-mat-12",
+      "texturePath": "res/models/sponza/white.png",
       "color": [
         0.5879999995231628,
         0.5879999995231628,
@@ -249,7 +249,17 @@
         0.5879999995231628,
         1
       ]
+    },
+    {
+      "id": "Sponza-mat-25",
+      "texturePath": "",
+      "color": [
+        1,
+        1,
+        1,
+        1
+      ]
     }
   ],
-  "capacity": 38
+  "capacity": 26
 }

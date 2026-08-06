@@ -1,6 +1,6 @@
 const eng = @import("mod.zig");
 const std = @import("std");
-const zmesh = @import("zmesh");
+const zassimp = @import("zassimp");
 
 const MeshIntData = struct {
     id: []const u8,
@@ -15,6 +15,11 @@ const MeshIntData = struct {
         self.texcoords.deinit(allocator);
     }
 };
+
+fn embeddedTextureIndex(path: []const u8) ?usize {
+    if (path.len < 2 or path[0] != '*') return null;
+    return std.fmt.parseInt(usize, path[1..], 10) catch null;
+}
 
 pub fn main(init: std.process.Init) !void {
     var arena = std.heap.ArenaAllocator.init(init.gpa);
@@ -38,21 +43,31 @@ pub fn main(init: std.process.Init) !void {
     var dir = try std.Io.Dir.cwd().openDir(io, baseDir, .{});
     defer dir.close(io);
 
-    zmesh.init(allocator);
-    defer zmesh.deinit();
-
-    const data = try zmesh.io.zcgltf.parseAndLoadFile(modelPath);
-    defer zmesh.io.zcgltf.freeData(data);
+    const flags = zassimp.aiProcess_Triangulate;
+    const scene = zassimp.aiImportFile(modelPath, flags) orelse {
+        const err = std.mem.sliceTo(zassimp.aiGetErrorString(), 0);
+        std.debug.print("Failed to import mode: {s}\n", .{err});
+        return error.ImportFailed;
+    };
+    defer zassimp.aiReleaseImport(scene);
 
     var materialList: std.ArrayListUnmanaged(eng.mdata.MaterialData) = .empty;
     defer materialList.deinit(allocator);
 
-    if (data.materials_count > 0 and data.materials != null) {
-        const materials = data.materials.?[0..data.materials_count];
-        for (materials, 0..) |material, i| {
-            const materialData = try processMaterial(allocator, &material, baseDir, modelId, i);
-            try materialList.append(allocator, materialData);
-        }
+    const numMaterials = scene.mNumMaterials;
+    std.debug.print("Number of materials: {}\n", .{numMaterials});
+    for (0..numMaterials) |i| {
+        const material = scene.mMaterials[i];
+        const materialData = try processMaterial(
+            allocator,
+            io,
+            scene,
+            material,
+            baseDir,
+            modelId,
+            i,
+        );
+        try materialList.append(allocator, materialData);
     }
 
     // Create indices file
@@ -70,52 +85,45 @@ pub fn main(init: std.process.Init) !void {
     const defText = [_]f32{ 0.0, 0.0 };
     var idxOffset: usize = 0;
     var vtxOffset: usize = 0;
-    if (data.meshes_count == 0 or data.meshes == null) {
-        std.debug.print("No meshes found\n", .{});
-        return;
-    }
-    const meshes = data.meshes.?[0..data.meshes_count];
-    for (meshes, 0..) |mesh, meshIdx| {
-        for (mesh.primitives, 0..mesh.primitives_count) |primitive, primIdx| {
-            var meshIntData = try processMesh(
-                allocator,
-                data,
-                &primitive,
-                @as(u32, @intCast(meshIdx)),
-                @as(u32, @intCast(primIdx)),
-                materialList,
-            );
-            defer meshIntData.cleanup(allocator);
 
-            // Dump to indices file
-            try idxFile.writeStreamingAll(io, std.mem.sliceAsBytes(meshIntData.indices.items));
+    const numMeshes = scene.mNumMeshes;
+    std.debug.print("Number of meshes: {}\n", .{numMeshes});
+    for (0..numMeshes) |i| {
+        const mesh = scene.mMeshes[i];
+        var meshIntData = try processMesh(
+            allocator,
+            mesh,
+            materialList,
+        );
+        defer meshIntData.cleanup(allocator);
 
-            // Dump to vertices file
-            for (meshIntData.positions.items, 0..) |_, idx| {
-                try vtxFile.writeStreamingAll(io, std.mem.sliceAsBytes(std.mem.asBytes(&meshIntData.positions.items[idx])));
-                if (idx < meshIntData.texcoords.items.len) {
-                    try vtxFile.writeStreamingAll(io, std.mem.sliceAsBytes(std.mem.asBytes(&meshIntData.texcoords.items[idx])));
-                } else {
-                    try vtxFile.writeStreamingAll(io, std.mem.sliceAsBytes(std.mem.asBytes(&defText)));
-                }
+        // Dump to indices file
+        try idxFile.writeStreamingAll(io, std.mem.sliceAsBytes(meshIntData.indices.items));
+
+        // Dump to vertices file
+        for (meshIntData.positions.items, 0..) |_, idx| {
+            try vtxFile.writeStreamingAll(io, std.mem.sliceAsBytes(std.mem.asBytes(&meshIntData.positions.items[idx])));
+            if (idx < meshIntData.texcoords.items.len) {
+                try vtxFile.writeStreamingAll(io, std.mem.sliceAsBytes(std.mem.asBytes(&meshIntData.texcoords.items[idx])));
+            } else {
+                try vtxFile.writeStreamingAll(io, std.mem.sliceAsBytes(std.mem.asBytes(&defText)));
             }
-
-            const numIndices = meshIntData.indices.items.len;
-            // There can be models with no texture coords, but we fill up with empty coords
-            const numFloats = meshIntData.positions.items.len * 3 + meshIntData.texcoords.items.len * 2;
-            const meshData = eng.mdata.MeshData{
-                .id = meshIntData.id,
-                .materialId = meshIntData.materialId,
-                .idxOffset = idxOffset,
-                .idxSize = numIndices * @sizeOf(u32),
-                .vtxOffset = vtxOffset,
-                .vtxSize = numFloats * @sizeOf(f32),
-            };
-            try meshDataList.append(allocator, meshData);
-
-            idxOffset += meshData.idxSize;
-            vtxOffset += meshData.vtxSize;
         }
+
+        const numIndices = meshIntData.indices.items.len;
+        const numFloats = meshIntData.positions.items.len * 3 +
+            meshIntData.texcoords.items.len * 2;
+        try meshDataList.append(allocator, .{
+            .id = meshIntData.id,
+            .materialId = meshIntData.materialId,
+            .idxOffset = idxOffset,
+            .idxSize = numIndices * @sizeOf(u32),
+            .vtxOffset = vtxOffset,
+            .vtxSize = numFloats * @sizeOf(f32),
+        });
+
+        idxOffset += numIndices * @sizeOf(u32);
+        vtxOffset += numFloats * @sizeOf(f32);
     }
 
     // Dump materials file
@@ -178,58 +186,77 @@ pub fn normalizePath(allocator: std.mem.Allocator, input_path: []const u8) ![]co
 
 fn processMaterial(
     allocator: std.mem.Allocator,
-    material: *const zmesh.io.zcgltf.Material,
+    io: std.Io,
+    scene: *const zassimp.aiScene,
+    material: *const zassimp.aiMaterial,
     baseDir: []const u8,
     modelId: []const u8,
     pos: usize,
 ) !eng.mdata.MaterialData {
-    var color = [_]f32{ 0.0, 0.0, 0.0, 0.0 };
-    var texturePath: [*:0]const u8 = "";
-    if (material.has_pbr_metallic_roughness > 0) {
-        if (material.pbr_metallic_roughness.base_color_texture.texture) |texture| {
-            texturePath = texture.image.?.uri.?;
-        }
-        color = material.pbr_metallic_roughness.base_color_factor;
+    var diffuse: zassimp.aiColor4D = undefined;
+    const result = zassimp.aiGetMaterialColor(
+        material,
+        zassimp.AI_MATKEY_COLOR_DIFFUSE,
+        0,
+        0,
+        &diffuse,
+    );
+    if (result != .SUCCESS) {
+        diffuse = zassimp.aiColor4D{ .r = 0, .g = 0, .b = 0, .a = 0 };
     }
-    const textRelPath = if (texturePath[0] != 0) try std.fmt.allocPrint(allocator, "{s}/{s}", .{ baseDir, std.mem.span(texturePath) }) else "";
+    const color = [_]f32{ diffuse.r, diffuse.g, diffuse.b, diffuse.a };
+
+    const texturePath = try processTexture(allocator, io, scene, material, baseDir, .DIFFUSE);
     const materialId = try std.fmt.allocPrint(allocator, "{s}-mat-{d}", .{ modelId, pos });
+
     return eng.mdata.MaterialData{
         .id = materialId,
-        .texturePath = textRelPath,
+        .texturePath = texturePath,
         .color = color,
     };
 }
 
 fn processMesh(
     allocator: std.mem.Allocator,
-    data: *zmesh.io.zcgltf.Data,
-    primitive: *const zmesh.io.zcgltf.Primitive,
-    meshIdx: u32,
-    primIdx: u32,
+    mesh: *const zassimp.aiMesh,
     materialList: std.ArrayListUnmanaged(eng.mdata.MaterialData),
 ) !MeshIntData {
-    const id = try std.fmt.allocPrint(allocator, "mesh-{d}-{d}", .{ meshIdx, primIdx });
+    const id = try std.fmt.allocPrint(allocator, "mesh-{}", .{@intFromPtr(mesh)});
+    const numVertices = mesh.mNumVertices;
 
     var indices: std.ArrayListUnmanaged(u32) = .empty;
     var positions: std.ArrayListUnmanaged([3]f32) = .empty;
     var texcoords: std.ArrayListUnmanaged([2]f32) = .empty;
 
+    // Material
     var materialId: []const u8 = "";
-    if (primitive.material) |material| {
-        const idx = materialIndexFromPtr(data, material);
-        materialId = materialList.items[idx].id;
+    const matIdx = mesh.mMaterialIndex;
+    if (matIdx < materialList.items.len) {
+        materialId = materialList.items[matIdx].id;
     }
-    try zmesh.io.zcgltf.appendMeshPrimitive(
-        allocator,
-        data,
-        meshIdx,
-        @as(u32, @intCast(primIdx)),
-        &indices,
-        &positions,
-        null,
-        &texcoords,
-        null,
-    );
+
+    // Positions
+    const vtx = mesh.mVertices[0..numVertices];
+    try positions.ensureTotalCapacity(allocator, numVertices);
+    for (vtx) |v| try positions.append(allocator, .{ v.x, v.y, v.z });
+
+    // Texcoords
+    if (mesh.mTextureCoords[0]) |uvPtr| {
+        const uvArray: [*c]zassimp.aiVector3D = @ptrCast(uvPtr);
+        const uvs = uvArray[0..numVertices];
+        try texcoords.ensureTotalCapacity(allocator, numVertices);
+        for (uvs) |uv| try texcoords.append(allocator, .{ uv.x, 1 - uv.y });
+    }
+
+    // Indices
+    var totalIndices: usize = 0;
+    const faces = mesh.mFaces[0..mesh.mNumFaces];
+    for (faces) |face| totalIndices += face.mNumIndices;
+    try indices.ensureTotalCapacity(allocator, totalIndices);
+    for (faces) |face| {
+        const faceIndices = face.mIndices[0..face.mNumIndices];
+        for (faceIndices) |idx| try indices.append(allocator, idx);
+    }
 
     return MeshIntData{
         .id = id,
@@ -240,13 +267,42 @@ fn processMesh(
     };
 }
 
-fn materialIndexFromPtr(
-    data: *const zmesh.io.zcgltf.Data,
-    mat: *const zmesh.io.zcgltf.Material,
-) usize {
-    const base = @intFromPtr(data.materials.?);
-    const ptr = @intFromPtr(mat);
-    return (ptr - base) / @sizeOf(zmesh.io.zcgltf.Material);
+fn processTexture(
+    allocator: std.mem.Allocator,
+    io: std.Io,
+    scene: *const zassimp.aiScene,
+    material: *const zassimp.aiMaterial,
+    baseDir: []const u8,
+    textureType: zassimp.aiTextureType,
+) ![]const u8 {
+    const numEmbeddedTextures = scene.mNumTextures;
+    var texPath: zassimp.aiString = undefined;
+
+    const result = zassimp.aiGetMaterialTexture(material, textureType, 0, &texPath, null, null, null, null, null, null);
+    if (result != .SUCCESS or texPath.length == 0) return "";
+
+    const texturePathSlice = texPath.data[0..texPath.length];
+
+    if (embeddedTextureIndex(texturePathSlice)) |embeddedIdx| {
+        if (embeddedIdx < numEmbeddedTextures) {
+            const aiTex = scene.mTextures[embeddedIdx];
+            const tex = aiTex.*;
+            const baseFileName = tex.mFilename.data[0..tex.mFilename.length];
+            const outFileName = try std.fmt.allocPrint(allocator, "{s}.png", .{baseFileName});
+            const outPath = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ baseDir, outFileName });
+
+            var dir = try std.Io.Dir.cwd().openDir(io, baseDir, .{});
+            defer dir.close(io);
+            const file = try dir.createFile(io, outFileName, .{ .truncate = true });
+            defer file.close(io);
+            try file.writeStreamingAll(io, tex.pcData[0..tex.mWidth]);
+
+            return outPath;
+        }
+    }
+
+    const fileName = std.fs.path.basename(texturePathSlice);
+    return try std.fmt.allocPrint(allocator, "{s}/{s}", .{ baseDir, fileName });
 }
 
 fn printHelp() void {

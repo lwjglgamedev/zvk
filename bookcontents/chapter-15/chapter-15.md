@@ -42,40 +42,35 @@ We will start with the modifications in the `processMaterial` function, in which
 ```zig
 fn processMaterial(
     allocator: std.mem.Allocator,
-    material: *const zmesh.io.zcgltf.Material,
+    io: std.Io,
+    scene: *const zassimp.aiScene,
+    material: *const zassimp.aiMaterial,
     baseDir: []const u8,
     modelId: []const u8,
     pos: usize,
 ) !eng.mdata.MaterialData {
     ...
-    var metalRoughMapPath: [*:0]const u8 = "";
-    var metallicFactor: f32 = 0;
-    var roughFactor: f32 = 0;
-    if (material.has_pbr_metallic_roughness > 0) {
-        ...
-        if (material.pbr_metallic_roughness.metallic_roughness_texture.texture) |texture| {
-            metalRoughMapPath = texture.image.?.uri.?;
-        }
-        ...
-        metallicFactor = material.pbr_metallic_roughness.metallic_factor;
-        roughFactor = material.pbr_metallic_roughness.roughness_factor;
-    }
-    var normalMapPath: [*:0]const u8 = "";
-    if (material.normal_texture.texture) |texture| {
-        normalMapPath = texture.image.?.uri.?;
-    }
-    const textRelPath = if (texturePath[0] != 0) try std.fmt.allocPrint(allocator, "{s}/{s}", .{ baseDir, std.mem.span(texturePath) }) else "";
-    const normalMapRelPath = if (normalMapPath[0] != 0) try std.fmt.allocPrint(allocator, "{s}/{s}", .{ baseDir, std.mem.span(normalMapPath) }) else "";
-    const metalRoughMapRelPath = if (metalRoughMapPath[0] != 0) try std.fmt.allocPrint(allocator, "{s}/{s}", .{ baseDir, std.mem.span(metalRoughMapPath) }) else "";
+    const normalMapPath = try processTexture(allocator, io, scene, material, baseDir, .NORMALS);
+    const metalRoughMapPath = try processTexture(allocator, io, scene, material, baseDir, .GLTF_METALLIC_ROUGHNESS);
     const materialId = try std.fmt.allocPrint(allocator, "{s}-mat-{d}", .{ modelId, pos });
+
+    var roughness: f32 = 0.0;
+    var pMax: c_uint = 1;
+    _ = zassimp.aiGetMaterialFloatArray(material, zassimp.AI_MATKEY_ROUGHNESS_FACTOR, 0, 0, &roughness, &pMax);
+    if (roughness == 0.0) roughness = 1.0;
+
+    var metallic: f32 = 0.0;
+    pMax = 1;
+    _ = zassimp.aiGetMaterialFloatArray(material, zassimp.AI_MATKEY_METALLIC_FACTOR, 0, 0, &metallic, &pMax);
+
     return eng.mdata.MaterialData{
         .id = materialId,
-        .texturePath = textRelPath,
+        .texturePath = texturePath,
         .color = color,
-        .normalMapPath = normalMapRelPath,
-        .metalRoughMapPath = metalRoughMapRelPath,
-        .metallicFactor = metallicFactor,
-        .roughFactor = roughFactor,
+        .normalMapPath = normalMapPath,
+        .metalRoughMapPath = metalRoughMapPath,
+        .metallicFactor = metallic,
+        .roughFactor = roughness,
     };
 }
 ```
@@ -130,35 +125,27 @@ Therefore, we will modify the `processMesh` function:
 ```zig
 fn processMesh(
     allocator: std.mem.Allocator,
-    data: *zmesh.io.zcgltf.Data,
-    primitive: *const zmesh.io.zcgltf.Primitive,
-    meshIdx: u32,
-    primIdx: u32,
+    mesh: *const zassimp.aiMesh,
     materialList: std.ArrayListUnmanaged(eng.mdata.MaterialData),
 ) !MeshIntData {
     ...
-    var normals:  std.ArrayListUnmanaged([3]f32) = .empty;
-    var intTangents: std.ArrayListUnmanaged([4]f32) = .empty;
+    var normals: std.ArrayListUnmanaged([3]f32) = .empty;
     var tangents: std.ArrayListUnmanaged([3]f32) = .empty;
     ...
-    try zmesh.io.zcgltf.appendMeshPrimitive(
-        allocator,
-        data,
-        meshIdx,
-        @as(u32, @intCast(primIdx)),
-        &indices,
-        &positions,
-        &normals,
-        &texcoords,
-        &intTangents,
-    );
-
-    const numTangents = intTangents.items.len;
-    for (0..normals.items.len) |i| {
-        const tangent = if (i < numTangents) intTangents.items[i] else [4]f32{ 0, 0, 0, 0 };
-        try tangents.append(allocator, tangent[0..3].*);
+    // Normals
+    if (mesh.mNormals) |normsPtr| {
+        const norms = normsPtr[0..numVertices];
+        try normals.ensureTotalCapacity(allocator, numVertices);
+        for (norms) |n| try normals.append(allocator, .{ n.x, n.y, n.z });
     }
 
+    // Tangents
+    if (mesh.mTangents) |tangsPtr| {
+        const tangs = tangsPtr[0..numVertices];
+        try tangents.ensureTotalCapacity(allocator, numVertices);
+        for (tangs) |t| try tangents.append(allocator, .{ t.x, t.y, t.z });
+    }
+    ...
     return MeshIntData{
         .id = id,
         .materialId = materialId,
@@ -167,12 +154,9 @@ fn processMesh(
         .texcoords = texcoords,
         .normals = normals,
         .tangents = tangents,
-    };    
+    };
 }
 ```
-
-We just load the normals when calling the `appendMeshPrimitive` function and process the result. Some models may not have tangents data.
-In this case, we just set a default value. We could calculate tangents for this case, but will leave as it this to not over-complicate code.
 
 Finally, we just need to modify the code that dumps vertices information to a file:
 
@@ -180,38 +164,25 @@ Finally, we just need to modify the code that dumps vertices information to a fi
 ```zig
 pub fn main(init: std.process.Init) !void {
     ...
-            // Dump to vertices file
-            for (meshIntData.positions.items, 0..) |_, idx| {
-                try vtxFile.writeStreamingAll(io, std.mem.sliceAsBytes(std.mem.asBytes(&meshIntData.positions.items[idx])));
-                if (idx < meshIntData.texcoords.items.len) {
-                    try vtxFile.writeStreamingAll(io, std.mem.sliceAsBytes(std.mem.asBytes(&meshIntData.texcoords.items[idx])));
-                } else {
-                    try vtxFile.writeStreamingAll(io, std.mem.sliceAsBytes(std.mem.asBytes(&defText)));
-                }
-                try vtxFile.writeStreamingAll(io, std.mem.sliceAsBytes(std.mem.asBytes(&meshIntData.normals.items[idx])));
-                try vtxFile.writeStreamingAll(io, std.mem.sliceAsBytes(std.mem.asBytes(&meshIntData.tangents.items[idx])));
+        // Dump to vertices file
+        for (meshIntData.positions.items, 0..) |_, idx| {
+            try vtxFile.writeStreamingAll(io, std.mem.sliceAsBytes(std.mem.asBytes(&meshIntData.positions.items[idx])));
+            if (idx < meshIntData.texcoords.items.len) {
+                try vtxFile.writeStreamingAll(io, std.mem.sliceAsBytes(std.mem.asBytes(&meshIntData.texcoords.items[idx])));
+            } else {
+                try vtxFile.writeStreamingAll(io, std.mem.sliceAsBytes(std.mem.asBytes(&defText)));
             }
+            try vtxFile.writeStreamingAll(io, std.mem.sliceAsBytes(std.mem.asBytes(&meshIntData.normals.items[idx])));
+            try vtxFile.writeStreamingAll(io, std.mem.sliceAsBytes(std.mem.asBytes(&meshIntData.tangents.items[idx])));
+        }
 
-            const numIndices = meshIntData.indices.items.len;
-            // There can be models with no texture coords, but we fill up with empty coords
-            const numFloats = meshIntData.positions.items.len * 3 + meshIntData.texcoords.items.len * 2 +
-                meshIntData.normals.items.len * 3 + meshIntData.tangents.items.len * 3;
-
+        const numIndices = meshIntData.indices.items.len;
+        const numFloats = meshIntData.positions.items.len * 3 +
+            meshIntData.texcoords.items.len * 2 +
+            meshIntData.normals.items.len * 3 +
+            meshIntData.tangents.items.len * 3;
+        ...
     ...
-}
-```
-
-We will need to include the `zmath` module for the `modelGen` executable in the `build.zig` file:
-
-**File: build.zig**
-```zig
-pub fn build(b: *std.Build) void {
-    ...
-    const zmesh = b.dependency("zmesh", .{});
-    modelGen.root_module.addImport("zmesh", zmesh.module("root"));
-    modelGen.root_module.linkLibrary(zmesh.artifact("zmesh"));
-    modelGen.root_module.addImport("zmath", zmath);
-    b.installArtifact(modelGen);
 }
 ```
 
