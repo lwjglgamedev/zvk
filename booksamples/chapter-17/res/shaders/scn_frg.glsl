@@ -21,8 +21,8 @@ struct Material {
     uint normalMapIdx;
     uint hasRoughMap;
     uint roughMapIdx;
-    float roughnessFactor;
     float metallicFactor;
+    float roughnessFactor;
 };
 
 layout(set = 1, binding = 0) readonly buffer MaterialUniform {
