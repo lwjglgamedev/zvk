@@ -3,7 +3,7 @@
   "meshes": {
     "items": [
       {
-        "id": "mesh-743586336",
+        "id": "mesh-269965856",
         "materialId": "Sponza-mat-0",
         "idxOffset": 0,
         "idxSize": 43680,
@@ -11,7 +11,7 @@
         "vtxSize": 139700
       },
       {
-        "id": "mesh-743969296",
+        "id": "mesh-270348816",
         "materialId": "Sponza-mat-1",
         "idxOffset": 43680,
         "idxSize": 5616,
@@ -19,7 +19,7 @@
         "vtxSize": 23452
       },
       {
-        "id": "mesh-744037840",
+        "id": "mesh-270417360",
         "materialId": "Sponza-mat-2",
         "idxOffset": 49296,
         "idxSize": 26532,
@@ -27,7 +27,7 @@
         "vtxSize": 54164
       },
       {
-        "id": "mesh-744224688",
+        "id": "mesh-270604208",
         "materialId": "Sponza-mat-3",
         "idxOffset": 75828,
         "idxSize": 16344,
@@ -35,7 +35,7 @@
         "vtxSize": 33132
       },
       {
-        "id": "mesh-744338016",
+        "id": "mesh-270717536",
         "materialId": "Sponza-mat-4",
         "idxOffset": 92172,
         "idxSize": 1296,
@@ -43,7 +43,7 @@
         "vtxSize": 5632
       },
       {
-        "id": "mesh-744355696",
+        "id": "mesh-270735216",
         "materialId": "Sponza-mat-5",
         "idxOffset": 93468,
         "idxSize": 3360,
@@ -51,7 +51,7 @@
         "vtxSize": 24640
       },
       {
-        "id": "mesh-744412384",
+        "id": "mesh-270791904",
         "materialId": "Sponza-mat-6",
         "idxOffset": 96828,
         "idxSize": 27984,
@@ -59,7 +59,7 @@
         "vtxSize": 82016
       },
       {
-        "id": "mesh-744637584",
+        "id": "mesh-271017104",
         "materialId": "Sponza-mat-7",
         "idxOffset": 124812,
         "idxSize": 17472,
@@ -67,7 +67,7 @@
         "vtxSize": 75152
       },
       {
-        "id": "mesh-744823056",
+        "id": "mesh-271202576",
         "materialId": "Sponza-mat-5",
         "idxOffset": 142284,
         "idxSize": 34752,
@@ -75,7 +75,7 @@
         "vtxSize": 140448
       },
       {
-        "id": "mesh-745178192",
+        "id": "mesh-271557712",
         "materialId": "Sponza-mat-8",
         "idxOffset": 177036,
         "idxSize": 192,
@@ -83,7 +83,7 @@
         "vtxSize": 704
       },
       {
-        "id": "mesh-745190416",
+        "id": "mesh-271569936",
         "materialId": "Sponza-mat-6",
         "idxOffset": 177228,
         "idxSize": 27984,
@@ -91,7 +91,7 @@
         "vtxSize": 82016
       },
       {
-        "id": "mesh-745415616",
+        "id": "mesh-271795136",
         "materialId": "Sponza-mat-5",
         "idxOffset": 205212,
         "idxSize": 13152,
@@ -99,7 +99,7 @@
         "vtxSize": 51568
       },
       {
-        "id": "mesh-743559424",
+        "id": "mesh-269938944",
         "materialId": "Sponza-mat-9",
         "idxOffset": 218364,
         "idxSize": 44160,
@@ -107,7 +107,7 @@
         "vtxSize": 280192
       },
       {
-        "id": "mesh-746200944",
+        "id": "mesh-272580464",
         "materialId": "Sponza-mat-4",
         "idxOffset": 262524,
         "idxSize": 2448,
@@ -115,7 +115,7 @@
         "vtxSize": 9504
       },
       {
-        "id": "mesh-746226768",
+        "id": "mesh-272606288",
         "materialId": "Sponza-mat-6",
         "idxOffset": 264972,
         "idxSize": 2448,
@@ -123,7 +123,7 @@
         "vtxSize": 9328
       },
       {
-        "id": "mesh-746251328",
+        "id": "mesh-272630848",
         "materialId": "Sponza-mat-4",
         "idxOffset": 267420,
         "idxSize": 1776,
@@ -131,7 +131,7 @@
         "vtxSize": 6072
       },
       {
-        "id": "mesh-746268768",
+        "id": "mesh-272648288",
         "materialId": "Sponza-mat-5",
         "idxOffset": 269196,
         "idxSize": 1920,
@@ -139,7 +139,7 @@
         "vtxSize": 5544
       },
       {
-        "id": "mesh-746286768",
+        "id": "mesh-272666288",
         "materialId": "Sponza-mat-6",
         "idxOffset": 271116,
         "idxSize": 1344,
@@ -147,7 +147,7 @@
         "vtxSize": 5368
       },
       {
-        "id": "mesh-746301520",
+        "id": "mesh-272681040",
         "materialId": "Sponza-mat-5",
         "idxOffset": 272460,
         "idxSize": 1920,
@@ -155,7 +155,7 @@
         "vtxSize": 5544
       },
       {
-        "id": "mesh-746319056",
+        "id": "mesh-272698576",
         "materialId": "Sponza-mat-6",
         "idxOffset": 274380,
         "idxSize": 1344,
@@ -163,7 +163,7 @@
         "vtxSize": 5368
       },
       {
-        "id": "mesh-746333808",
+        "id": "mesh-272713328",
         "materialId": "Sponza-mat-5",
         "idxOffset": 275724,
         "idxSize": 1920,
@@ -171,7 +171,7 @@
         "vtxSize": 5544
       },
       {
-        "id": "mesh-746351344",
+        "id": "mesh-272730864",
         "materialId": "Sponza-mat-6",
         "idxOffset": 277644,
         "idxSize": 1344,
@@ -179,7 +179,7 @@
         "vtxSize": 5368
       },
       {
-        "id": "mesh-746366096",
+        "id": "mesh-272745616",
         "materialId": "Sponza-mat-5",
         "idxOffset": 278988,
         "idxSize": 1920,
@@ -187,7 +187,7 @@
         "vtxSize": 5544
       },
       {
-        "id": "mesh-746383632",
+        "id": "mesh-272763152",
         "materialId": "Sponza-mat-6",
         "idxOffset": 280908,
         "idxSize": 1344,
@@ -195,7 +195,7 @@
         "vtxSize": 5368
       },
       {
-        "id": "mesh-746398384",
+        "id": "mesh-272777904",
         "materialId": "Sponza-mat-5",
         "idxOffset": 282252,
         "idxSize": 1920,
@@ -203,7 +203,7 @@
         "vtxSize": 5544
       },
       {
-        "id": "mesh-746415920",
+        "id": "mesh-272795440",
         "materialId": "Sponza-mat-6",
         "idxOffset": 284172,
         "idxSize": 1344,
@@ -211,7 +211,7 @@
         "vtxSize": 5368
       },
       {
-        "id": "mesh-746430672",
+        "id": "mesh-272810192",
         "materialId": "Sponza-mat-5",
         "idxOffset": 285516,
         "idxSize": 1920,
@@ -219,7 +219,7 @@
         "vtxSize": 5544
       },
       {
-        "id": "mesh-746448208",
+        "id": "mesh-272827728",
         "materialId": "Sponza-mat-6",
         "idxOffset": 287436,
         "idxSize": 1344,
@@ -227,7 +227,7 @@
         "vtxSize": 5368
       },
       {
-        "id": "mesh-746462960",
+        "id": "mesh-272842480",
         "materialId": "Sponza-mat-5",
         "idxOffset": 288780,
         "idxSize": 1920,
@@ -235,7 +235,7 @@
         "vtxSize": 5544
       },
       {
-        "id": "mesh-746480496",
+        "id": "mesh-272860016",
         "materialId": "Sponza-mat-6",
         "idxOffset": 290700,
         "idxSize": 1344,
@@ -243,7 +243,7 @@
         "vtxSize": 5368
       },
       {
-        "id": "mesh-746495248",
+        "id": "mesh-272874768",
         "materialId": "Sponza-mat-5",
         "idxOffset": 292044,
         "idxSize": 1920,
@@ -251,7 +251,7 @@
         "vtxSize": 5544
       },
       {
-        "id": "mesh-746512784",
+        "id": "mesh-272892304",
         "materialId": "Sponza-mat-6",
         "idxOffset": 293964,
         "idxSize": 1344,
@@ -259,7 +259,7 @@
         "vtxSize": 5368
       },
       {
-        "id": "mesh-746527536",
+        "id": "mesh-272907056",
         "materialId": "Sponza-mat-5",
         "idxOffset": 295308,
         "idxSize": 1920,
@@ -267,7 +267,7 @@
         "vtxSize": 5544
       },
       {
-        "id": "mesh-746545072",
+        "id": "mesh-272924592",
         "materialId": "Sponza-mat-6",
         "idxOffset": 297228,
         "idxSize": 1344,
@@ -275,7 +275,7 @@
         "vtxSize": 5368
       },
       {
-        "id": "mesh-746559168",
+        "id": "mesh-272938688",
         "materialId": "Sponza-mat-5",
         "idxOffset": 298572,
         "idxSize": 5280,
@@ -283,7 +283,7 @@
         "vtxSize": 38720
       },
       {
-        "id": "mesh-746638320",
+        "id": "mesh-273017840",
         "materialId": "Sponza-mat-4",
         "idxOffset": 303852,
         "idxSize": 384,
@@ -291,7 +291,7 @@
         "vtxSize": 2464
       },
       {
-        "id": "mesh-746648416",
+        "id": "mesh-273027936",
         "materialId": "Sponza-mat-5",
         "idxOffset": 304236,
         "idxSize": 3360,
@@ -299,7 +299,7 @@
         "vtxSize": 24640
       },
       {
-        "id": "mesh-746695984",
+        "id": "mesh-273075504",
         "materialId": "Sponza-mat-4",
         "idxOffset": 307596,
         "idxSize": 648,
@@ -307,7 +307,7 @@
         "vtxSize": 2904
       },
       {
-        "id": "mesh-746706864",
+        "id": "mesh-273086384",
         "materialId": "Sponza-mat-10",
         "idxOffset": 308244,
         "idxSize": 2904,
@@ -315,7 +315,7 @@
         "vtxSize": 13816
       },
       {
-        "id": "mesh-746738928",
+        "id": "mesh-273118448",
         "materialId": "Sponza-mat-4",
         "idxOffset": 311148,
         "idxSize": 288,
@@ -323,7 +323,7 @@
         "vtxSize": 2112
       },
       {
-        "id": "mesh-746745840",
+        "id": "mesh-273125360",
         "materialId": "Sponza-mat-10",
         "idxOffset": 311436,
         "idxSize": 984,
@@ -331,7 +331,7 @@
         "vtxSize": 4312
       },
       {
-        "id": "mesh-746757264",
+        "id": "mesh-273136784",
         "materialId": "Sponza-mat-4",
         "idxOffset": 312420,
         "idxSize": 288,
@@ -339,7 +339,7 @@
         "vtxSize": 2112
       },
       {
-        "id": "mesh-746762720",
+        "id": "mesh-273142240",
         "materialId": "Sponza-mat-10",
         "idxOffset": 312708,
         "idxSize": 6672,
@@ -347,483 +347,483 @@
         "vtxSize": 30272
       },
       {
-        "id": "mesh-746837216",
+        "id": "mesh-273216736",
         "materialId": "Sponza-mat-4",
         "idxOffset": 319380,
         "idxSize": 600,
         "vtxOffset": 1237280,
-        "vtxSize": 3960
+        "vtxSize": 4048
       },
       {
-        "id": "mesh-746846576",
+        "id": "mesh-273226096",
         "materialId": "Sponza-mat-9",
         "idxOffset": 319980,
         "idxSize": 40896,
-        "vtxOffset": 1241240,
+        "vtxOffset": 1241328,
         "vtxSize": 259776
       },
       {
-        "id": "mesh-747393520",
+        "id": "mesh-273773040",
         "materialId": "Sponza-mat-4",
         "idxOffset": 360876,
         "idxSize": 600,
-        "vtxOffset": 1501016,
-        "vtxSize": 3960
+        "vtxOffset": 1501104,
+        "vtxSize": 4048
       },
       {
-        "id": "mesh-747402912",
+        "id": "mesh-273782432",
         "materialId": "Sponza-mat-8",
         "idxOffset": 361476,
         "idxSize": 60,
-        "vtxOffset": 1504976,
+        "vtxOffset": 1505152,
         "vtxSize": 308
       },
       {
-        "id": "mesh-747404496",
+        "id": "mesh-273784016",
         "materialId": "Sponza-mat-7",
         "idxOffset": 361536,
         "idxSize": 16320,
-        "vtxOffset": 1505284,
+        "vtxOffset": 1505460,
         "vtxSize": 80256
       },
       {
-        "id": "mesh-747591536",
+        "id": "mesh-273971056",
         "materialId": "Sponza-mat-5",
         "idxOffset": 377856,
         "idxSize": 44832,
-        "vtxOffset": 1585540,
+        "vtxOffset": 1585716,
         "vtxSize": 165616
       },
       {
-        "id": "mesh-743526640",
+        "id": "mesh-269906160",
         "materialId": "Sponza-mat-11",
         "idxOffset": 422688,
         "idxSize": 278496,
-        "vtxOffset": 1751156,
+        "vtxOffset": 1751332,
         "vtxSize": 1013672
       },
       {
-        "id": "mesh-749152448",
+        "id": "mesh-275531968",
         "materialId": "Sponza-mat-12",
         "idxOffset": 701184,
         "idxSize": 216,
-        "vtxOffset": 2764828,
+        "vtxOffset": 2765004,
         "vtxSize": 1584
       },
       {
-        "id": "mesh-749156272",
+        "id": "mesh-275535792",
         "materialId": "Sponza-mat-4",
         "idxOffset": 701400,
         "idxSize": 768,
-        "vtxOffset": 2766412,
+        "vtxOffset": 2766588,
         "vtxSize": 5280
       },
       {
-        "id": "mesh-749188768",
+        "id": "mesh-275568288",
         "materialId": "Sponza-mat-13",
         "idxOffset": 702168,
         "idxSize": 65472,
-        "vtxOffset": 2771692,
+        "vtxOffset": 2771868,
         "vtxSize": 173888
       },
       {
-        "id": "mesh-749800400",
+        "id": "mesh-276179920",
         "materialId": "Sponza-mat-0",
         "idxOffset": 767640,
         "idxSize": 333552,
-        "vtxOffset": 2945580,
+        "vtxOffset": 2945756,
         "vtxSize": 923428
       },
       {
-        "id": "mesh-751972528",
+        "id": "mesh-278352048",
         "materialId": "Sponza-mat-14",
         "idxOffset": 1101192,
         "idxSize": 66048,
-        "vtxOffset": 3869008,
+        "vtxOffset": 3869184,
         "vtxSize": 143440
       },
       {
-        "id": "mesh-752455792",
+        "id": "mesh-278835312",
         "materialId": "Sponza-mat-15",
         "idxOffset": 1167240,
         "idxSize": 66048,
-        "vtxOffset": 4012448,
+        "vtxOffset": 4012624,
         "vtxSize": 143440
       },
       {
-        "id": "mesh-752939056",
+        "id": "mesh-279318576",
         "materialId": "Sponza-mat-16",
         "idxOffset": 1233288,
         "idxSize": 66048,
-        "vtxOffset": 4155888,
+        "vtxOffset": 4156064,
         "vtxSize": 143440
       },
       {
-        "id": "mesh-753422320",
+        "id": "mesh-279801840",
         "materialId": "Sponza-mat-14",
         "idxOffset": 1299336,
         "idxSize": 66048,
-        "vtxOffset": 4299328,
+        "vtxOffset": 4299504,
         "vtxSize": 143440
       },
       {
-        "id": "mesh-753905584",
+        "id": "mesh-280285104",
         "materialId": "Sponza-mat-15",
         "idxOffset": 1365384,
         "idxSize": 66048,
-        "vtxOffset": 4442768,
+        "vtxOffset": 4442944,
         "vtxSize": 143440
       },
       {
-        "id": "mesh-754388848",
+        "id": "mesh-280768368",
         "materialId": "Sponza-mat-14",
         "idxOffset": 1431432,
         "idxSize": 66048,
-        "vtxOffset": 4586208,
+        "vtxOffset": 4586384,
         "vtxSize": 143440
       },
       {
-        "id": "mesh-754872112",
+        "id": "mesh-281251632",
         "materialId": "Sponza-mat-16",
         "idxOffset": 1497480,
         "idxSize": 66048,
-        "vtxOffset": 4729648,
+        "vtxOffset": 4729824,
         "vtxSize": 143440
       },
       {
-        "id": "mesh-755355376",
+        "id": "mesh-281734896",
         "materialId": "Sponza-mat-15",
         "idxOffset": 1563528,
         "idxSize": 66048,
-        "vtxOffset": 4873088,
+        "vtxOffset": 4873264,
         "vtxSize": 143440
       },
       {
-        "id": "mesh-755860784",
+        "id": "mesh-282240304",
         "materialId": "Sponza-mat-13",
         "idxOffset": 1629576,
         "idxSize": 132480,
-        "vtxOffset": 5016528,
+        "vtxOffset": 5016704,
         "vtxSize": 366960
       },
       {
-        "id": "mesh-756912016",
+        "id": "mesh-283291536",
         "materialId": "Sponza-mat-17",
         "idxOffset": 1762056,
         "idxSize": 58368,
-        "vtxOffset": 5383488,
+        "vtxOffset": 5383664,
         "vtxSize": 115060
       },
       {
-        "id": "mesh-757322240",
+        "id": "mesh-283701760",
         "materialId": "Sponza-mat-18",
         "idxOffset": 1820424,
         "idxSize": 55296,
-        "vtxOffset": 5498548,
+        "vtxOffset": 5498724,
         "vtxSize": 110396
       },
       {
-        "id": "mesh-757714896",
+        "id": "mesh-284094416",
         "materialId": "Sponza-mat-19",
         "idxOffset": 1875720,
         "idxSize": 58368,
-        "vtxOffset": 5608944,
+        "vtxOffset": 5609120,
         "vtxSize": 115060
       },
       {
-        "id": "mesh-758126144",
+        "id": "mesh-284505664",
         "materialId": "Sponza-mat-18",
         "idxOffset": 1934088,
         "idxSize": 58368,
-        "vtxOffset": 5724004,
+        "vtxOffset": 5724180,
         "vtxSize": 115060
       },
       {
-        "id": "mesh-758536368",
+        "id": "mesh-284915888",
         "materialId": "Sponza-mat-19",
         "idxOffset": 1992456,
         "idxSize": 55296,
-        "vtxOffset": 5839064,
+        "vtxOffset": 5839240,
         "vtxSize": 110396
       },
       {
-        "id": "mesh-758929024",
+        "id": "mesh-285308544",
         "materialId": "Sponza-mat-18",
         "idxOffset": 2047752,
         "idxSize": 58368,
-        "vtxOffset": 5949460,
+        "vtxOffset": 5949636,
         "vtxSize": 115060
       },
       {
-        "id": "mesh-759339248",
+        "id": "mesh-285718768",
         "materialId": "Sponza-mat-17",
         "idxOffset": 2106120,
         "idxSize": 55296,
-        "vtxOffset": 6064520,
+        "vtxOffset": 6064696,
         "vtxSize": 110396
       },
       {
-        "id": "mesh-759731904",
+        "id": "mesh-286111424",
         "materialId": "Sponza-mat-19",
         "idxOffset": 2161416,
         "idxSize": 58368,
-        "vtxOffset": 6174916,
+        "vtxOffset": 6175092,
         "vtxSize": 115060
       },
       {
-        "id": "mesh-760142128",
+        "id": "mesh-286521648",
         "materialId": "Sponza-mat-18",
         "idxOffset": 2219784,
         "idxSize": 55296,
-        "vtxOffset": 6289976,
+        "vtxOffset": 6290152,
         "vtxSize": 110396
       },
       {
-        "id": "mesh-760534784",
+        "id": "mesh-286914304",
         "materialId": "Sponza-mat-17",
         "idxOffset": 2275080,
         "idxSize": 58368,
-        "vtxOffset": 6400372,
+        "vtxOffset": 6400548,
         "vtxSize": 115060
       },
       {
-        "id": "mesh-760926608",
+        "id": "mesh-287306128",
         "materialId": "Sponza-mat-20",
         "idxOffset": 2333448,
         "idxSize": 96,
-        "vtxOffset": 6515432,
+        "vtxOffset": 6515608,
         "vtxSize": 704
       },
       {
-        "id": "mesh-760948864",
+        "id": "mesh-287328384",
         "materialId": "Sponza-mat-21",
         "idxOffset": 2333544,
         "idxSize": 59484,
-        "vtxOffset": 6516136,
+        "vtxOffset": 6516312,
         "vtxSize": 130108
       },
       {
-        "id": "mesh-761365680",
+        "id": "mesh-287745200",
         "materialId": "Sponza-mat-20",
         "idxOffset": 2393028,
         "idxSize": 96,
-        "vtxOffset": 6646244,
+        "vtxOffset": 6646420,
         "vtxSize": 704
       },
       {
-        "id": "mesh-761388144",
+        "id": "mesh-287767664",
         "materialId": "Sponza-mat-21",
         "idxOffset": 2393124,
         "idxSize": 59484,
-        "vtxOffset": 6646948,
+        "vtxOffset": 6647124,
         "vtxSize": 130108
       },
       {
-        "id": "mesh-761804960",
+        "id": "mesh-288184480",
         "materialId": "Sponza-mat-20",
         "idxOffset": 2452608,
         "idxSize": 96,
-        "vtxOffset": 6777056,
+        "vtxOffset": 6777232,
         "vtxSize": 704
       },
       {
-        "id": "mesh-761827424",
+        "id": "mesh-288206944",
         "materialId": "Sponza-mat-21",
         "idxOffset": 2452704,
         "idxSize": 59484,
-        "vtxOffset": 6777760,
+        "vtxOffset": 6777936,
         "vtxSize": 130108
       },
       {
-        "id": "mesh-762244320",
+        "id": "mesh-288623840",
         "materialId": "Sponza-mat-20",
         "idxOffset": 2512188,
         "idxSize": 96,
-        "vtxOffset": 6907868,
+        "vtxOffset": 6908044,
         "vtxSize": 704
       },
       {
-        "id": "mesh-762266784",
+        "id": "mesh-288646304",
         "materialId": "Sponza-mat-21",
         "idxOffset": 2512284,
         "idxSize": 59484,
-        "vtxOffset": 6908572,
+        "vtxOffset": 6908748,
         "vtxSize": 130108
       },
       {
-        "id": "mesh-762683600",
+        "id": "mesh-289063120",
         "materialId": "Sponza-mat-1",
         "idxOffset": 2571768,
         "idxSize": 5616,
-        "vtxOffset": 7038680,
+        "vtxOffset": 7038856,
         "vtxSize": 23452
       },
       {
-        "id": "mesh-762752144",
+        "id": "mesh-289131664",
         "materialId": "Sponza-mat-2",
         "idxOffset": 2577384,
         "idxSize": 26532,
-        "vtxOffset": 7062132,
+        "vtxOffset": 7062308,
         "vtxSize": 54164
       },
       {
-        "id": "mesh-762933536",
+        "id": "mesh-289313056",
         "materialId": "Sponza-mat-1",
         "idxOffset": 2603916,
         "idxSize": 5616,
-        "vtxOffset": 7116296,
+        "vtxOffset": 7116472,
         "vtxSize": 23452
       },
       {
-        "id": "mesh-763002080",
+        "id": "mesh-289381600",
         "materialId": "Sponza-mat-2",
         "idxOffset": 2609532,
         "idxSize": 26532,
-        "vtxOffset": 7139748,
+        "vtxOffset": 7139924,
         "vtxSize": 54164
       },
       {
-        "id": "mesh-763183472",
+        "id": "mesh-289562992",
         "materialId": "Sponza-mat-1",
         "idxOffset": 2636064,
         "idxSize": 5616,
-        "vtxOffset": 7193912,
+        "vtxOffset": 7194088,
         "vtxSize": 23452
       },
       {
-        "id": "mesh-763252016",
+        "id": "mesh-289631536",
         "materialId": "Sponza-mat-2",
         "idxOffset": 2641680,
         "idxSize": 26532,
-        "vtxOffset": 7217364,
+        "vtxOffset": 7217540,
         "vtxSize": 54164
       },
       {
-        "id": "mesh-763433408",
+        "id": "mesh-289812928",
         "materialId": "Sponza-mat-1",
         "idxOffset": 2668212,
         "idxSize": 4800,
-        "vtxOffset": 7271528,
+        "vtxOffset": 7271704,
         "vtxSize": 19800
       },
       {
-        "id": "mesh-763493088",
+        "id": "mesh-289872608",
         "materialId": "Sponza-mat-2",
         "idxOffset": 2673012,
         "idxSize": 26532,
-        "vtxOffset": 7291328,
+        "vtxOffset": 7291504,
         "vtxSize": 54164
       },
       {
-        "id": "mesh-763674480",
+        "id": "mesh-290054000",
         "materialId": "Sponza-mat-1",
         "idxOffset": 2699544,
         "idxSize": 4800,
-        "vtxOffset": 7345492,
+        "vtxOffset": 7345668,
         "vtxSize": 19800
       },
       {
-        "id": "mesh-763734160",
+        "id": "mesh-290113680",
         "materialId": "Sponza-mat-2",
         "idxOffset": 2704344,
         "idxSize": 26532,
-        "vtxOffset": 7365292,
+        "vtxOffset": 7365468,
         "vtxSize": 54164
       },
       {
-        "id": "mesh-763915552",
+        "id": "mesh-290295072",
         "materialId": "Sponza-mat-1",
         "idxOffset": 2730876,
         "idxSize": 4800,
-        "vtxOffset": 7419456,
+        "vtxOffset": 7419632,
         "vtxSize": 19800
       },
       {
-        "id": "mesh-763975232",
+        "id": "mesh-290354752",
         "materialId": "Sponza-mat-2",
         "idxOffset": 2735676,
         "idxSize": 26532,
-        "vtxOffset": 7439256,
+        "vtxOffset": 7439432,
         "vtxSize": 54164
       },
       {
-        "id": "mesh-764156624",
+        "id": "mesh-290536144",
         "materialId": "Sponza-mat-1",
         "idxOffset": 2762208,
         "idxSize": 4800,
-        "vtxOffset": 7493420,
+        "vtxOffset": 7493596,
         "vtxSize": 19800
       },
       {
-        "id": "mesh-764216304",
+        "id": "mesh-290595824",
         "materialId": "Sponza-mat-2",
         "idxOffset": 2767008,
         "idxSize": 26532,
-        "vtxOffset": 7513220,
+        "vtxOffset": 7513396,
         "vtxSize": 54164
       },
       {
-        "id": "mesh-764434448",
+        "id": "mesh-290813968",
         "materialId": "Sponza-mat-22",
         "idxOffset": 2793540,
         "idxSize": 110208,
-        "vtxOffset": 7567384,
+        "vtxOffset": 7567560,
         "vtxSize": 233552
       },
       {
-        "id": "mesh-765201296",
+        "id": "mesh-291580816",
         "materialId": "Sponza-mat-23",
         "idxOffset": 2903748,
         "idxSize": 18252,
-        "vtxOffset": 7800936,
+        "vtxOffset": 7801112,
         "vtxSize": 38104
       },
       {
-        "id": "mesh-765333120",
+        "id": "mesh-291712640",
         "materialId": "Sponza-mat-3",
         "idxOffset": 2922000,
         "idxSize": 16344,
-        "vtxOffset": 7839040,
+        "vtxOffset": 7839216,
         "vtxSize": 33132
       },
       {
-        "id": "mesh-765451216",
+        "id": "mesh-291830736",
         "materialId": "Sponza-mat-23",
         "idxOffset": 2938344,
         "idxSize": 18252,
-        "vtxOffset": 7872172,
+        "vtxOffset": 7872348,
         "vtxSize": 38104
       },
       {
-        "id": "mesh-765583040",
+        "id": "mesh-291962560",
         "materialId": "Sponza-mat-3",
         "idxOffset": 2956596,
         "idxSize": 16344,
-        "vtxOffset": 7910276,
+        "vtxOffset": 7910452,
         "vtxSize": 33132
       },
       {
-        "id": "mesh-765695280",
+        "id": "mesh-292074800",
         "materialId": "Sponza-mat-4",
         "idxOffset": 2972940,
         "idxSize": 336,
-        "vtxOffset": 7943408,
+        "vtxOffset": 7943584,
         "vtxSize": 2200
       },
       {
-        "id": "mesh-765759312",
+        "id": "mesh-292138832",
         "materialId": "Sponza-mat-24",
         "idxOffset": 2973276,
         "idxSize": 173808,
-        "vtxOffset": 7945608,
+        "vtxOffset": 7945784,
         "vtxSize": 523160
       },
       {
-        "id": "mesh-767169344",
+        "id": "mesh-293548864",
         "materialId": "Sponza-mat-4",
         "idxOffset": 3147084,
         "idxSize": 120,
-        "vtxOffset": 8468768,
+        "vtxOffset": 8468944,
         "vtxSize": 880
       }
     ],

@@ -14,6 +14,18 @@ terms of the [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/legal
 
 ## Material changes
 
+We will need to modify the flgas we use to load the models to use this:
+
+**File: src/eng/modelGen.zig**
+```zig
+pub fn main(init: std.process.Init) !void {
+    ...
+    const flags = zassimp.aiProcess_Triangulate | zassimp.aiProcess_GenSmoothNormals | zassimp.aiProcess_CalcTangentSpace;
+    ...
+}
+```
+
+We need to generate normals and to calculate the tangent space (to get tangents).
 We will need to modify the model generation code to load normal maps and PBR related material information from the models and dump it to
 the generated files. We first need to update the `MeshIntData` struct to store normals and tangent information since they will be
 used for lighting calculations:

@@ -47,8 +47,7 @@ pub fn main(init: std.process.Init) !void {
     var dir = try std.Io.Dir.cwd().openDir(io, baseDir, .{});
     defer dir.close(io);
 
-    const flags = zassimp.aiProcess_GenSmoothNormals | zassimp.aiProcess_JoinIdenticalVertices |
-        zassimp.aiProcess_Triangulate | zassimp.aiProcess_FixInfacingNormals | zassimp.aiProcess_CalcTangentSpace;
+    const flags = zassimp.aiProcess_Triangulate | zassimp.aiProcess_GenSmoothNormals | zassimp.aiProcess_CalcTangentSpace;
 
     const scene = zassimp.aiImportFile(modelPath, flags) orelse {
         const err = std.mem.sliceTo(zassimp.aiGetErrorString(), 0);
