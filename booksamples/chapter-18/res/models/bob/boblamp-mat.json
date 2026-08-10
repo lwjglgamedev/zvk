@@ -1,0 +1,89 @@
+{
+  "items": [
+    {
+      "id": "boblamp-mat-0",
+      "texturePath": "res/models/bob/guard1_body.png",
+      "color": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "normalMapPath": "",
+      "metalRoughMapPath": "",
+      "roughFactor": 1,
+      "metallicFactor": 0
+    },
+    {
+      "id": "boblamp-mat-1",
+      "texturePath": "res/models/bob/guard1_face.png",
+      "color": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "normalMapPath": "",
+      "metalRoughMapPath": "",
+      "roughFactor": 1,
+      "metallicFactor": 0
+    },
+    {
+      "id": "boblamp-mat-2",
+      "texturePath": "res/models/bob/guard1_helmet.png",
+      "color": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "normalMapPath": "",
+      "metalRoughMapPath": "",
+      "roughFactor": 1,
+      "metallicFactor": 0
+    },
+    {
+      "id": "boblamp-mat-3",
+      "texturePath": "res/models/bob/iron_grill.png",
+      "color": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "normalMapPath": "",
+      "metalRoughMapPath": "",
+      "roughFactor": 1,
+      "metallicFactor": 0
+    },
+    {
+      "id": "boblamp-mat-4",
+      "texturePath": "res/models/bob/round_grill.png",
+      "color": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "normalMapPath": "",
+      "metalRoughMapPath": "",
+      "roughFactor": 1,
+      "metallicFactor": 0
+    },
+    {
+      "id": "boblamp-mat-5",
+      "texturePath": "res/models/bob/guard1_body.png",
+      "color": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "normalMapPath": "",
+      "metalRoughMapPath": "",
+      "roughFactor": 1,
+      "metallicFactor": 0
+    }
+  ],
+  "capacity": 10
+}
