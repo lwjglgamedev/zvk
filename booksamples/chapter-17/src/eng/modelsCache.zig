@@ -261,7 +261,7 @@ pub const ModelsCache = struct {
         srcBuffers: *std.ArrayList(vk.buf.VkBuffer),
         animatedFrame: eng.mdata.AnimatedFrame,
     ) !vk.buf.VkBuffer {
-        const numMatrices = animatedFrame.joint_matrices.len;
+        const numMatrices = animatedFrame.jointMatrices.len;
         const bufferSize = numMatrices * @sizeOf([16]f32);
 
         const srcJointBuffer = try vk.buf.VkBuffer.create(
@@ -292,7 +292,7 @@ pub const ModelsCache = struct {
             0, 0, 1, 0,
             0, 0, 0, 1,
         };
-        for (animatedFrame.joint_matrices, 0..) |maybeMatrix, i| {
+        for (animatedFrame.jointMatrices, 0..) |maybeMatrix, i| {
             const matrix = maybeMatrix orelse identity;
             @memcpy(gpuJoints[i * 64 .. i * 64 + 64], std.mem.sliceAsBytes(&matrix));
         }
@@ -311,7 +311,7 @@ pub const ModelsCache = struct {
         animMeshData: eng.mdata.AnimMeshData,
     ) !vk.buf.VkBuffer {
         const weights = animMeshData.weights;
-        const boneIds = animMeshData.bone_ids;
+        const boneIds = animMeshData.boneIds;
         const bufferSize = weights.len * @sizeOf(f32) + boneIds.len * @sizeOf(i32);
 
         const srcWeightsBuffer = try vk.buf.VkBuffer.create(

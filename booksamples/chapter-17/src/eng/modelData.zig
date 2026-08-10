@@ -2,41 +2,19 @@ const std = @import("std");
 
 const log = std.log.scoped(.eng);
 
-pub const MAX_WEIGHTS = 4;
-pub const MAX_JOINTS = 64;
-
-pub const Bone = struct {
-    id: usize,
-    name: []const u8,
-    offset_matrix: [16]f32,
-};
-
-pub const VertexWeight = struct {
-    bone_id: usize,
-    vertex_id: u32,
-    weight: f32,
-};
-
-pub const AnimMeshData = struct {
-    weights: []f32,
-    bone_ids: []i32,
-};
-
-pub const NodeData = struct {
-    name: []const u8,
-    transformation: [16]f32,
-    children: []NodeData,
-    meshes: []u32,
-};
-
 pub const AnimatedFrame = struct {
-    joint_matrices: []?[16]f32,
+    jointMatrices: []?[16]f32,
 };
 
 pub const AnimationData = struct {
     name: []const u8,
-    frame_millis: f32,
+    frameMillis: f32,
     frames: []AnimatedFrame,
+};
+
+pub const AnimMeshData = struct {
+    weights: []f32,
+    boneIds: []i32,
 };
 
 pub const MaterialData = struct {
@@ -73,6 +51,9 @@ pub const ModelData = struct {
         for (self.meshes.items) |*meshData| {
             allocator.free(meshData.id);
             allocator.free(meshData.materialId);
+        }
+        for (self.animations.items) |*animData| {
+            allocator.free(animData.name);
         }
     }
 };

@@ -193,6 +193,16 @@ pub fn normalizePath(allocator: std.mem.Allocator, input_path: []const u8) ![]co
     return result;
 }
 
+fn printHelp() void {
+    std.debug.print(
+        \\Usage: model-gen [OPTIONS]
+        \\
+        \\Options:
+        \\  -m  FILE       Path to the model file
+        \\
+    , .{});
+}
+
 fn processMaterial(
     allocator: std.mem.Allocator,
     io: std.Io,
@@ -345,14 +355,4 @@ fn processTexture(
 
     const fileName = std.fs.path.basename(texturePathSlice);
     return try std.fmt.allocPrint(allocator, "{s}/{s}", .{ baseDir, fileName });
-}
-
-fn printHelp() void {
-    std.debug.print(
-        \\Usage: model-gen [OPTIONS]
-        \\
-        \\Options:
-        \\  -m  FILE       Path to the model file
-        \\
-    , .{});
 }

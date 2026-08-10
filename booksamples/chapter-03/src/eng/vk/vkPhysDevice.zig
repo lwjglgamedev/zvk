@@ -34,7 +34,7 @@ pub const VkPhysDevice = struct {
             if (!try checkExtensionSupport(instance, pdev, allocator)) {
                 continue;
             }
-            if (try hasGraphicsQueue(instance, pdev, vkSurface, allocator)) |queuesInfo| {
+            if (try hasRequiredQueues(instance, pdev, vkSurface, allocator)) |queuesInfo| {
                 const vkPhysDevice = VkPhysDevice{
                     .features = features,
                     .pdev = pdev,
@@ -63,7 +63,7 @@ pub const VkPhysDevice = struct {
         return result;
     }
 
-    fn hasGraphicsQueue(
+    fn hasRequiredQueues(
         instance: vulkan.InstanceProxy,
         pdev: vulkan.PhysicalDevice,
         vkSurface: vk.surf.VkSurface,

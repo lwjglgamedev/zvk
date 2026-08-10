@@ -1,13 +1,12 @@
 # Vulkan graphics programming in Zig
 
-> [!NOTE]
-> WORK IN PROGRESS. First chapters available
-
-This [online book](bookcontents/) will introduce the main concepts required to write graphics games or any other applications using [Vulkan](https://www.khronos.org/vulkan/) in [Zig](https://ziglang.org). You can view the static site [here](https://lwjglgamedev.github.io/zvk/).
+This [online book](bookcontents/) will introduce the main concepts required to write graphics games or any other applications using
+[Vulkan](https://www.khronos.org/vulkan/) in [Zig](https://ziglang.org). You can view the static site
+[here](https://lwjglgamedev.github.io/zvk/).
 
 This book is the result of my self learning language, that I think it may help the community.
 
-![Sample screen shot](./bookcontents/chapter-16/rc16-screen-shot.png)
+![Sample screen shot](./bookcontents/chapter-17/rc17-screen-shot.png)
 
 
 > [!NOTE]
@@ -34,9 +33,11 @@ If you like the book you can become a [sponsor](https://github.com/sponsors/lwjg
 
 ## Comments are welcome
 
-Suggestions and corrections are more than welcome (and if you do like it please rate it with a star). Please send them using the discussion forum and make the corrections you consider in order to improve the book. Please consider that I also just started with Zig!.
+Suggestions and corrections are more than welcome (and if you do like it please rate it with a star). Please send them using the discussion
+forum and make the corrections you consider in order to improve the book.
 
-If you find something confusing, or you would like something clarified in the book, please [submit an issue](https://github.com/lwjglgamedev/zvk/issues/new/choose) on GitHub.
+If you find something confusing, or you would like something clarified in the book, please
+[submit an issue](https://github.com/lwjglgamedev/zvk/issues/new/choose) on GitHub.
 
 ## Author
 

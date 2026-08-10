@@ -84,7 +84,7 @@ pub const VkPhysDevice = struct {
             if (!try checkExtensionSupport(instance, pdev, allocator)) {
                 continue;
             }
-            if (try hasGraphicsQueue(instance, pdev, vkSurface, allocator)) |queuesInfo| {
+            if (try hasRequiredQueues(instance, pdev, vkSurface, allocator)) |queuesInfo| {
                 const vkPhysDevice = VkPhysDevice{
                     .features = features,
                     .pdev = pdev,
@@ -170,19 +170,19 @@ stores the name of the KHHR Swapchain extension.
 
 ## Queue families
 
-Since the only pending function to present now is the one named `hasGraphicsQueue` it is now the moment to talk a little bit about Vulkan
+Since the only pending function to present now is the one named `hasRequiredQueues` it is now the moment to talk a little bit about Vulkan
 queues. In Vulkan, any work is performed by submitting commands buffers through specific queues. We do not command the GPU to immediately
 draw a specific shape, we submit a command to a queue which contains the instructions to perform a operation like render the vertices that
 are part of that shape. Commands in those queues are consumed and executed asynchronously. Devices have different types of queues, which are
  organized in families. Each queue family only accepts a specific set of command types. For example, we may have graphic commands used to
  render and compute commands, each of these command types may require to be submitted to different types of queue. In our case, we want to
- be sure that the selected device is capable of handling graphics commands, which is what we check within the `hasGraphicsQueue` function: 
+ be sure that the selected device is capable of handling graphics commands, which is what we check within the `hasRequiredQueues` function: 
 
 **File: src/eng/vk/vkDevice.zig**
 ```zig
 pub const VkPhysDevice = struct {
     ...
-    fn hasGraphicsQueue(
+    fn hasRequiredQueues(
         instance: vulkan.InstanceProxy,
         pdev: vulkan.PhysicalDevice,
         vkSurface: vk.surf.VkSurface,

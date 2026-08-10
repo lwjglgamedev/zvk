@@ -3,6 +3,14 @@ const std = @import("std");
 const zm = @import("zmath");
 const zassimp = @import("zassimp");
 
+const MAX_WEIGHTS = 4;
+
+pub const Bone = struct {
+    id: usize,
+    name: []const u8,
+    offsetMatrix: [16]f32,
+};
+
 const MeshIntData = struct {
     id: []const u8,
     materialId: []const u8,
@@ -21,12 +29,25 @@ const MeshIntData = struct {
     }
 };
 
+pub const NodeData = struct {
+    name: []const u8,
+    transformation: [16]f32,
+    children: []NodeData,
+    meshes: []u32,
+};
+
+pub const VertexWeight = struct {
+    boneId: usize,
+    vertexId: u32,
+    weight: f32,
+};
+
 fn buildFrameMatrices(
     aiAnimation: *const zassimp.aiAnimation,
-    boneList: *const std.ArrayListUnmanaged(eng.mdata.Bone),
+    boneList: *const std.ArrayListUnmanaged(Bone),
     animatedFrame: *eng.mdata.AnimatedFrame,
     frameIdx: usize,
-    node: *const eng.mdata.NodeData,
+    node: *const NodeData,
     nodeParentTransform: zm.Mat,
     globalInverseTransform: zm.Mat,
 ) void {
@@ -61,11 +82,11 @@ fn buildFrameMatrices(
 
     for (boneList.items, 0..) |bone, boneId| {
         if (std.mem.eql(u8, bone.name, node.name)) {
-            if (boneId < animatedFrame.joint_matrices.len) {
-                const offsetMat = zm.transpose(zm.matFromArr(bone.offset_matrix));
+            if (boneId < animatedFrame.jointMatrices.len) {
+                const offsetMat = zm.transpose(zm.matFromArr(bone.offsetMatrix));
                 const mat1 = zm.mul(nodeGlobalTransform, globalInverseTransform);
                 const mat2 = zm.mul(offsetMat, mat1);
-                animatedFrame.joint_matrices[boneId] = @bitCast(mat2);
+                animatedFrame.jointMatrices[boneId] = @bitCast(mat2);
             }
         }
     }
@@ -86,8 +107,8 @@ fn buildFrameMatrices(
 fn buildNodesTree(
     allocator: std.mem.Allocator,
     aiNode: *const zassimp.aiNode,
-    parent: ?*const eng.mdata.NodeData,
-) !eng.mdata.NodeData {
+    parent: ?*const NodeData,
+) !NodeData {
     _ = parent;
 
     const name = try allocator.dupe(u8, aiNode.mName.data[0..aiNode.mName.length]);
@@ -104,9 +125,9 @@ fn buildNodesTree(
     }
 
     const numChildren = aiNode.mNumChildren;
-    var children: []eng.mdata.NodeData = &.{};
+    var children: []NodeData = &.{};
     if (numChildren > 0 and aiNode.mChildren != null) {
-        children = try allocator.alloc(eng.mdata.NodeData, numChildren);
+        children = try allocator.alloc(NodeData, numChildren);
         const srcChildren = aiNode.mChildren[0..numChildren];
         for (srcChildren, 0..) |childPtr, i| {
             if (childPtr) |child| {
@@ -115,7 +136,7 @@ fn buildNodesTree(
         }
     }
 
-    return eng.mdata.NodeData{
+    return NodeData{
         .name = name,
         .transformation = @bitCast(transformation),
         .children = children,
@@ -205,20 +226,18 @@ pub fn main(init: std.process.Init) !void {
 
     const numMaterials = scene.mNumMaterials;
     std.debug.print("Number of materials: {}\n", .{numMaterials});
-    if (numMaterials > 0) {
-        for (0..numMaterials) |i| {
-            const material = scene.mMaterials[i];
-            const materialData = try processMaterial(
-                allocator,
-                io,
-                scene,
-                material,
-                baseDir,
-                modelId,
-                i,
-            );
-            try materialList.append(allocator, materialData);
-        }
+    for (0..numMaterials) |i| {
+        const material = scene.mMaterials[i];
+        const materialData = try processMaterial(
+            allocator,
+            io,
+            scene,
+            material,
+            baseDir,
+            modelId,
+            i,
+        );
+        try materialList.append(allocator, materialData);
     }
 
     // Create indices file
@@ -239,55 +258,52 @@ pub fn main(init: std.process.Init) !void {
 
     const numMeshes = scene.mNumMeshes;
     std.debug.print("Number of meshes: {}\n", .{numMeshes});
-    if (numMeshes > 0) {
-        for (0..numMeshes) |i| {
-            const mesh = scene.mMeshes[i];
-            var meshIntData = try processMesh(
-                allocator,
-                mesh,
-                materialList,
-            );
-            defer meshIntData.cleanup(allocator);
+    for (0..numMeshes) |i| {
+        const mesh = scene.mMeshes[i];
+        var meshIntData = try processMesh(
+            allocator,
+            mesh,
+            materialList,
+        );
+        defer meshIntData.cleanup(allocator);
 
-            // Dump to indices file
-            try idxFile.writeStreamingAll(io, std.mem.sliceAsBytes(meshIntData.indices.items));
+        // Dump to indices file
+        try idxFile.writeStreamingAll(io, std.mem.sliceAsBytes(meshIntData.indices.items));
 
-            // Dump to vertices file (same layout as main2)
-            for (meshIntData.positions.items, 0..) |_, idx| {
-                try vtxFile.writeStreamingAll(io, std.mem.sliceAsBytes(std.mem.asBytes(&meshIntData.positions.items[idx])));
-                if (idx < meshIntData.texcoords.items.len) {
-                    try vtxFile.writeStreamingAll(io, std.mem.sliceAsBytes(std.mem.asBytes(&meshIntData.texcoords.items[idx])));
-                } else {
-                    try vtxFile.writeStreamingAll(io, std.mem.sliceAsBytes(std.mem.asBytes(&defText)));
-                }
-                try vtxFile.writeStreamingAll(io, std.mem.sliceAsBytes(std.mem.asBytes(&meshIntData.normals.items[idx])));
-                try vtxFile.writeStreamingAll(io, std.mem.sliceAsBytes(std.mem.asBytes(&meshIntData.tangents.items[idx])));
+        // Dump to vertices file
+        for (meshIntData.positions.items, 0..) |_, idx| {
+            try vtxFile.writeStreamingAll(io, std.mem.sliceAsBytes(std.mem.asBytes(&meshIntData.positions.items[idx])));
+            if (idx < meshIntData.texcoords.items.len) {
+                try vtxFile.writeStreamingAll(io, std.mem.sliceAsBytes(std.mem.asBytes(&meshIntData.texcoords.items[idx])));
+            } else {
+                try vtxFile.writeStreamingAll(io, std.mem.sliceAsBytes(std.mem.asBytes(&defText)));
             }
-
-            const numIndices = meshIntData.indices.items.len;
-            const numFloats = meshIntData.positions.items.len * 3 +
-                meshIntData.texcoords.items.len * 2 +
-                meshIntData.normals.items.len * 3 +
-                meshIntData.tangents.items.len * 3;
-
-            try meshDataList.append(allocator, .{
-                .id = meshIntData.id,
-                .materialId = meshIntData.materialId,
-                .idxOffset = idxOffset,
-                .idxSize = numIndices * @sizeOf(u32),
-                .vtxOffset = vtxOffset,
-                .vtxSize = numFloats * @sizeOf(f32),
-            });
-
-            idxOffset += numIndices * @sizeOf(u32);
-            vtxOffset += numFloats * @sizeOf(f32);
+            try vtxFile.writeStreamingAll(io, std.mem.sliceAsBytes(std.mem.asBytes(&meshIntData.normals.items[idx])));
+            try vtxFile.writeStreamingAll(io, std.mem.sliceAsBytes(std.mem.asBytes(&meshIntData.tangents.items[idx])));
         }
+
+        const numIndices = meshIntData.indices.items.len;
+        const numFloats = meshIntData.positions.items.len * 3 +
+            meshIntData.texcoords.items.len * 2 +
+            meshIntData.normals.items.len * 3 +
+            meshIntData.tangents.items.len * 3;
+        try meshDataList.append(allocator, .{
+            .id = meshIntData.id,
+            .materialId = meshIntData.materialId,
+            .idxOffset = idxOffset,
+            .idxSize = numIndices * @sizeOf(u32),
+            .vtxOffset = vtxOffset,
+            .vtxSize = numFloats * @sizeOf(f32),
+        });
+
+        idxOffset += numIndices * @sizeOf(u32);
+        vtxOffset += numFloats * @sizeOf(f32);
     }
 
     const numAnimations = scene.mNumAnimations;
     std.debug.print("Animations [{d}]\n", .{numAnimations});
 
-    var boneList: std.ArrayListUnmanaged(eng.mdata.Bone) = .empty;
+    var boneList: std.ArrayListUnmanaged(Bone) = .empty;
     defer boneList.deinit(allocator);
 
     var animMeshDataList: std.ArrayListUnmanaged(eng.mdata.AnimMeshData) = .empty;
@@ -386,8 +402,8 @@ fn printHelp() void {
 fn processAnimations(
     allocator: std.mem.Allocator,
     scene: *const zassimp.aiScene,
-    boneList: *const std.ArrayListUnmanaged(eng.mdata.Bone),
-    rootNode: *const eng.mdata.NodeData,
+    boneList: *const std.ArrayListUnmanaged(Bone),
+    rootNode: *const NodeData,
     globalInverseTransform: zm.Mat,
     outAnimations: *std.ArrayListUnmanaged(eng.mdata.AnimationData),
 ) !void {
@@ -419,7 +435,7 @@ fn processAnimations(
                     }
 
                     var animatedFrame = eng.mdata.AnimatedFrame{
-                        .joint_matrices = jointMatrices,
+                        .jointMatrices = jointMatrices,
                     };
 
                     buildFrameMatrices(
@@ -437,7 +453,7 @@ fn processAnimations(
 
                 try outAnimations.append(allocator, .{
                     .name = name,
-                    .frame_millis = frameMillis,
+                    .frameMillis = frameMillis,
                     .frames = frames,
                 });
             }
@@ -448,12 +464,12 @@ fn processAnimations(
 fn processBones(
     allocator: std.mem.Allocator,
     mesh: *const zassimp.aiMesh,
-    boneList: *std.ArrayListUnmanaged(eng.mdata.Bone),
+    boneList: *std.ArrayListUnmanaged(Bone),
 ) !eng.mdata.AnimMeshData {
     const numVertices = mesh.mNumVertices;
 
     // Map: vertex_index -> list of VertexWeight
-    var weightSet = std.AutoHashMap(u32, std.ArrayListUnmanaged(eng.mdata.VertexWeight)).init(allocator);
+    var weightSet = std.AutoHashMap(u32, std.ArrayListUnmanaged(VertexWeight)).init(allocator);
     defer {
         var it = weightSet.valueIterator();
         while (it.next()) |list| list.deinit(allocator);
@@ -472,7 +488,7 @@ fn processBones(
             try boneList.append(allocator, .{
                 .id = boneId,
                 .name = boneName,
-                .offset_matrix = offsetMatrix,
+                .offsetMatrix = offsetMatrix,
             });
 
             const numWeights = aiBone.mNumWeights;
@@ -483,15 +499,15 @@ fn processBones(
                     gop.value_ptr.* = .empty;
                 }
                 try gop.value_ptr.append(allocator, .{
-                    .bone_id = boneId,
-                    .vertex_id = aiWeight.mVertexId,
+                    .boneId = boneId,
+                    .vertexId = aiWeight.mVertexId,
                     .weight = aiWeight.mWeight,
                 });
             }
         }
     }
 
-    const totalFloats = numVertices * eng.mdata.MAX_WEIGHTS;
+    const totalFloats = numVertices * MAX_WEIGHTS;
     var weights = try allocator.alloc(f32, totalFloats);
     var boneIds = try allocator.alloc(i32, totalFloats);
     @memset(weights, 0.0);
@@ -501,12 +517,12 @@ fn processBones(
         const vertexWeightList = weightSet.get(@intCast(i));
         const size = if (vertexWeightList) |vl| vl.items.len else 0;
 
-        for (0..eng.mdata.MAX_WEIGHTS) |j| {
-            const offset = i * eng.mdata.MAX_WEIGHTS + j;
+        for (0..MAX_WEIGHTS) |j| {
+            const offset = i * MAX_WEIGHTS + j;
             if (j < size) {
                 const vw = vertexWeightList.?.items[j];
                 weights[offset] = vw.weight;
-                boneIds[offset] = @intCast(vw.bone_id);
+                boneIds[offset] = @intCast(vw.boneId);
             } else {
                 weights[offset] = 0.0;
                 boneIds[offset] = 0;
@@ -516,7 +532,7 @@ fn processBones(
 
     return eng.mdata.AnimMeshData{
         .weights = weights,
-        .bone_ids = boneIds,
+        .boneIds = boneIds,
     };
 }
 
