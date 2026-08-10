@@ -202,6 +202,9 @@ const Game = struct {
         } else if (engCtx.wnd.isKeyPressed(sdl3.Scancode.down)) {
             viewData.moveDown(inc * deltaSec);
         }
+        if (engCtx.wnd.isKeyPressed(sdl3.Scancode.space)) {
+            self.bobEntity.?.animation.?.started = !self.bobEntity.?.animation.?.started;
+        }
 
         const mouseState = engCtx.wnd.mouseState;
         if (mouseState.flags.right) {
