@@ -7,6 +7,7 @@ pub const VkBuffer = struct {
     buffer: vulkan.Buffer,
     allocation: vma.VmaAllocation,
     mappedData: ?*anyopaque,
+    address: ?u64,
 
     pub fn create(
         vkCtx: *const vk.ctx.VkCtx,
@@ -21,7 +22,6 @@ pub const VkBuffer = struct {
             .usage = bufferUsage,
             .sharing_mode = vulkan.SharingMode.exclusive,
         };
-
         const allocInfo = vma.VmaAllocationCreateInfo{
             .flags = vmaFlags,
             .usage = @intFromEnum(vmaUsage),
@@ -41,11 +41,18 @@ pub const VkBuffer = struct {
         ) != 0) {
             @panic("Failed to create buffer");
         }
+
+        var address: ?u64 = null;
+        if (bufferUsage.shader_device_address_bit) {
+            address = getBufferAddress(vkCtx, buffer);
+        }
+
         return .{
             .size = size,
             .buffer = buffer,
             .allocation = allocation,
             .mappedData = allocation_info.pMappedData,
+            .address = address,
         };
     }
 
@@ -56,6 +63,13 @@ pub const VkBuffer = struct {
 
     pub fn flush(self: *const VkBuffer, vkCtx: *const vk.ctx.VkCtx) void {
         _ = vma.vmaFlushAllocation(vkCtx.vkVmaAlloc.vmaAlloc, self.allocation, 0, self.size);
+    }
+
+    pub fn getBufferAddress(vkCtx: *const vk.ctx.VkCtx, buffer: vulkan.Buffer) u64 {
+        const info = vulkan.BufferDeviceAddressInfo{
+            .buffer = buffer,
+        };
+        return vkCtx.vkDevice.deviceProxy.getBufferDeviceAddress(&info);
     }
 
     pub fn map(self: *const VkBuffer, vkCtx: *const vk.ctx.VkCtx) !?*anyopaque {

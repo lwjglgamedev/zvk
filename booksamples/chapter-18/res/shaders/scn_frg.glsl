@@ -31,8 +31,9 @@ layout(set = 1, binding = 0) readonly buffer MaterialUniform {
 
 layout(set = 2, binding = 0) uniform sampler2D textSampler[MAX_TEXTURES];
 
+// TODO: Check this
 layout(push_constant) uniform pc {
-    layout(offset = 64) uint materialIdx;
+    layout(offset = 80) uint materialIdx;
 } push_constants;
 
 vec3 calcNormal(Material material, vec3 normal, vec2 textCoords, mat3 TBN)

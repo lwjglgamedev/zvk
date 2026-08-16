@@ -1,9 +1,7 @@
 #version 450
-
-layout(location = 0) in vec3 inPos;
-layout(location = 1) in vec2 inTextCoords;
-layout(location = 2) in vec3 inNormal;
-layout(location = 3) in vec3 inTangent;
+#extension GL_EXT_buffer_reference: require
+#extension GL_EXT_buffer_reference2: enable
+#extension GL_EXT_scalar_block_layout: require
 
 layout(location = 0) out vec4 outPos;
 layout(location = 1) out vec3 outNormal;
@@ -15,17 +13,41 @@ layout(set = 0, binding = 0) uniform CamUniform {
     mat4 viewMatrix;
 } camUniform;
 
+
+struct Vertex {
+    vec3 inPos;
+    vec2 inTextCoords;
+    vec3 inNormal;
+    vec3 inTangent;
+};
+
+layout(scalar, buffer_reference) buffer VertexBuffer {
+    Vertex[] vertices;
+};
+
+layout(std430, buffer_reference) buffer IndexBuffer {
+    uint[] indices;
+};
+
 layout(push_constant) uniform pc {
     mat4 modelMatrix;
+    VertexBuffer vertexBuffer;
+    IndexBuffer indexBuffer;
 } push_constants;
+
+
 
 void main()
 {
-    vec4 worldPos = push_constants.modelMatrix * vec4(inPos, 1);
+    uint index = push_constants.indexBuffer.indices[gl_VertexIndex];
+    VertexBuffer vertexData = push_constants.vertexBuffer;
+
+    Vertex vertex = vertexData.vertices[index];
+    vec4 worldPos = push_constants.modelMatrix * vec4(vertex.inPos, 1);
     gl_Position   = camUniform.projMatrix * camUniform.viewMatrix * worldPos;
     mat3 mNormal  = transpose(inverse(mat3(push_constants.modelMatrix)));
     outPos        = worldPos;
-    outNormal     = normalize(mNormal * inNormal);
-    outTangent    = normalize(mNormal * inTangent);
-    outTextCoords = inTextCoords;
+    outNormal     = normalize(mNormal * vertex.inNormal);
+    outTangent    = normalize(mNormal * vertex.inTangent);
+    outTextCoords = vertex.inTextCoords;
 }

@@ -187,6 +187,8 @@ fn orthoVulkan(left: f32, right: f32, bottom: f32, top: f32, near: f32, far: f32
 const PushConstantsVtx = struct {
     modelMatrix: zm.Mat,
     materialIdx: u32,
+    vtxAddress: u64,
+    idxAddress: u64,
 };
 
 const COLOR_ATTACHMENT_FORMAT = vulkan.Format.r32g32_sfloat;
@@ -500,7 +502,6 @@ pub const RenderShadow = struct {
         cmdHandle: vulkan.CommandBuffer,
     ) void {
         const device = vkCtx.vkDevice.deviceProxy;
-        const offset = [_]vulkan.DeviceSize{0};
         var iter = engCtx.scene.entitiesMap.valueIterator();
 
         while (iter.next()) |entityRef| {
@@ -512,14 +513,19 @@ pub const RenderShadow = struct {
                     if (materialsCache.materialsMap.getIndex(mesh.materialId)) |idx| {
                         materialIdx = @as(u32, @intCast(idx));
                     }
-                    self.setPushConstants(vkCtx, cmdHandle, entity, materialIdx);
-                    device.cmdBindIndexBuffer(cmdHandle, mesh.buffIdx.buffer, 0, vulkan.IndexType.uint32);
-                    const vtxBuffer: *const vk.buf.VkBuffer = if (vm.hasAnimations())
-                        (animsCache.getBuffer(entity.id, mesh.id) orelse &mesh.buffVtx)
+                    const vtxAddress: u64 = if (vm.hasAnimations())
+                        (animsCache.getBuffer(entity.id, mesh.id).?.address orelse mesh.buffVtx.address.?)
                     else
-                        &mesh.buffVtx;
-                    device.cmdBindVertexBuffers(cmdHandle, 0, @ptrCast(&vtxBuffer.buffer), &offset);
-                    device.cmdDrawIndexed(cmdHandle, @as(u32, @intCast(mesh.numIndices)), 1, 0, 0, 0);
+                        mesh.buffVtx.address.?;
+                    self.setPushConstants(
+                        vkCtx,
+                        cmdHandle,
+                        entity,
+                        vtxAddress,
+                        mesh.buffIdx.address.?,
+                        materialIdx,
+                    );
+                    device.cmdDraw(cmdHandle, @as(u32, @intCast(mesh.numIndices)), 1, 0, 0);
                 }
             } else {
                 std.log.warn("Could not find model {s}", .{entity.modelId});
@@ -604,10 +610,20 @@ pub const RenderShadow = struct {
         vkCtx.vkDevice.deviceProxy.cmdPipelineBarrier2(cmdHandle, &depInfo);
     }
 
-    fn setPushConstants(self: *RenderShadow, vkCtx: *const vk.ctx.VkCtx, cmdHandle: vulkan.CommandBuffer, entity: *eng.ent.Entity, materialIdx: u32) void {
+    fn setPushConstants(
+        self: *RenderShadow,
+        vkCtx: *const vk.ctx.VkCtx,
+        cmdHandle: vulkan.CommandBuffer,
+        entity: *eng.ent.Entity,
+        vtxAddress: u64,
+        idxAddress: u64,
+        materialIdx: u32,
+    ) void {
         const pushConstantsVtx = PushConstantsVtx{
             .modelMatrix = entity.modelMatrix,
             .materialIdx = materialIdx,
+            .vtxAddress = vtxAddress,
+            .idxAddress = idxAddress,
         };
         vkCtx.vkDevice.deviceProxy.cmdPushConstants(
             cmdHandle,

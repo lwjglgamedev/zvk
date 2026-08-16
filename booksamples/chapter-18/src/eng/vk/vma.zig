@@ -8,6 +8,7 @@ pub const VmaFlags = enum(u32) {
     None = 0,
     VmaAllocationCreateHostAccessSequentialWriteBit = vma.VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
     CreateMappedBit = vma.VMA_ALLOCATION_CREATE_MAPPED_BIT,
+    DedicatedMemory = vma.VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT,
 };
 
 pub const VmaUsage = enum(u32) {
@@ -29,6 +30,7 @@ pub const VkVmaAlloc = struct {
         };
 
         const createInfo = vma.VmaAllocatorCreateInfo{
+            .flags = vma.VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT,
             .physicalDevice = @ptrFromInt(@intFromEnum(vkPhysDevice.pdev)),
             .device = @ptrFromInt(@intFromEnum(vkDevice.deviceProxy.handle)),
             .instance = @ptrFromInt(@intFromEnum(vkInstance.instanceProxy.handle)),

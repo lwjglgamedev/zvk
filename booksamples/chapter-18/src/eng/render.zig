@@ -238,7 +238,7 @@ pub const Render = struct {
 
         try self.renderScn.init(allocator, &self.vkCtx, &self.textureCache, &self.materialsCache);
         try self.renderShadow.init(allocator, &self.vkCtx, &self.textureCache, &self.materialsCache);
-        try self.renderAnim.init(allocator, &self.vkCtx, engCtx, &self.modelsCache, &self.animsCache);
+        try self.renderAnim.init(&self.modelsCache);
         log.debug("Finished render init", .{});
     }
 
@@ -256,6 +256,7 @@ pub const Render = struct {
             &self.vkCtx,
             engCtx,
             &self.modelsCache,
+            &self.animsCache,
         );
 
         const res = try self.vkCtx.vkSwapChain.acquire(self.vkCtx.vkDevice, self.semsPresComplete[self.currentFrame]);

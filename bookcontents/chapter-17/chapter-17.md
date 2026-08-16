@@ -1735,3 +1735,5 @@ We are now done with the changes, you should now be able to see the scene with s
 [Back to Table of Contents](../README.md)
 
 [Previous chapter](../chapter-16/chapter-16.md)
+
+[Back to Table of Contents](../README.md) | [Next chapter](../chapter-18/chapter-18.md)

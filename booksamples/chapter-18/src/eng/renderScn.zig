@@ -12,41 +12,13 @@ pub const VtxBuffDesc = struct {
         .input_rate = .vertex,
     };
 
-    pub const attribute_description = [_]vulkan.VertexInputAttributeDescription{
-        .{
-            .binding = 0,
-            .location = 0,
-            .format = .r32g32b32_sfloat,
-            .offset = @offsetOf(VtxBuffDesc, "pos"),
-        },
-        .{
-            .binding = 0,
-            .location = 1,
-            .format = .r32g32_sfloat,
-            .offset = @offsetOf(VtxBuffDesc, "textCoords"),
-        },
-        .{
-            .binding = 0,
-            .location = 2,
-            .format = .r32g32b32_sfloat,
-            .offset = @offsetOf(VtxBuffDesc, "normal"),
-        },
-        .{
-            .binding = 0,
-            .location = 3,
-            .format = .r32g32b32_sfloat,
-            .offset = @offsetOf(VtxBuffDesc, "tangent"),
-        },
-    };
-
-    pos: [3]f32,
-    textCoords: [2]f32,
-    normal: [3]f32,
-    tangent: [3]f32,
+    pub const attribute_description = [_]vulkan.VertexInputAttributeDescription{};
 };
 
 const PushConstantsVtx = struct {
     modelMatrix: zm.Mat,
+    vtxAddress: u64,
+    idxAddress: u64,
 };
 
 const PushConstantsFrg = struct {
@@ -393,7 +365,6 @@ pub const RenderScn = struct {
         transparent: bool,
     ) void {
         const device = vkCtx.vkDevice.deviceProxy;
-        const offset = [_]vulkan.DeviceSize{0};
         var iter = engCtx.scene.entitiesMap.valueIterator();
 
         while (iter.next()) |entityRef| {
@@ -409,14 +380,19 @@ pub const RenderScn = struct {
                             continue;
                         }
                     }
-                    self.setPushConstants(vkCtx, cmdHandle, entity, materialIdx);
-                    device.cmdBindIndexBuffer(cmdHandle, mesh.buffIdx.buffer, 0, vulkan.IndexType.uint32);
-                    const vtxBuffer: *const vk.buf.VkBuffer = if (vm.hasAnimations())
-                        (animsCache.getBuffer(entity.id, mesh.id) orelse &mesh.buffVtx)
+                    const vtxAddress: u64 = if (vm.hasAnimations())
+                        (animsCache.getBuffer(entity.id, mesh.id).?.address orelse mesh.buffVtx.address.?)
                     else
-                        &mesh.buffVtx;
-                    device.cmdBindVertexBuffers(cmdHandle, 0, @ptrCast(&vtxBuffer.buffer), &offset);
-                    device.cmdDrawIndexed(cmdHandle, @as(u32, @intCast(mesh.numIndices)), 1, 0, 0, 0);
+                        mesh.buffVtx.address.?;
+                    self.setPushConstants(
+                        vkCtx,
+                        cmdHandle,
+                        entity,
+                        vtxAddress,
+                        mesh.buffIdx.address.?,
+                        materialIdx,
+                    );
+                    device.cmdDraw(cmdHandle, @as(u32, @intCast(mesh.numIndices)), 1, 0, 0);
                 }
             } else {
                 std.log.warn("Could not find model {s}", .{entity.modelId});
@@ -528,9 +504,19 @@ pub const RenderScn = struct {
         self.depthAttachment = depthAttachment;
     }
 
-    fn setPushConstants(self: *RenderScn, vkCtx: *const vk.ctx.VkCtx, cmdHandle: vulkan.CommandBuffer, entity: *eng.ent.Entity, materialIdx: u32) void {
+    fn setPushConstants(
+        self: *RenderScn,
+        vkCtx: *const vk.ctx.VkCtx,
+        cmdHandle: vulkan.CommandBuffer,
+        entity: *eng.ent.Entity,
+        vtxAddress: u64,
+        idxAddress: u64,
+        materialIdx: u32,
+    ) void {
         const pushConstantsVtx = PushConstantsVtx{
             .modelMatrix = entity.modelMatrix,
+            .vtxAddress = vtxAddress,
+            .idxAddress = idxAddress,
         };
         vkCtx.vkDevice.deviceProxy.cmdPushConstants(
             cmdHandle,

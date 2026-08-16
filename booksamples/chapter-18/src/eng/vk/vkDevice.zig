@@ -39,10 +39,12 @@ pub const VkDevice = struct {
         };
         const features2 = vulkan.PhysicalDeviceVulkan12Features{
             .p_next = @constCast(&features3),
+            .buffer_device_address = vulkan.Bool32.true,
             .scalar_block_layout = vulkan.Bool32.true,
         };
         const features = vulkan.PhysicalDeviceFeatures{
             .sampler_anisotropy = vkPhysDevice.features.sampler_anisotropy,
+            .shader_int_64 = vulkan.Bool32.true,
         };
 
         const devCreateInfo: vulkan.DeviceCreateInfo = .{
