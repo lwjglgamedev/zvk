@@ -184,11 +184,13 @@ fn orthoVulkan(left: f32, right: f32, bottom: f32, top: f32, near: f32, far: f32
     };
 }
 
-const PushConstantsVtx = struct {
+// TODO: Check layout in shader
+const PushConstantsVtx = extern struct {
     modelMatrix: zm.Mat,
     materialIdx: u32,
     vtxAddress: u64,
     idxAddress: u64,
+    _pad: [8]u8 = [_]u8{ 0, 0, 0, 0, 0, 0, 0, 0 },
 };
 
 const COLOR_ATTACHMENT_FORMAT = vulkan.Format.r32g32_sfloat;
