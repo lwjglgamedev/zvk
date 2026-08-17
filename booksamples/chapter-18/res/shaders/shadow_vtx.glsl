@@ -28,7 +28,7 @@ struct InstanceData {
     uint padding[3];
 };
 
-layout(push_constant) uniform matrices {
+layout(push_constant, scalar) uniform matrices {
     mat4 modelMatrix;
     uint materialIdx;
     VertexBuffer vertexBuffer;
