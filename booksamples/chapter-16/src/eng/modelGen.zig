@@ -10,6 +10,7 @@ const MeshIntData = struct {
     texcoords: std.ArrayListUnmanaged([2]f32),
     normals: std.ArrayListUnmanaged([3]f32),
     tangents: std.ArrayListUnmanaged([3]f32),
+    bitangents: std.ArrayListUnmanaged([3]f32),
 
     pub fn cleanup(self: *MeshIntData, allocator: std.mem.Allocator) void {
         self.indices.deinit(allocator);
@@ -17,6 +18,7 @@ const MeshIntData = struct {
         self.texcoords.deinit(allocator);
         self.normals.deinit(allocator);
         self.tangents.deinit(allocator);
+        self.bitangents.deinit(allocator);
     }
 };
 
@@ -115,13 +117,15 @@ pub fn main(init: std.process.Init) !void {
             }
             try vtxFile.writeStreamingAll(io, std.mem.sliceAsBytes(std.mem.asBytes(&meshIntData.normals.items[idx])));
             try vtxFile.writeStreamingAll(io, std.mem.sliceAsBytes(std.mem.asBytes(&meshIntData.tangents.items[idx])));
+            try vtxFile.writeStreamingAll(io, std.mem.sliceAsBytes(std.mem.asBytes(&meshIntData.bitangents.items[idx])));
         }
 
         const numIndices = meshIntData.indices.items.len;
         const numFloats = meshIntData.positions.items.len * 3 +
             meshIntData.texcoords.items.len * 2 +
             meshIntData.normals.items.len * 3 +
-            meshIntData.tangents.items.len * 3;
+            meshIntData.tangents.items.len * 3 +
+            meshIntData.bitangents.items.len * 3;
         try meshDataList.append(allocator, .{
             .id = meshIntData.id,
             .materialId = meshIntData.materialId,
@@ -263,6 +267,7 @@ fn processMesh(
     var texcoords: std.ArrayListUnmanaged([2]f32) = .empty;
     var normals: std.ArrayListUnmanaged([3]f32) = .empty;
     var tangents: std.ArrayListUnmanaged([3]f32) = .empty;
+    var bitangents: std.ArrayListUnmanaged([3]f32) = .empty;
 
     // Material
     var materialId: []const u8 = "";
@@ -288,6 +293,13 @@ fn processMesh(
         const tangs = tangsPtr[0..numVertices];
         try tangents.ensureTotalCapacity(allocator, numVertices);
         for (tangs) |t| try tangents.append(allocator, .{ t.x, t.y, t.z });
+    }
+
+    // Bitangents
+    if (mesh.mBitangents) |bitangsPtr| {
+        const bitangs = bitangsPtr[0..numVertices];
+        try bitangents.ensureTotalCapacity(allocator, numVertices);
+        for (bitangs) |t| try bitangents.append(allocator, .{ t.x, t.y, t.z });
     }
 
     // Texcoords
@@ -316,6 +328,7 @@ fn processMesh(
         .texcoords = texcoords,
         .normals = normals,
         .tangents = tangents,
+        .bitangents = bitangents,
     };
 }
 

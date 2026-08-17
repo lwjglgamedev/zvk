@@ -6,12 +6,12 @@
 
 #define SHADOW_MAP_CASCADE_COUNT 3
 
-
 struct Vertex {
     vec3 inPos;
     vec2 inTextCoords;
     vec3 inNoral ;
     vec3 inTangent;
+    vec3 inBitangent;
 };
 
 layout(scalar, buffer_reference) buffer VertexBuffer {

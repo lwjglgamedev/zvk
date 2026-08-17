@@ -4,21 +4,22 @@
 #extension GL_EXT_scalar_block_layout: require
 
 layout(location = 0) out vec4 outPos;
-layout(location = 1) out vec3 outNormal;
-layout(location = 2) out vec3 outTangent;
-layout(location = 3) out vec2 outTextCoords;
+layout(location = 1) out vec2 outTextCoords;
+layout(location = 2) out vec3 outNormal;
+layout(location = 3) out vec3 outTangent;
+layout(location = 4) out vec3 outBitangent;
 
 layout(set = 0, binding = 0) uniform CamUniform {
     mat4 projMatrix;
     mat4 viewMatrix;
 } camUniform;
 
-
 struct Vertex {
     vec3 inPos;
     vec2 inTextCoords;
     vec3 inNormal;
     vec3 inTangent;
+    vec3 inBitangent;
 };
 
 layout(scalar, buffer_reference) buffer VertexBuffer {
@@ -35,8 +36,6 @@ layout(push_constant) uniform pc {
     IndexBuffer indexBuffer;
 } push_constants;
 
-
-
 void main()
 {
     uint index = push_constants.indexBuffer.indices[gl_VertexIndex];
@@ -47,7 +46,8 @@ void main()
     gl_Position   = camUniform.projMatrix * camUniform.viewMatrix * worldPos;
     mat3 mNormal  = transpose(inverse(mat3(push_constants.modelMatrix)));
     outPos        = worldPos;
+    outTextCoords = vertex.inTextCoords;
     outNormal     = normalize(mNormal * vertex.inNormal);
     outTangent    = normalize(mNormal * vertex.inTangent);
-    outTextCoords = vertex.inTextCoords;
+    outBitangent  = normalize(mNormal * vertex.inBitangent);
 }

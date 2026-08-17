@@ -27,8 +27,8 @@ pub fn main(init: std.process.Init) !void {
 
 We need to generate normals and to calculate the tangent space (to get tangents).
 We will need to modify the model generation code to load normal maps and PBR related material information from the models and dump it to
-the generated files. We first need to update the `MeshIntData` struct to store normals and tangent information since they will be
-used for lighting calculations:
+the generated files. We first need to update the `MeshIntData` struct to store normals, tangents and bitangents information since they will
+be used for lighting calculations:
 
 **File: src/eng/modelGen.zig**
 ```zig
@@ -39,11 +39,13 @@ const MeshIntData = struct {
     ...
     normals: std.ArrayListUnmanaged([3]f32),
     tangents: std.ArrayListUnmanaged([3]f32),
+    bitangents: std.ArrayListUnmanaged([3]f32),
 
     pub fn cleanup(self: *MeshIntData, allocator: std.mem.Allocator) void {
         ...
         self.normals.deinit(allocator);
         self.tangents.deinit(allocator);
+        self.bitangents.deinit(allocator);
     }
 };
 ```
@@ -143,6 +145,7 @@ fn processMesh(
     ...
     var normals: std.ArrayListUnmanaged([3]f32) = .empty;
     var tangents: std.ArrayListUnmanaged([3]f32) = .empty;
+    var bitangents: std.ArrayListUnmanaged([3]f32) = .empty;
     ...
     // Normals
     if (mesh.mNormals) |normsPtr| {
@@ -157,6 +160,13 @@ fn processMesh(
         try tangents.ensureTotalCapacity(allocator, numVertices);
         for (tangs) |t| try tangents.append(allocator, .{ t.x, t.y, t.z });
     }
+
+    // Bitangents
+    if (mesh.mBitangents) |bitangsPtr| {
+        const bitangs = bitangsPtr[0..numVertices];
+        try bitangents.ensureTotalCapacity(allocator, numVertices);
+        for (bitangs) |t| try bitangents.append(allocator, .{ t.x, t.y, t.z });
+    }
     ...
     return MeshIntData{
         .id = id,
@@ -166,6 +176,7 @@ fn processMesh(
         .texcoords = texcoords,
         .normals = normals,
         .tangents = tangents,
+        .bitangents = bitangents,
     };
 }
 ```
@@ -186,13 +197,15 @@ pub fn main(init: std.process.Init) !void {
             }
             try vtxFile.writeStreamingAll(io, std.mem.sliceAsBytes(std.mem.asBytes(&meshIntData.normals.items[idx])));
             try vtxFile.writeStreamingAll(io, std.mem.sliceAsBytes(std.mem.asBytes(&meshIntData.tangents.items[idx])));
+            try vtxFile.writeStreamingAll(io, std.mem.sliceAsBytes(std.mem.asBytes(&meshIntData.bitangents.items[idx])));
         }
 
         const numIndices = meshIntData.indices.items.len;
         const numFloats = meshIntData.positions.items.len * 3 +
             meshIntData.texcoords.items.len * 2 +
             meshIntData.normals.items.len * 3 +
-            meshIntData.tangents.items.len * 3;
+            meshIntData.tangents.items.len * 3 +
+            meshIntData.bitangents.items.len * 3;
         ...
     ...
 }
@@ -235,8 +248,8 @@ pub fn loadMaterials(allocator: std.mem.Allocator, io:std.Io, path: []const u8) 
 }
 ```
 
-We need to modify the structure used while rendering the scene to be able to include the normals and tangents as new input attributes so
-they can accessed in shaders:
+We need to modify the structure used while rendering the scene to be able to include the normals, tangents and bitangents new input
+attributes so they can accessed in shaders:
 
 **File: src/eng/renderScn.zig**
 ```zig
@@ -256,10 +269,17 @@ pub const VtxBuffDesc = struct {
             .format = .r32g32b32_sfloat,
             .offset = @offsetOf(VtxBuffDesc, "tangent"),
         },
+        .{
+            .binding = 0,
+            .location = 4,
+            .format = .r32g32b32_sfloat,
+            .offset = @offsetOf(VtxBuffDesc, "bitangent"),
+        },
     };
     ...
     normal: [3]f32,
     tangent: [3]f32,
+    bitangent: [3]f32,
 };
 ```
 
@@ -538,11 +558,13 @@ layout(location = 0) in vec3 inPos;
 layout(location = 1) in vec2 inTextCoords;
 layout(location = 2) in vec3 inNormal;
 layout(location = 3) in vec3 inTangent;
+layout(location = 4) in vec3 inBitangent;
 
 layout(location = 0) out vec4 outPos;
-layout(location = 1) out vec3 outNormal;
-layout(location = 2) out vec3 outTangent;
-layout(location = 3) out vec2 outTextCoords;
+layout(location = 1) out vec2 outTextCoords;
+layout(location = 2) out vec3 outNormal;
+layout(location = 3) out vec3 outTangent;
+layout(location = 4) out vec3 outBitangent;
 
 layout(set = 0, binding = 0) uniform CamUniform {
     mat4 projMatrix;
@@ -559,14 +581,15 @@ void main()
     gl_Position   = camUniform.projMatrix * camUniform.viewMatrix * worldPos;
     mat3 mNormal  = transpose(inverse(mat3(push_constants.modelMatrix)));
     outPos        = worldPos;
+    outTextCoords = inTextCoords;
     outNormal     = normalize(mNormal * inNormal);
     outTangent    = normalize(mNormal * inTangent);
-    outTextCoords = inTextCoords;
+    outBitangent  = normalize(mNormal * inBitangent);    
 }
 ```
 
-As you can see, since we have modified the vertex buffer structure, we need to define the new input attributes for the normal and tangent
-coordinates. We will transform these values in this shader and pass them to the fragment shader (to dump them in the output
+As you can see, since we have modified the vertex buffer structure, we need to define the new input attributes for the normal, tangent and
+bitangent coordinates. We will transform these values in this shader and pass them to the fragment shader (to dump them in the output
 attachments). As you can see the normals and tangents are transformed transposing and inverting the model matrix since they
 are directional vectors and we need to preserve their orthogonality.
 
@@ -580,9 +603,10 @@ The `scn_frg.glsl` fragment shader is defined like this:
 const int MAX_TEXTURES = 100;
 
 layout(location = 0) in vec4 inPos;
-layout(location = 1) in vec3 inNormal;
-layout(location = 2) in vec3 inTangent;
-layout(location = 3) in vec2 inTextCoords;
+layout(location = 1) in vec2 inTextCoords;
+layout(location = 2) in vec3 inNormal;
+layout(location = 3) in vec3 inTangent;
+layout(location = 4) in vec3 inBitangent;
 
 layout(location = 0) out vec4 outPos;
 layout(location = 1) out vec4 outAlbedo;
@@ -639,14 +663,8 @@ void main()
         discard;
     }
 
-    vec3 N = normalize(inNormal);
-    vec3 T = normalize(inTangent);
-    T = normalize(T - dot(T, N) * N);
-    vec3 B = cross(N, T);
-
-    mat3 TBN = mat3(T, B, N);
-
-    vec3 newNormal = calcNormal(material, N, inTextCoords, TBN);
+    mat3 TBN = mat3(inTangent, inBitangent, inNormal);
+    vec3 newNormal = calcNormal(material, inNormal, inTextCoords, TBN);
     outNormal = vec4(newNormal, 1.0);
 
     float ao = 1.0f;

@@ -3,52 +3,52 @@
   "meshes": {
     "items": [
       {
-        "id": "mesh-614578080",
+        "id": "mesh-157398944",
         "materialId": "boblamp-mat-0",
         "idxOffset": 0,
         "idxSize": 7536,
         "vtxOffset": 0,
-        "vtxSize": 82896
+        "vtxSize": 105504
       },
       {
-        "id": "mesh-614792688",
+        "id": "mesh-157613552",
         "materialId": "boblamp-mat-1",
         "idxOffset": 7536,
         "idxSize": 2124,
-        "vtxOffset": 82896,
-        "vtxSize": 23364
+        "vtxOffset": 105504,
+        "vtxSize": 29736
       },
       {
-        "id": "mesh-614848496",
+        "id": "mesh-157669360",
         "materialId": "boblamp-mat-2",
         "idxOffset": 9660,
         "idxSize": 936,
-        "vtxOffset": 106260,
-        "vtxSize": 10296
+        "vtxOffset": 135240,
+        "vtxSize": 13104
       },
       {
-        "id": "mesh-614867040",
+        "id": "mesh-157687904",
         "materialId": "boblamp-mat-3",
         "idxOffset": 10596,
         "idxSize": 192,
-        "vtxOffset": 116556,
-        "vtxSize": 2112
+        "vtxOffset": 148344,
+        "vtxSize": 2688
       },
       {
-        "id": "mesh-614873248",
+        "id": "mesh-157694112",
         "materialId": "boblamp-mat-4",
         "idxOffset": 10788,
         "idxSize": 264,
-        "vtxOffset": 118668,
-        "vtxSize": 2904
+        "vtxOffset": 151032,
+        "vtxSize": 3696
       },
       {
-        "id": "mesh-614881648",
+        "id": "mesh-157702512",
         "materialId": "boblamp-mat-5",
         "idxOffset": 11052,
         "idxSize": 1272,
-        "vtxOffset": 121572,
-        "vtxSize": 13992
+        "vtxOffset": 154728,
+        "vtxSize": 17808
       }
     ],
     "capacity": 8

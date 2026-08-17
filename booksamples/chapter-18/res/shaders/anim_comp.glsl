@@ -23,7 +23,7 @@ layout(push_constant) uniform Pc {
 
 void main()
 {
-    int baseIdxSrcBuf = int(gl_GlobalInvocationID.x) * 11;
+    int baseIdxSrcBuf = int(gl_GlobalInvocationID.x) * 14;
     if ( baseIdxSrcBuf >= pc.srcBuffFloatSize) {
         return;
     }
@@ -74,4 +74,16 @@ void main()
     pc.dstBuf.data[baseIdxSrcBuf] = tangent.x;
     pc.dstBuf.data[baseIdxSrcBuf + 1] = tangent.y;
     pc.dstBuf.data[baseIdxSrcBuf + 2] = tangent.z;
+
+    baseIdxSrcBuf += 3;
+    vec3 bitangent = vec3(pc.srcBuf.data[baseIdxSrcBuf], pc.srcBuf.data[baseIdxSrcBuf + 1], pc.srcBuf.data[baseIdxSrcBuf + 2]);
+    bitangent =
+    weights.x * matJoint1 * bitangent +
+    weights.y * matJoint2 * bitangent +
+    weights.z * matJoint3 * bitangent +
+    weights.w * matJoint4 * bitangent;
+    bitangent = normalize(bitangent);
+    pc.dstBuf.data[baseIdxSrcBuf] = bitangent.x;
+    pc.dstBuf.data[baseIdxSrcBuf + 1] = bitangent.y;
+    pc.dstBuf.data[baseIdxSrcBuf + 2] = bitangent.z;
 }

@@ -1185,7 +1185,7 @@ pub const RenderAnim = struct {
             }
 
             for (vulkanModel.meshes.items) |*mesh| {
-                const vertexSize: f32 = 11.0 * 4.0;
+                const vertexSize: f32 = 14.0 * 4.0;
                 const groupSize: u32 = @intFromFloat(@ceil(@as(f32, @floatFromInt(mesh.buffVtx.size)) / vertexSize / LOCAL_SIZE_X));
                 const vtxId = try std.fmt.allocPrint(allocator, "{s}_VTX", .{mesh.id});
                 defer allocator.free(vtxId);
@@ -1445,7 +1445,7 @@ split into slices of 14 floats: 3 floats for vertex positions, 3 for normal coor
 coordinates and 2 for texture coordinates. Once we get the vertex position, we modify those coordinates by applying a modulation factor
 which is derived from multiplying the weight factor by the joint transformation matrix of the associated matrix. 
 
-The same process is applied to the normal and tangent. We just copy the texture coordinates, there is no need to transform that.
+The same process is applied to the normal, tangent and bitangent. We just copy the texture coordinates, there is no need to transform that.
 
 **File: res/shaders/anim_comp.glsl**
 ```glsl
@@ -1484,6 +1484,18 @@ void main()
     dstVector.data[baseIdxSrcBuf] = tangent.x;
     dstVector.data[baseIdxSrcBuf + 1] = tangent.y;
     dstVector.data[baseIdxSrcBuf + 2] = tangent.z;
+
+    baseIdxSrcBuf += 3;
+    vec3 bitangent = vec3(srcVector.data[baseIdxSrcBuf], srcVector.data[baseIdxSrcBuf + 1], srcVector.data[baseIdxSrcBuf + 2]);
+    bitangent =
+    weights.x * matJoint1 * bitangent +
+    weights.y * matJoint2 * bitangent +
+    weights.z * matJoint3 * bitangent +
+    weights.w * matJoint4 * bitangent;
+    bitangent = normalize(bitangent);
+    dstVector.data[baseIdxSrcBuf] = bitangent.x;
+    dstVector.data[baseIdxSrcBuf + 1] = bitangent.y;
+    dstVector.data[baseIdxSrcBuf + 2] = bitangent.z;    
 }
 ```
 
