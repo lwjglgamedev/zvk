@@ -32,7 +32,6 @@ layout(set = 1, binding = 0) readonly buffer MaterialUniform {
 
 layout(set = 2, binding = 0) uniform sampler2D textSampler[MAX_TEXTURES];
 
-// TODO: Check this
 layout(push_constant) uniform pc {
     layout(offset = 80) uint materialIdx;
 } push_constants;
