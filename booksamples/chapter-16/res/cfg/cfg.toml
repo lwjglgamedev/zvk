@@ -9,4 +9,5 @@ ups=40
 validation=true
 vsync=true
 zFar=50.0
+zFarShadow=50.0
 zNear=0.5

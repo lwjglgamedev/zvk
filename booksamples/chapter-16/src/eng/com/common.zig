@@ -15,6 +15,7 @@ pub const Constants = struct {
     validation: bool,
     vsync: bool,
     zFar: f32,
+    zFarShadow: f32,
     zNear: f32,
 
     pub fn load(allocator: std.mem.Allocator, io: std.Io) !Constants {
@@ -38,6 +39,7 @@ pub const Constants = struct {
             .validation = tmp.validation,
             .vsync = tmp.vsync,
             .zFar = tmp.zFar,
+            .zFarShadow = tmp.zFarShadow,
             .zNear = tmp.zNear,
         };
 

@@ -92,7 +92,7 @@ pub fn updateCascadeShadows(
     var cascadeSplits = [SHADOW_MAP_CASCADE_COUNT]f32{ 0, 0, 0 };
 
     const nearClip = projData.near;
-    const farClip = projData.far;
+    const farClip = constants.zFarShadow;
     const clipRange = farClip - nearClip;
 
     const minZ = nearClip;
@@ -109,8 +109,9 @@ directional light. If none is found, we just log an error and return. We assume 
 to cast the shadows. After that, we calculate cascade split parameters:
 
 - `cascadeSplits`: Array to store depth splits for each cascade level.
-- `nearClip`/`farClip`: Camera's clipping planes.
-- `clipRange`: Total depth range of the camera.
+- `nearClip`: Camera's near clipping plane.
+- `farClip`: Shadow far clipping plane (`zFarShadow` from config, may be lower than the scene's `zFar` to limit shadow coverage).
+- `clipRange`: Total depth range covered by the shadow cascades.
 - `minZ`/`maxZ`: Depth bounds.
 - `ratio`: Ratio used later to compute cascade splits
 
@@ -1093,6 +1094,7 @@ fragment shader (`light_frg.glsl`). Let's dissect the changes. First, we will de
 layout (constant_id = 0) const int SHADOW_MAP_CASCADE_COUNT = 3;
 layout (constant_id = 1) const int DEBUG_SHADOWS = 0;
 layout (constant_id = 2) const int SAMPLING = 1;
+layout (constant_id = 3) const float SHADOW_FAR = 50.0;
 ...
 ```
 
@@ -1102,6 +1104,9 @@ Description of the constants:
 - `DEBUG_SHADOWS`: This will control if we apply a color to the fragments to identify the cascade split to which they will be assigned
 (it will need to have the value `1` to activate this).
 - `SAMPLING`: This will activate/deactivate shadow Poisson disk sampling to reduce shadow aliasing and to generate smoother edges.
+- `SHADOW_FAR`: The far plane distance for shadow rendering. Fragments beyond this distance (in view space) will not have shadow
+calculations applied. This value corresponds to the `zFarShadow` config parameter and is passed as a specialization constant so it is
+baked into the pipeline at creation time.
 
 We will need also to pass cascade shadows information as long as the view matrix to perform how shadows affect final fragment color:
 
@@ -1261,6 +1266,9 @@ void main() {
         float shadowPrev = calcVisibility(vec4(worldPos, 1), cascadeIndex - 1, N);
         shadow = mix(shadow, shadowPrev, blendFactor);
     }
+    if (viewPos.z < -SHADOW_FAR) {
+        shadow = 1.0;
+    }
 
     vec3 Lo = vec3(0.0);
     for (uint i = 0; i < sceneInfo.numLights; i++) {
@@ -1315,6 +1323,7 @@ const LightSpecConstants = struct {
     cascadeCount: u32,
     debugShadows: u32,
     pcfEnabled: u32,
+    shadowFar: u32,
 };
 ```
 Now we can examine the changes in the `RenderLight` struct. First, we will create new attributes for cascade shadows data (we will
@@ -1346,6 +1355,7 @@ pub const RenderLight = struct {
             .cascadeCount = eng.rsha.SHADOW_MAP_CASCADE_COUNT,
             .debugShadows = if (constants.shadowDebug) 1 else 0,
             .pcfEnabled = if (constants.pcfEnabled) 1 else 0,
+            .shadowFar = @bitCast(constants.zFarShadow),
         };
         const specConstants = try createSpecConsts(arena.allocator(), &lightSpecConsts);
         ...
@@ -1413,7 +1423,7 @@ The `createSpecConsts` function is defined like this:
 pub const RenderLight = struct {
     ...
     fn createSpecConsts(allocator: std.mem.Allocator, lightSpecConstants: *const LightSpecConstants) !vulkan.SpecializationInfo {
-        const mapEntries = try allocator.alloc(vulkan.SpecializationMapEntry, 3);
+        const mapEntries = try allocator.alloc(vulkan.SpecializationMapEntry, 4);
         mapEntries[0] = vulkan.SpecializationMapEntry{
             .constant_id = 0,
             .offset = @offsetOf(LightSpecConstants, "cascadeCount"),
@@ -1427,6 +1437,11 @@ pub const RenderLight = struct {
         mapEntries[2] = vulkan.SpecializationMapEntry{
             .constant_id = 2,
             .offset = @offsetOf(LightSpecConstants, "pcfEnabled"),
+            .size = @sizeOf(u32),
+        };
+        mapEntries[3] = vulkan.SpecializationMapEntry{
+            .constant_id = 3,
+            .offset = @offsetOf(LightSpecConstants, "shadowFar"),
             .size = @sizeOf(u32),
         };
         return vulkan.SpecializationInfo{
@@ -1640,6 +1655,10 @@ pub const Constants = struct {
     shadowDebug: bool,
     shadowMapSize: u32,
     ...
+    zFar: f32,
+    zFarShadow: f32,
+    zNear: f32,
+    ...
     pub fn load(allocator: std.mem.Allocator) !Constants {
         ...
         const constants = Constants{
@@ -1647,6 +1666,10 @@ pub const Constants = struct {
             .pcfEnabled = tmp.pcfEnabled,
             .shadowDebug = tmp.shadowDebug,
             .shadowMapSize = tmp.shadowMapSize,
+            ...
+            .zFar = tmp.zFar,
+            .zFarShadow = tmp.zFarShadow,
+            .zNear = tmp.zNear,
             ...
         };
         ...
@@ -1662,6 +1685,10 @@ Therefore, we will need to add new parameters in the `res/cfg/cfg.toml` file:
 pcfEnabled=true
 shadowDebug=false
 shadowMapSize=4096
+...
+zFar=50.0
+zFarShadow=50.0
+zNear=0.5
 ...
 ```
 

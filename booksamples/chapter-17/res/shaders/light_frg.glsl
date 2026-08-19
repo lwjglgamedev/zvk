@@ -7,6 +7,7 @@
 layout (constant_id = 0) const int SHADOW_MAP_CASCADE_COUNT = 3;
 layout (constant_id = 1) const int DEBUG_SHADOWS = 0;
 layout (constant_id = 2) const int SAMPLING = 1;
+layout (constant_id = 3) const float SHADOW_FAR = 50.0;
 
 layout(location = 0) in vec2 inTextCoord;
 
@@ -232,6 +233,9 @@ void main() {
     if (cascadeIndex > 0 && blendFactor > 0.0) {
         float shadowPrev = calcVisibility(vec4(worldPos, 1), cascadeIndex - 1, N);
         shadow = mix(shadow, shadowPrev, blendFactor);
+    }
+    if (viewPos.z < -SHADOW_FAR) {
+        shadow = 1.0;
     }
 
     vec3 Lo = vec3(0.0);

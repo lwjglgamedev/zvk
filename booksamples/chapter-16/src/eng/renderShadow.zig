@@ -47,7 +47,7 @@ pub fn updateCascadeShadows(
     var cascadeSplits = [SHADOW_MAP_CASCADE_COUNT]f32{ 0, 0, 0 };
 
     const nearClip = projData.near;
-    const farClip = projData.far;
+    const farClip = constants.zFarShadow;
     const clipRange = farClip - nearClip;
 
     const minZ = nearClip;

@@ -18,6 +18,7 @@ const LightSpecConstants = struct {
     cascadeCount: u32,
     debugShadows: u32,
     pcfEnabled: u32,
+    shadowFar: u32,
 };
 
 const EmptyVtxBuffDesc = struct {
@@ -78,6 +79,7 @@ pub const RenderLight = struct {
             .cascadeCount = eng.rsha.SHADOW_MAP_CASCADE_COUNT,
             .debugShadows = if (constants.shadowDebug) 1 else 0,
             .pcfEnabled = if (constants.pcfEnabled) 1 else 0,
+            .shadowFar = @bitCast(constants.zFarShadow),
         };
         const specConstants = try createSpecConsts(arena.allocator(), &lightSpecConsts);
 
@@ -234,7 +236,7 @@ pub const RenderLight = struct {
     }
 
     fn createSpecConsts(allocator: std.mem.Allocator, lightSpecConstants: *const LightSpecConstants) !vulkan.SpecializationInfo {
-        const mapEntries = try allocator.alloc(vulkan.SpecializationMapEntry, 3);
+        const mapEntries = try allocator.alloc(vulkan.SpecializationMapEntry, 4);
         mapEntries[0] = vulkan.SpecializationMapEntry{
             .constant_id = 0,
             .offset = @offsetOf(LightSpecConstants, "cascadeCount"),
@@ -248,6 +250,11 @@ pub const RenderLight = struct {
         mapEntries[2] = vulkan.SpecializationMapEntry{
             .constant_id = 2,
             .offset = @offsetOf(LightSpecConstants, "pcfEnabled"),
+            .size = @sizeOf(u32),
+        };
+        mapEntries[3] = vulkan.SpecializationMapEntry{
+            .constant_id = 3,
+            .offset = @offsetOf(LightSpecConstants, "shadowFar"),
             .size = @sizeOf(u32),
         };
         return vulkan.SpecializationInfo{
