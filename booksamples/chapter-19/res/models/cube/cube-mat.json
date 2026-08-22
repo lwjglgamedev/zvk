@@ -1,0 +1,15 @@
+{
+  "items": [
+    {
+      "id": "cube-mat-0",
+      "texturePath": ".\\res\\models\\cube/cube_base.png",
+      "color": [
+        1,
+        1,
+        1,
+        1
+      ]
+    }
+  ],
+  "capacity": 2
+}
