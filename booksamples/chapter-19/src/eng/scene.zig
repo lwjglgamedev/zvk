@@ -154,11 +154,18 @@ pub const Scene = struct {
     // alpha component is intensity
     ambientLight: zm.Vec,
     camera: Camera,
-    entitiesMap: std.StringHashMap(*eng.ent.Entity),
+    entitiesMap: std.StringHashMap(std.ArrayList(*eng.ent.Entity)),
     lights: std.ArrayList(Light),
 
-    pub fn addEntity(self: *Scene, entity: *eng.ent.Entity) !void {
-        try self.entitiesMap.put(entity.id, entity);
+    pub fn addEntity(self: *Scene, allocator: std.mem.Allocator, entity: *eng.ent.Entity) !void {
+        if (self.entitiesMap.getPtr(entity.modelId)) |list| {
+            try list.append(allocator, entity);
+        } else {
+            var list = try std.ArrayList(*eng.ent.Entity).initCapacity(allocator, 1);
+            try list.append(allocator, entity);
+            const key = try allocator.dupe(u8, entity.modelId);
+            try self.entitiesMap.put(key, list);
+        }
     }
 
     pub fn addLight(self: *Scene, allocator: std.mem.Allocator, light: eng.scn.Light) !void {
@@ -167,7 +174,7 @@ pub const Scene = struct {
 
     pub fn create(allocator: std.mem.Allocator) !Scene {
         const camera = Camera.create();
-        const entitiesMap = std.StringHashMap(*eng.ent.Entity).init(allocator);
+        const entitiesMap = std.StringHashMap(std.ArrayList(*eng.ent.Entity)).init(allocator);
         const lights = try std.ArrayList(Light).initCapacity(allocator, 1);
         const ambientLight = zm.Vec{ 1.0, 1.0, 1.0, 1.0 };
 
@@ -180,10 +187,13 @@ pub const Scene = struct {
     }
 
     pub fn cleanup(self: *Scene, allocator: std.mem.Allocator) void {
-        var iter = self.entitiesMap.valueIterator();
-        while (iter.next()) |entityRef| {
-            const entity = entityRef.*;
-            entity.cleanup(allocator);
+        var iter = self.entitiesMap.iterator();
+        while (iter.next()) |entry| {
+            for (entry.value_ptr.items) |entity| {
+                entity.cleanup(allocator);
+            }
+            entry.value_ptr.deinit(allocator);
+            allocator.free(entry.key_ptr.*);
         }
         self.entitiesMap.deinit();
         self.lights.deinit(allocator);

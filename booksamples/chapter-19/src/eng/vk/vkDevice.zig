@@ -43,6 +43,8 @@ pub const VkDevice = struct {
             .scalar_block_layout = vulkan.Bool32.true,
         };
         const features = vulkan.PhysicalDeviceFeatures{
+            .draw_indirect_first_instance = vulkan.Bool32.true,
+            .multi_draw_indirect = vulkan.Bool32.true,
             .sampler_anisotropy = vkPhysDevice.features.sampler_anisotropy,
             .shader_int_64 = vulkan.Bool32.true,
         };

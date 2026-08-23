@@ -38,28 +38,29 @@ pub const AnimsCache = struct {
         modelsCache: *const eng.mcach.ModelsCache,
     ) !void {
         var iter = engCtx.scene.entitiesMap.valueIterator();
-        while (iter.next()) |entityRef| {
-            const entity = entityRef.*;
-            const vulkanModel = modelsCache.modelsMap.get(entity.modelId);
-            if (!vulkanModel.?.hasAnimations()) {
-                continue;
+        while (iter.next()) |listRef| {
+            for (listRef.items) |entity| {
+                const vulkanModel = modelsCache.modelsMap.get(entity.modelId);
+                if (!vulkanModel.?.hasAnimations()) {
+                    continue;
+                }
+
+                var bufferMap: std.StringArrayHashMapUnmanaged(vk.buf.VkBuffer) = .empty;
+
+                for (vulkanModel.?.meshes.items) |vulkanMesh| {
+                    const animBuffer = try vk.buf.VkBuffer.create(
+                        vkCtx,
+                        vulkanMesh.buffVtx.size,
+                        .{ .vertex_buffer_bit = true, .storage_buffer_bit = true, .shader_device_address_bit = true },
+                        @intFromEnum(vk.vma.VmaFlags.None),
+                        vk.vma.VmaUsage.VmaUsageAuto,
+                        vk.vma.VmaMemoryFlags.None,
+                    );
+                    try bufferMap.put(allocator, vulkanMesh.id, animBuffer);
+                }
+
+                try self.entitiesAnimBuffers.put(allocator, try allocator.dupe(u8, entity.id), bufferMap);
             }
-
-            var bufferMap: std.StringArrayHashMapUnmanaged(vk.buf.VkBuffer) = .empty;
-
-            for (vulkanModel.?.meshes.items) |vulkanMesh| {
-                const animBuffer = try vk.buf.VkBuffer.create(
-                    vkCtx,
-                    vulkanMesh.buffVtx.size,
-                    .{ .vertex_buffer_bit = true, .storage_buffer_bit = true, .shader_device_address_bit = true },
-                    @intFromEnum(vk.vma.VmaFlags.None),
-                    vk.vma.VmaUsage.VmaUsageAuto,
-                    vk.vma.VmaMemoryFlags.None,
-                );
-                try bufferMap.put(allocator, vulkanMesh.id, animBuffer);
-            }
-
-            try self.entitiesAnimBuffers.put(allocator, try allocator.dupe(u8, entity.id), bufferMap);
         }
     }
 };

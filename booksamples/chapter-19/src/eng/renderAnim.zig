@@ -139,37 +139,38 @@ pub const RenderAnim = struct {
 
         var iter = engCtx.scene.entitiesMap.valueIterator();
 
-        while (iter.next()) |entityRef| {
-            const entity = entityRef.*;
-            const vulkanModel = modelsCache.modelsMap.get(entity.modelId) orelse {
-                std.log.warn("Could not find model {s}", .{entity.modelId});
-                continue;
-            };
-            const entityAnim = entity.animation orelse continue;
-            if (!vulkanModel.hasAnimations()) continue;
+        while (iter.next()) |listRef| {
+            for (listRef.items) |entity| {
+                const vulkanModel = modelsCache.modelsMap.get(entity.modelId) orelse {
+                    std.log.warn("Could not find model {s}", .{entity.modelId});
+                    continue;
+                };
+                const entityAnim = entity.animation orelse continue;
+                if (!vulkanModel.hasAnimations()) continue;
 
-            const animIdx = entityAnim.animationIdx;
-            const animation = vulkanModel.animations.items[animIdx];
-            const jointsBuffAddr = animation.buffers.items[entityAnim.currentFrame].address.?;
-            for (vulkanModel.meshes.items) |mesh| {
-                var groupCountX: u32 = 1;
-                if (self.grpSizeMap.get(mesh.id)) |value| {
-                    groupCountX = value;
-                } else {
-                    std.log.warn("Group not found for {s}", .{mesh.id});
+                const animIdx = entityAnim.animationIdx;
+                const animation = vulkanModel.animations.items[animIdx];
+                const jointsBuffAddr = animation.buffers.items[entityAnim.currentFrame].address.?;
+                for (vulkanModel.meshes.items) |mesh| {
+                    var groupCountX: u32 = 1;
+                    if (self.grpSizeMap.get(mesh.id)) |value| {
+                        groupCountX = value;
+                    } else {
+                        std.log.warn("Group not found for {s}", .{mesh.id});
+                    }
+
+                    self.setPushConstants(
+                        vkCtx,
+                        cmdHandle,
+                        mesh.buffVtx.address.?,
+                        mesh.buffWeights.?.address.?,
+                        jointsBuffAddr,
+                        animsCache.getBuffer(entity.id, mesh.id).?.address.?,
+                        mesh.buffVtx.size / 4,
+                    );
+
+                    device.cmdDispatch(cmdHandle, groupCountX, 1, 1);
                 }
-
-                self.setPushConstants(
-                    vkCtx,
-                    cmdHandle,
-                    mesh.buffVtx.address.?,
-                    mesh.buffWeights.?.address.?,
-                    jointsBuffAddr,
-                    animsCache.getBuffer(entity.id, mesh.id).?.address.?,
-                    mesh.buffVtx.size / 4,
-                );
-
-                device.cmdDispatch(cmdHandle, groupCountX, 1, 1);
             }
         }
         try self.cmdBuff.end(vkCtx);

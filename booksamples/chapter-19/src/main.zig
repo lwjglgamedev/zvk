@@ -36,7 +36,7 @@ const Game = struct {
         sponzaEntity.setPos(0.0, 0.0, -4.0);
         sponzaEntity.scale = 0.01;
         sponzaEntity.update();
-        try engCtx.scene.addEntity(sponzaEntity);
+        try engCtx.scene.addEntity(engCtx.allocator, sponzaEntity);
 
         const bobModel = try eng.mdata.loadModel(arenaAlloc, engCtx.io, "res/models/bob/boblamp.json");
         models[1] = bobModel;
@@ -52,7 +52,7 @@ const Game = struct {
         const faceCamera = zm.quatFromAxisAngle(zm.Vec{ 0.0, 1.0, 0.0, 0.0 }, std.math.degreesToRadians(-90.0));
         bobEntity.rotation = zm.qmul(standUp, faceCamera);
         bobEntity.update();
-        try engCtx.scene.addEntity(bobEntity);
+        try engCtx.scene.addEntity(engCtx.allocator, bobEntity);
 
         var materials = try std.ArrayList(eng.mdata.MaterialData).initCapacity(arenaAlloc, 1);
         const sponzaMaterials = try eng.mdata.loadMaterials(arenaAlloc, engCtx.io, "res/models/sponza/Sponza-mat.json");

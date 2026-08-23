@@ -367,35 +367,36 @@ pub const RenderScn = struct {
         const device = vkCtx.vkDevice.deviceProxy;
         var iter = engCtx.scene.entitiesMap.valueIterator();
 
-        while (iter.next()) |entityRef| {
-            const entity = entityRef.*;
-            const vulkanModel = modelsCache.modelsMap.get(entity.modelId);
-            if (vulkanModel) |*vm| {
-                for (vm.meshes.items) |mesh| {
-                    var materialIdx: u32 = 0;
-                    if (materialsCache.materialsMap.getIndex(mesh.materialId)) |idx| {
-                        materialIdx = @as(u32, @intCast(idx));
-                        const material = materialsCache.materialsMap.get(mesh.materialId).?;
-                        if (material.transparent != transparent) {
-                            continue;
+        while (iter.next()) |listRef| {
+            for (listRef.items) |entity| {
+                const vulkanModel = modelsCache.modelsMap.get(entity.modelId);
+                if (vulkanModel) |*vm| {
+                    for (vm.meshes.items) |mesh| {
+                        var materialIdx: u32 = 0;
+                        if (materialsCache.materialsMap.getIndex(mesh.materialId)) |idx| {
+                            materialIdx = @as(u32, @intCast(idx));
+                            const material = materialsCache.materialsMap.get(mesh.materialId).?;
+                            if (material.transparent != transparent) {
+                                continue;
+                            }
                         }
+                        const vtxAddress: u64 = if (vm.hasAnimations())
+                            (animsCache.getBuffer(entity.id, mesh.id).?.address orelse mesh.buffVtx.address.?)
+                        else
+                            mesh.buffVtx.address.?;
+                        self.setPushConstants(
+                            vkCtx,
+                            cmdHandle,
+                            entity,
+                            vtxAddress,
+                            mesh.buffIdx.address.?,
+                            materialIdx,
+                        );
+                        device.cmdDraw(cmdHandle, @as(u32, @intCast(mesh.numIndices)), 1, 0, 0);
                     }
-                    const vtxAddress: u64 = if (vm.hasAnimations())
-                        (animsCache.getBuffer(entity.id, mesh.id).?.address orelse mesh.buffVtx.address.?)
-                    else
-                        mesh.buffVtx.address.?;
-                    self.setPushConstants(
-                        vkCtx,
-                        cmdHandle,
-                        entity,
-                        vtxAddress,
-                        mesh.buffIdx.address.?,
-                        materialIdx,
-                    );
-                    device.cmdDraw(cmdHandle, @as(u32, @intCast(mesh.numIndices)), 1, 0, 0);
+                } else {
+                    std.log.warn("Could not find model {s}", .{entity.modelId});
                 }
-            } else {
-                std.log.warn("Could not find model {s}", .{entity.modelId});
             }
         }
     }
