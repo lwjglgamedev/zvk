@@ -33,7 +33,7 @@ pub const VkInstance = struct {
 
     pub fn create(allocator: std.mem.Allocator, validate: bool) !VkInstance {
         const rawProc = sdl3.vulkan.getVkGetInstanceProcAddr() catch |err| {
-            std.debug.print("Vulkan not available: {}\n", .{err});
+            log.err("Vulkan not available: {}\n", .{err});
             return err;
         };
 

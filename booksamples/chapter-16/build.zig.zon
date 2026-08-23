@@ -41,7 +41,7 @@
             .hash = "zgui-0.6.0-dev--L6sZJhIbgAjWdK5h6xuVUrsOcD-RdqEOEPf03Zgi4mF",
         },
         .zaudio = .{
-            .url = "https://github.com/fourlexboehm/zaudio/archive/b9997fc34640d9c80e25b7829b9ad53db8bcf7f2.tar.gz",
+            .url = "https://github.com/zig-gamedev/zaudio/archive/fed501100b029213898861b60c6b54f8121dff03.tar.gz",
             .hash = "zaudio-0.11.0-dev-_M-91owyQQD3MVQa4F1xkPgwSFWQi4HhhNfDwKI0PBWX",
         },
     },
