@@ -15,13 +15,13 @@ pub const VtxBuffDesc = struct {
     pub const attribute_description = [_]vulkan.VertexInputAttributeDescription{};
 };
 
-const PushConstantsVtx = struct {
+const PushConstantsVtx = extern struct {
     modelMatrix: zm.Mat,
     vtxAddress: u64,
     idxAddress: u64,
 };
 
-const PushConstantsFrg = struct {
+const PushConstantsFrg = extern struct {
     materialIdx: u32,
 };
 

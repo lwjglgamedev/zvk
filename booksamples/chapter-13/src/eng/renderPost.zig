@@ -5,7 +5,7 @@ const vk = @import("vk");
 const vulkan = @import("vulkan");
 const zm = @import("zmath");
 
-const PushConstants = struct {
+const PushConstants = extern struct {
     screenWidth: f32 = 0.0,
     screenHeight: f32 = 0.0,
 };

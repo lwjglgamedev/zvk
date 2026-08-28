@@ -35,7 +35,7 @@ const PushConstantsVtx = struct {
     modelMatrix: zm.Mat,
 };
 
-const PushConstantsFrg = struct {
+const PushConstantsFrg = extern struct {
     materialIdx: u32,
 };
 
