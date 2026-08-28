@@ -35,7 +35,7 @@ pub const VkCtx = struct {
             constants.vsync,
         );
         const vkDescAllocator = try vk.desc.VkDescAllocator.create(allocator, vkPhysDevice, vkDevice);
-        const vkVmaAlloc = vk.vma.VkVmaAlloc.create(vkInstance, vkPhysDevice, vkDevice);
+        const vkVmaAlloc = try vk.vma.VkVmaAlloc.create(vkInstance, vkPhysDevice, vkDevice);
 
         return .{
             .constants = constants,

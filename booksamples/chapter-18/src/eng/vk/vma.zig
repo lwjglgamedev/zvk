@@ -23,7 +23,7 @@ pub const VmaMemoryFlags = enum(u32) {
 pub const VkVmaAlloc = struct {
     vmaAlloc: vma.VmaAllocator,
 
-    pub fn create(vkInstance: vke.inst.VkInstance, vkPhysDevice: vke.phys.VkPhysDevice, vkDevice: vke.dev.VkDevice) VkVmaAlloc {
+    pub fn create(vkInstance: vke.inst.VkInstance, vkPhysDevice: vke.phys.VkPhysDevice, vkDevice: vke.dev.VkDevice) !VkVmaAlloc {
         const vulkanFuncs = vma.VmaVulkanFunctions{
             .vkGetInstanceProcAddr = @ptrCast(vkInstance.vkb.dispatch.vkGetInstanceProcAddr),
             .vkGetDeviceProcAddr = @ptrCast(vkInstance.instanceProxy.wrapper.dispatch.vkGetDeviceProcAddr),
@@ -38,8 +38,9 @@ pub const VkVmaAlloc = struct {
             .vulkanApiVersion = @bitCast(vulkan.API_VERSION_1_3),
         };
         var vmaAlloc: vma.VmaAllocator = undefined;
-        if (vma.vmaCreateAllocator(&createInfo, &vmaAlloc) != 0)
-            @panic("Failed to initialize VMA");
+        if (vma.vmaCreateAllocator(&createInfo, &vmaAlloc) != 0) {
+            return error.VmaAllocatorCreationFailed;
+        }
         return .{ .vmaAlloc = vmaAlloc };
     }
 

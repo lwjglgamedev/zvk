@@ -25,7 +25,7 @@ pub const TextureCache = struct {
             return;
         }
         if (self.textureMap.count() >= MAX_TEXTURES) {
-            @panic("Exceeded maximum number of textures");
+            return error.TextureCacheFull;
         }
         const ownedId = try allocator.dupe(u8, textureInfo.id);
         const vkTextureInfo = vk.text.VkTextureInfo{
@@ -40,7 +40,7 @@ pub const TextureCache = struct {
 
     pub fn addTextureFromPath(self: *TextureCache, allocator: std.mem.Allocator, io: std.Io, vkCtx: *const vk.ctx.VkCtx, format: vulkan.Format, path: [:0]const u8) !bool {
         if (self.textureMap.count() >= MAX_TEXTURES) {
-            @panic("Exceeded maximum number of textures");
+            return error.TextureCacheFull;
         }
         std.Io.Dir.cwd().access(io, path, .{}) catch {
             log.err("Could not load texture file [{s}]", .{path});
@@ -70,20 +70,12 @@ pub const TextureCache = struct {
         self.textureMap.deinit(allocator);
     }
 
-    pub fn getTexture(self: *const TextureCache, id: []const u8) vk.text.VkTexture {
-        const texture = self.textureMap.get(id) orelse {
-            @panic("Could not find texture");
-        };
-
-        return texture;
+    pub fn getTexture(self: *const TextureCache, id: []const u8) !vk.text.VkTexture {
+        return self.textureMap.get(id) orelse error.TextureNotFound;
     }
 
-    pub fn getTextureRef(self: *const TextureCache, id: []const u8) *vk.text.VkTexture {
-        const texture = self.textureMap.getPtr(id) orelse {
-            @panic("Could not find texture");
-        };
-
-        return texture;
+    pub fn getTextureRef(self: *const TextureCache, id: []const u8) !*vk.text.VkTexture {
+        return self.textureMap.getPtr(id) orelse error.TextureNotFound;
     }
 
     pub fn recordTextures(self: *TextureCache, vkCtx: *const vk.ctx.VkCtx, vkCmdPool: *vk.cmd.VkCmdPool, vkQueue: vk.queue.VkQueue) !void {

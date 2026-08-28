@@ -39,7 +39,7 @@ pub const VkBuffer = struct {
             &allocation,
             &allocation_info,
         ) != 0) {
-            @panic("Failed to create buffer");
+            return error.BufferCreationFailed;
         }
         return .{
             .size = size,
@@ -61,7 +61,7 @@ pub const VkBuffer = struct {
     pub fn map(self: *const VkBuffer, vkCtx: *const vk.ctx.VkCtx) !?*anyopaque {
         var mappedPtr: ?*anyopaque = null;
         if (vma.vmaMapMemory(vkCtx.vkVmaAlloc.vmaAlloc, self.allocation, &mappedPtr) != 0) {
-            @panic("Failed to map memory");
+            return error.MemoryMapFailed;
         }
         return mappedPtr orelse error.NullPointerReturned;
     }

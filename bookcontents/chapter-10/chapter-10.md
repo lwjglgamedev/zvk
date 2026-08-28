@@ -108,7 +108,7 @@ pub const VmaMemoryFlags = enum(u32) {
 pub const VkVmaAlloc = struct {
     vmaAlloc: vma.VmaAllocator,
 
-    pub fn create(vkInstance: vke.inst.VkInstance, vkPhysDevice: vke.phys.VkPhysDevice, vkDevice: vke.dev.VkDevice) VkVmaAlloc {
+    pub fn create(vkInstance: vke.inst.VkInstance, vkPhysDevice: vke.phys.VkPhysDevice, vkDevice: vke.dev.VkDevice) !VkVmaAlloc {
         const vulkanFuncs = vma.VmaVulkanFunctions{
             .vkGetInstanceProcAddr = @ptrCast(vkInstance.vkb.dispatch.vkGetInstanceProcAddr),
             .vkGetDeviceProcAddr = @ptrCast(vkInstance.instanceProxy.wrapper.dispatch.vkGetDeviceProcAddr),
@@ -122,9 +122,9 @@ pub const VkVmaAlloc = struct {
             .vulkanApiVersion = @bitCast(vulkan.API_VERSION_1_3),
         };
         var vmaAlloc: vma.VmaAllocator = undefined;
-        if (vma.vmaCreateAllocator(&createInfo, &vmaAlloc) != 0)
-            @panic("Failed to initialize VMA");
-        return .{ .vmaAlloc = vmaAlloc };
+    if (vma.vmaCreateAllocator(&createInfo, &vmaAlloc) != 0) {
+        return error.VmaAllocatorCreationFailed;
+    }        return .{ .vmaAlloc = vmaAlloc };
     }
 
     pub fn cleanup(self: *const VkVmaAlloc) void {
@@ -150,7 +150,7 @@ pub const VkCtx = struct {
     ...
     pub fn create(allocator: std.mem.Allocator, constants: com.common.Constants, window: sdl3.video.Window) !VkCtx {
         ...
-        const vkVmaAlloc = vk.vma.VkVmaAlloc.create(vkInstance, vkPhysDevice, vkDevice);
+        const vkVmaAlloc = try vk.vma.VkVmaAlloc.create(vkInstance, vkPhysDevice, vkDevice);
         ...
         return .{
             ...
@@ -220,7 +220,7 @@ pub const VkBuffer = struct {
             &allocation,
             &allocation_info,
         ) != 0) {
-            @panic("Failed to create buffer");
+            return error.BufferCreationFailed;
         }
         return .{
             .size = size,
@@ -263,7 +263,7 @@ pub const VkBuffer = struct {
     pub fn map(self: *const VkBuffer, vkCtx: *const vk.ctx.VkCtx) !?*anyopaque {
         var mappedPtr: ?*anyopaque = null;
         if (vma.vmaMapMemory(vkCtx.vkVmaAlloc.vmaAlloc, self.allocation, &mappedPtr) != 0) {
-            @panic("Failed to map memory");
+            return error.MemoryMapFailed;
         }
         return mappedPtr orelse error.NullPointerReturned;
     }
@@ -347,7 +347,7 @@ pub const VkImage = struct {
             &allocation,
             null,
         ) != 0) {
-            @panic("Failed to create image");
+            return error.ImageCreationFailed;
         }
         return .{
             .image = image,

@@ -592,7 +592,7 @@ pub const RenderGui = struct {
                 defer allocator.free(id);
                 const textureData = textData.pixels[0..@as(usize, @intCast(numPixels))];
                 if (textData.status == zgui.TextureStatus.want_updates) {
-                    var texture = self.guiTextureCache.getTextureRef(id);
+                    var texture = try self.guiTextureCache.getTextureRef(id);
                     try texture.update(vkCtx, &textureData);
                 } else {
                     const textureInfo = eng.tcach.TextureInfo{
@@ -613,7 +613,7 @@ pub const RenderGui = struct {
                         self.descLayoutFrg,
                     );
                     textData.backend_user_data = @ptrFromInt(@intFromEnum(descSet.descSet));
-                    const texture = self.guiTextureCache.getTexture(textureInfo.id);
+                    const texture = try self.guiTextureCache.getTexture(textureInfo.id);
                     descSet.setImage(vkCtx.vkDevice, texture.vkImageView, self.textSampler, 0);
                 }
 
@@ -787,13 +787,9 @@ The new `getTextureRef` function in the `TextureCache` struct is defined like th
 ```zig
 pub const TextureCache = struct {
     ...
-    pub fn getTextureRef(self: *const TextureCache, id: []const u8) *vk.text.VkTexture {
-        const texture = self.textureMap.getPtr(id) orelse {
-            @panic("Could not find texture");
-        };
-
-        return texture;
-    }
+pub fn getTextureRef(self: *const TextureCache, id: []const u8) !*vk.text.VkTexture {
+    return self.textureMap.getPtr(id) orelse error.TextureNotFound;
+}
     ...
 };
 ```

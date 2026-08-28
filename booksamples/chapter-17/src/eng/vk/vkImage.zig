@@ -54,7 +54,7 @@ pub const VkImage = struct {
             &allocation,
             null,
         ) != 0) {
-            @panic("Failed to create image");
+            return error.ImageCreationFailed;
         }
         return .{
             .image = image,

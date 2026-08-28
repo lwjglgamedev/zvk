@@ -416,7 +416,7 @@ pub const RenderGui = struct {
                 defer allocator.free(id);
                 const textureData = textData.pixels[0..@as(usize, @intCast(numPixels))];
                 if (textData.status == zgui.TextureStatus.want_updates) {
-                    var texture = self.guiTextureCache.getTextureRef(id);
+                    var texture = try self.guiTextureCache.getTextureRef(id);
                     try texture.update(vkCtx, &textureData);
                 } else {
                     const textureInfo = eng.tcach.TextureInfo{
@@ -437,7 +437,7 @@ pub const RenderGui = struct {
                         self.descLayoutFrg,
                     );
                     textData.backend_user_data = @ptrFromInt(@intFromEnum(descSet.descSet));
-                    const texture = self.guiTextureCache.getTexture(textureInfo.id);
+                    const texture = try self.guiTextureCache.getTexture(textureInfo.id);
                     descSet.setImage(vkCtx.vkDevice, texture.vkImageView, self.textSampler, 0);
                 }
 
