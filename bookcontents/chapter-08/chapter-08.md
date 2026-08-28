@@ -1130,8 +1130,8 @@ in the same file as `ModelsCache`: `src/eng/modelsCache.zig`):
 **File: src/eng/modelsCache.zig**
 ```zig
 ...
-const MaterialBuffRecord = struct {
-    diffuseColor: zm.Vec,
+const MaterialBuffRecord = extern struct {
+    diffuseColor: [4]f32,
     hasTexture: u32,
     textureIdx: u32,
     padding: [2]u32,
@@ -1164,9 +1164,13 @@ pub const MaterialsCache = struct {
 ```
 
 This struct, will create a single `VkBuffer` which will store all the materials information for all the models, which in our case will be:
-- The diffuse color (for non textured materials), stored as a vector of 4 elements.
+- The diffuse color (for non textured materials), stored as an array of 4 elements.
 - If the material has a texture associated or not.
 - The texture index associated to the material.
+
+We define the struct as `extern`, beacuse we will dump its contents into buffers that will be read in the GPU, therefore we need to
+ensure that the layout used in the CPU side will be the same as the one expected in the GPU. By using `extern` we will use C-ABI layout,
+which we will also use in the shaders which access material data.
 
 We will need to store the materials in an `ArrayHashMap` since we will need to get he position of the material in the buffer.
 Now we need a function to load the materials:

@@ -288,7 +288,7 @@ metallic and roughness factors. First we need to update the `MaterialBuffRecord`
 
 **File: src/eng/modelsCache.zig**
 ```zig
-const MaterialBuffRecord = struct {
+const MaterialBuffRecord = extern struct {
     ...
     hasNormalMap: u32,
     normalMapIdx: u32,

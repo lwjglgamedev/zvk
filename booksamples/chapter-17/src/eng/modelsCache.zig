@@ -6,8 +6,8 @@ const vulkan = @import("vulkan");
 const log = std.log.scoped(.eng);
 const zm = @import("zmath");
 
-const MaterialBuffRecord = struct {
-    diffuseColor: zm.Vec,
+const MaterialBuffRecord = extern struct {
+    diffuseColor: [4]f32,
     hasTexture: u32,
     textureIdx: u32,
     hasNormalMap: u32,
