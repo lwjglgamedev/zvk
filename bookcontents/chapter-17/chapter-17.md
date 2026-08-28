@@ -1093,7 +1093,7 @@ pub const RenderAnim = struct {
 
     pub fn create(allocator: std.mem.Allocator, io: std.Io, vkCtx: *const vk.ctx.VkCtx) !RenderAnim {
         var cmdPool = try vk.cmd.VkCmdPool.create(vkCtx, vkCtx.vkPhysDevice.queuesInfo.compute_family, false);
-        const cmdBuff = try vk.cmd.VkCmdBuff.create(vkCtx, &cmdPool, true);
+        errdefer cmdPool.cleanup(vkCtx);        const cmdBuff = try vk.cmd.VkCmdBuff.create(vkCtx, &cmdPool, true);
         const queue = vk.queue.VkQueue.create(vkCtx, vkCtx.vkPhysDevice.queuesInfo.compute_family);
         const fence = try vk.sync.VkFence.create(vkCtx);
 

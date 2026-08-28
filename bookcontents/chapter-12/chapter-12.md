@@ -770,6 +770,7 @@ pub const VkTexture = struct {
             vk.vma.VmaUsage.VmaUsageAuto,
             vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBitAndCoherent,
         );
+        errdefer vkStageBuffer.cleanup(vkCtx);
         try vk.buf.copyDataToBuffer(vkCtx, &vkStageBuffer, data);
         self.cleanupStgBuffer(vkCtx);
         self.vkStageBuffer = vkStageBuffer;

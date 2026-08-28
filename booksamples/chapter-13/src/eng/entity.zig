@@ -12,7 +12,9 @@ pub const Entity = struct {
 
     pub fn create(allocator: std.mem.Allocator, id: []const u8, modelId: []const u8) !*Entity {
         const ownedId = try allocator.dupe(u8, id);
+        errdefer allocator.free(ownedId);
         var entity = try allocator.create(Entity);
+        errdefer allocator.destroy(entity);
         entity.id = ownedId;
         entity.modelId = try allocator.dupe(u8, modelId);
         entity.pos = zm.f32x4(0, 0, 0, 1);

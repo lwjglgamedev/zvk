@@ -33,9 +33,11 @@ pub const RenderAnim = struct {
 
     pub fn create(allocator: std.mem.Allocator, io: std.Io, vkCtx: *const vk.ctx.VkCtx) !RenderAnim {
         var cmdPool = try vk.cmd.VkCmdPool.create(vkCtx, vkCtx.vkPhysDevice.queuesInfo.compute_family, false);
+        errdefer cmdPool.cleanup(vkCtx);
         const cmdBuff = try vk.cmd.VkCmdBuff.create(vkCtx, &cmdPool, true);
         const queue = vk.queue.VkQueue.create(vkCtx, vkCtx.vkPhysDevice.queuesInfo.compute_family);
         const fence = try vk.sync.VkFence.create(vkCtx);
+        errdefer fence.cleanup(vkCtx);
 
         const descLayout = try vk.desc.VkDescSetLayout.create(
             allocator,
@@ -49,6 +51,7 @@ pub const RenderAnim = struct {
         );
         const layout = descLayout.descSetLayout;
         const descSetLayouts = [_]vulkan.DescriptorSetLayout{ layout, layout, layout, layout };
+        errdefer descLayout.cleanup(vkCtx);
 
         // Shader modules
         var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);

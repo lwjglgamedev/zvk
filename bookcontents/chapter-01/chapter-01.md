@@ -409,6 +409,7 @@ pub const Wnd = struct {
                 .vulkan = true,
             },
         );
+        errdefer window.deinit();
 
         log.debug("Created window", .{});
 

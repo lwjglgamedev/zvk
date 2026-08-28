@@ -112,6 +112,7 @@ pub const VkDescAllocator = struct {
             }
 
             const ownedId = try allocator.dupe(u8, id);
+            errdefer allocator.free(ownedId);
             try self.descSetMap.put(ownedId, vkDescSet);
             return vkDescSet;
         } else {

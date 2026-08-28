@@ -9,6 +9,7 @@ pub const SoundMgr = struct {
 
     pub fn addSound(self: *SoundMgr, key: []const u8, filePath: [:0]const u8) !void {
         const sound = try self.engine.createSoundFromFile(filePath, .{});
+        errdefer sound.destroy();
         try self.soundsMap.put(key, sound);
     }
 
@@ -27,6 +28,7 @@ pub const SoundMgr = struct {
     pub fn create(allocator: std.mem.Allocator) !SoundMgr {
         log.debug("Creating sound engine", .{});
         zaudio.init(allocator);
+        errdefer zaudio.deinit();
         const engine = try zaudio.Engine.create(null);
         const soundsMap = std.StringHashMap(*zaudio.Sound).init(allocator);
 
