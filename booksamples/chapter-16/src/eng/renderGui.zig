@@ -6,7 +6,7 @@ const vulkan = @import("vulkan");
 const zgui = @import("zgui");
 const zstbi = @import("zstbi");
 
-const PushConstants = struct {
+const PushConstants = extern struct {
     scaleX: f32 = 1.0,
     scaleY: f32 = 1.0,
 };

@@ -592,14 +592,13 @@ size when creating the pipeline:
 
 **File: src/eng/renderAnim.zig**
 ```zig
-const PushConstants = struct {
+const PushConstants = extern struct {
     srcBufAddr: u64,
     weightsBufAddr: u64,
     jointsBufAddr: u64,
     dstBufAddr: u64,
     srcBuffFloatSize: u64,
 };
-
 pub const RenderAnim = struct {
     ...
     pub fn create(allocator: std.mem.Allocator, io: std.Io, vkCtx: *const vk.ctx.VkCtx) !RenderAnim {

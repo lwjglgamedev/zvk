@@ -6,14 +6,13 @@ const vulkan = @import("vulkan");
 
 const LOCAL_SIZE_X: u32 = 32;
 
-const PushConstants = struct {
+const PushConstants = extern struct {
     srcBufAddr: u64,
     weightsBufAddr: u64,
     jointsBufAddr: u64,
     dstBufAddr: u64,
     srcBuffFloatSize: u64,
 };
-
 pub const RenderAnim = struct {
     cmdPool: vk.cmd.VkCmdPool,
     cmdBuff: vk.cmd.VkCmdBuff,
