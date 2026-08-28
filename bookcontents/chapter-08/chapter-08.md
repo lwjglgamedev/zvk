@@ -1909,7 +1909,10 @@ pub const VkCtx = struct {
     ...
     pub fn create(allocator: std.mem.Allocator, constants: com.common.Constants, window: sdl3.video.Window) !VkCtx {
         ...
-        const vkDescAllocator = try vk.desc.VkDescAllocator.create(allocator, vkPhysDevice, vkDevice);
+                var vkDescAllocator = try vk.desc.VkDescAllocator.create(allocator, vkPhysDevice, vkDevice);
+        errdefer vkDescAllocator.cleanup(allocator, vkDevice);
+
+
 
         return .{
             .constants = constants,

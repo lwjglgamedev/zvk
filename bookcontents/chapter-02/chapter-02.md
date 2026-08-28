@@ -334,7 +334,10 @@ pub const VkCtx = struct {
     vkInstance: vk.inst.VkInstance,
 
     pub fn create(allocator: std.mem.Allocator, constants: com.common.Constants) !VkCtx {
-        const vkInstance = try vk.inst.VkInstance.create(allocator, constants.validation);
+        var vkInstance = try vk.inst.VkInstance.create(allocator, constants.validation);
+        errdefer vkInstance.cleanup(allocator) catch {};
+
+
 
         return .{
             .constants = constants,

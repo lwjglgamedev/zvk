@@ -13,16 +13,23 @@ pub const VkCtx = struct {
     vkSwapChain: vk.swap.VkSwapChain,
 
     pub fn create(allocator: std.mem.Allocator, constants: com.common.Constants, window: sdl3.video.Window) !VkCtx {
-        const vkInstance = try vk.inst.VkInstance.create(allocator, constants.validation);
-        const vkSurface = try vk.surf.VkSurface.create(window, vkInstance);
+        var vkInstance = try vk.inst.VkInstance.create(allocator, constants.validation);
+        errdefer vkInstance.cleanup(allocator) catch {};
+
+        var vkSurface = try vk.surf.VkSurface.create(window, vkInstance);
+        errdefer vkSurface.cleanup(vkInstance);
+
         const vkPhysDevice = try vk.phys.VkPhysDevice.create(
             allocator,
             constants,
             vkInstance.instanceProxy,
             vkSurface,
         );
-        const vkDevice = try vk.dev.VkDevice.create(allocator, vkInstance, vkPhysDevice);
-        const vkSwapChain = try vk.swap.VkSwapChain.create(
+
+        var vkDevice = try vk.dev.VkDevice.create(allocator, vkInstance, vkPhysDevice);
+        errdefer vkDevice.cleanup(allocator);
+
+        var vkSwapChain = try vk.swap.VkSwapChain.create(
             allocator,
             window,
             vkInstance,
@@ -32,6 +39,7 @@ pub const VkCtx = struct {
             constants.swapChainImages,
             constants.vsync,
         );
+        errdefer vkSwapChain.cleanup(allocator, vkDevice);
 
         return .{
             .constants = constants,

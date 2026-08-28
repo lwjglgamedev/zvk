@@ -432,7 +432,7 @@ pub const VkCtx = struct {
 
     pub fn create(allocator: std.mem.Allocator, constants: com.common.Constants, window: sdl3.video.Window) !VkCtx {
         ...
-        const vkSwapChain = try vk.swap.VkSwapChain.create(
+        var vkSwapChain = try vk.swap.VkSwapChain.create(
             allocator,
             window,
             vkInstance,
@@ -442,6 +442,9 @@ pub const VkCtx = struct {
             constants.swapChainImages,
             constants.vsync,
         );
+        errdefer vkSwapChain.cleanup(allocator, vkDevice);
+
+
 
         return .{
             .constants = constants,
