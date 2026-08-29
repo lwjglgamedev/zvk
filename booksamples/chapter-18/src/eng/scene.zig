@@ -162,6 +162,10 @@ pub const Scene = struct {
     }
 
     pub fn addLight(self: *Scene, allocator: std.mem.Allocator, light: eng.scn.Light) !void {
+        if (self.lights.items.len >= MAX_LIGHTS) {
+            return error.TooManyLights;
+        }
+
         try self.lights.append(allocator, light);
     }
 
