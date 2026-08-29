@@ -256,23 +256,36 @@ pub const VkDevice = struct {
 
     pub fn create(allocator: std.mem.Allocator, vkInstance: vk.inst.VkInstance, vkPhysDevice: vk.phys.VkPhysDevice) !VkDevice {
         const priority = [_]f32{0};
-        const qci = [_]vulkan.DeviceQueueCreateInfo{
-            .{
-                .queue_family_index = vkPhysDevice.queuesInfo.graphics_family,
-                .queue_count = 1,
-                .p_queue_priorities = &priority,
-            },
-            .{
-                .queue_family_index = vkPhysDevice.queuesInfo.present_family,
-                .queue_count = 1,
-                .p_queue_priorities = &priority,
-            },
-        };
 
-        const queueCount: u32 = if (vkPhysDevice.queuesInfo.graphics_family == vkPhysDevice.queuesInfo.present_family)
-            1
-        else
-            2;
+        var uniqueFamilies: [3]u32 = undefined;
+        var uniqueCount: u32 = 0;
+        for ([_]u32{
+            vkPhysDevice.queuesInfo.graphics_family,
+            vkPhysDevice.queuesInfo.present_family,
+            vkPhysDevice.queuesInfo.compute_family,
+        }) |family| {
+            var alreadyPresent = false;
+            for (uniqueFamilies[0..uniqueCount]) |existing| {
+                if (existing == family) {
+                    alreadyPresent = true;
+                    break;
+                }
+            }
+            if (!alreadyPresent) {
+                uniqueFamilies[uniqueCount] = family;
+                uniqueCount += 1;
+            }
+        }
+
+        var qciBuf: [3]vulkan.DeviceQueueCreateInfo = undefined;
+        for (uniqueFamilies[0..uniqueCount], 0..) |family, i| {
+            qciBuf[i] = .{
+                .queue_family_index = family,
+                .queue_count = 1,
+                .p_queue_priorities = &priority,
+            };
+        }
+        const qci = qciBuf[0..uniqueCount];
 
         const features3 = vulkan.PhysicalDeviceVulkan13Features{
             .dynamic_rendering = vulkan.Bool32.true,
@@ -286,9 +299,9 @@ pub const VkDevice = struct {
         };
 
         const devCreateInfo: vulkan.DeviceCreateInfo = .{
-            .queue_create_info_count = queueCount,
+            .queue_create_info_count = @intCast(qci.len),
             .p_next = @ptrCast(&features2),
-            .p_queue_create_infos = &qci,
+            .p_queue_create_infos = qci.ptr,
             .enabled_extension_count = reqExtensions.len,
             .pp_enabled_extension_names = reqExtensions[0..].ptr,
             .p_enabled_features = @ptrCast(&features),
@@ -308,11 +321,14 @@ pub const VkDevice = struct {
 The struct `VkDevice` is the one that will hold our Vulkan logical device. We will use that structure for the creation of the resources we
 will need later on. We start by defining the queues families that this logical device will use. Later on, when we create queues, but now we
 will need to specify the queue family which it belongs to. If that queue family has been not be enabled for the logical device we will get
-an error. In this case we will opt for enabling  the queues families used to present images to the screen and to record graphic commands.
+an error. In this case we will opt for enabling all the queues families. The family represents the purpose of that queue, there will be
+queue families for submitting graphics commands, presentating results to screen, etc. Differenr queues purpose can share the same 
+gamiliy index. For exampple we can have a queue gamily which allows queues that can be used for graphics and compute commands. This is
+why we filter those cases to just create the families we need for the purposes we are interested in.
 
-We basically create an array of `DeviceQueueCreateInfo` structs which will hold the index of each queue family and its priority. The
-priority is mechanism that allows us to instruct the driver to prioritize the work submitted by using the priorities assigned to each queue
-family. However, this is prioritization mechanism is not mandated in the specification. Drivers are free to apply the algorithms they
+After that, we basically create an array of `DeviceQueueCreateInfo` structs which will hold the index of each queue family and its priority.
+The priority is mechanism that allows us to instruct the driver to prioritize the work submitted by using the priorities assigned to each
+queue family. However, this is prioritization mechanism is not mandated in the specification. Drivers are free to apply the algorithms they
 consider in order to balance the work. Therefore, in our case we will just set priorities to a fixed value of `0` (which is the default
 value  for the lowest priority, we simply don't care). Those families can be the same, so if this the case we will just use the first one
 by setting the `queueCount` to 1.

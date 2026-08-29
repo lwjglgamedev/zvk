@@ -10,23 +10,35 @@ pub const VkDevice = struct {
 
     pub fn create(allocator: std.mem.Allocator, vkInstance: vk.inst.VkInstance, vkPhysDevice: vk.phys.VkPhysDevice) !VkDevice {
         const priority = [_]f32{0};
-        const qci = [_]vulkan.DeviceQueueCreateInfo{
-            .{
-                .queue_family_index = vkPhysDevice.queuesInfo.graphics_family,
-                .queue_count = 1,
-                .p_queue_priorities = &priority,
-            },
-            .{
-                .queue_family_index = vkPhysDevice.queuesInfo.present_family,
-                .queue_count = 1,
-                .p_queue_priorities = &priority,
-            },
-        };
 
-        const queueCount: u32 = if (vkPhysDevice.queuesInfo.graphics_family == vkPhysDevice.queuesInfo.present_family)
-            1
-        else
-            2;
+        var uniqueFamilies: [3]u32 = undefined;
+        var uniqueCount: u32 = 0;
+        for ([_]u32{
+            vkPhysDevice.queuesInfo.graphics_family,
+            vkPhysDevice.queuesInfo.present_family,
+        }) |family| {
+            var alreadyPresent = false;
+            for (uniqueFamilies[0..uniqueCount]) |existing| {
+                if (existing == family) {
+                    alreadyPresent = true;
+                    break;
+                }
+            }
+            if (!alreadyPresent) {
+                uniqueFamilies[uniqueCount] = family;
+                uniqueCount += 1;
+            }
+        }
+
+        var qciBuf: [3]vulkan.DeviceQueueCreateInfo = undefined;
+        for (uniqueFamilies[0..uniqueCount], 0..) |family, i| {
+            qciBuf[i] = .{
+                .queue_family_index = family,
+                .queue_count = 1,
+                .p_queue_priorities = &priority,
+            };
+        }
+        const qci = qciBuf[0..uniqueCount];
 
         const features3 = vulkan.PhysicalDeviceVulkan13Features{
             .dynamic_rendering = vulkan.Bool32.true,
@@ -42,9 +54,9 @@ pub const VkDevice = struct {
         };
 
         const devCreateInfo: vulkan.DeviceCreateInfo = .{
-            .queue_create_info_count = queueCount,
+            .queue_create_info_count = @intCast(qci.len),
             .p_next = @ptrCast(&features2),
-            .p_queue_create_infos = &qci,
+            .p_queue_create_infos = qci.ptr,
             .enabled_extension_count = reqExtensions.len,
             .pp_enabled_extension_names = reqExtensions[0..].ptr,
             .p_enabled_features = @ptrCast(&features),

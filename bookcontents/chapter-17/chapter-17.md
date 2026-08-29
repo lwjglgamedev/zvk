@@ -1052,6 +1052,27 @@ pub const VkPhysDevice = struct {
 };
 ```
 
+We need to include that family in the device creation when enabling the different queue families:
+
+**File: src/eng/vk/vkDevice.zig**
+```zig
+pub const VkDevice = struct {
+    ...
+    pub fn create(allocator: std.mem.Allocator, vkInstance: vk.inst.VkInstance, vkPhysDevice: vk.phys.VkPhysDevice) !VkDevice {
+    ...
+        for ([_]u32{
+            vkPhysDevice.queuesInfo.graphics_family,
+            vkPhysDevice.queuesInfo.present_family,
+            vkPhysDevice.queuesInfo.compute_family,
+        }) |family| {
+            ...
+        }
+    ...
+    }
+    ...
+};
+```
+
 We have now all the pieces required to perform the animation using a compute shader, so we will create a new struct, named `RenderAnim`
 to put them into play. We will need to add the `src/eng/renderAnim.zig` path in to the `src/eng/mod.zig` file.
 
