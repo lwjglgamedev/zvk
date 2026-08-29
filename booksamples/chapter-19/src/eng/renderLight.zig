@@ -507,7 +507,7 @@ pub const RenderLight = struct {
         @memcpy(gpuBytes[offset..][0..12], posBytes[0..12]);
         offset += 12;
 
-        const numLights = scene.lights.items.len;
+        const numLights: u32 = @intCast(scene.lights.items.len);
         const numLightsBytes = std.mem.toBytes(numLights);
         @memcpy(gpuBytes[offset..], &numLightsBytes);
         offset += 4;
