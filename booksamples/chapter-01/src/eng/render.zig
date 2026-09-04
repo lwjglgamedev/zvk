@@ -2,7 +2,7 @@ const eng = @import("mod.zig");
 const std = @import("std");
 
 pub const Render = struct {
-    pub fn cleanup(self: *Render, allocator: std.mem.Allocator) !void {
+    pub fn cleanup(self: *Render, allocator: std.mem.Allocator) void {
         _ = self;
         _ = allocator;
     }

@@ -9,7 +9,7 @@ pub const VkCtx = struct {
 
     pub fn create(allocator: std.mem.Allocator, constants: com.common.Constants) !VkCtx {
         var vkInstance = try vk.inst.VkInstance.create(allocator, constants.validation);
-        errdefer vkInstance.cleanup(allocator) catch {};
+        vkInstance.cleanup(allocator);
 
         return .{
             .constants = constants,
@@ -17,7 +17,7 @@ pub const VkCtx = struct {
         };
     }
 
-    pub fn cleanup(self: *VkCtx, allocator: std.mem.Allocator) !void {
-        try self.vkInstance.cleanup(allocator);
+    pub fn cleanup(self: *VkCtx, allocator: std.mem.Allocator) void {
+        self.vkInstance.cleanup(allocator);
     }
 };

@@ -1926,7 +1926,7 @@ pub const VkCtx = struct {
         };
     }
 
-    pub fn cleanup(self: *VkCtx, allocator: std.mem.Allocator) !void {
+    pub fn cleanup(self: *VkCtx, allocator: std.mem.Allocator) void {
         self.vkDescAllocator.cleanup(allocator, self.vkDevice);
         ...
     }
@@ -2411,7 +2411,7 @@ pub const Render = struct {
     ...
     textureCache: eng.tcach.TextureCache,
 
-    pub fn cleanup(self: *Render, allocator: std.mem.Allocator) !void {
+    pub fn cleanup(self: *Render, allocator: std.mem.Allocator) void {
         ...
         self.textureCache.cleanup(allocator, &self.vkCtx);
         self.materialsCache.cleanup(allocator, &self.vkCtx);

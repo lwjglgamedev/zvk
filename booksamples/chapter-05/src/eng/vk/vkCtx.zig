@@ -13,7 +13,7 @@ pub const VkCtx = struct {
 
     pub fn create(allocator: std.mem.Allocator, constants: com.common.Constants, window: sdl3.video.Window) !VkCtx {
         var vkInstance = try vk.inst.VkInstance.create(allocator, constants.validation);
-        errdefer vkInstance.cleanup(allocator) catch {};
+        vkInstance.cleanup(allocator);
 
         var vkSurface = try vk.surf.VkSurface.create(window, vkInstance);
         errdefer vkSurface.cleanup(vkInstance);
@@ -50,10 +50,10 @@ pub const VkCtx = struct {
         };
     }
 
-    pub fn cleanup(self: *VkCtx, allocator: std.mem.Allocator) !void {
+    pub fn cleanup(self: *VkCtx, allocator: std.mem.Allocator) void {
         self.vkSwapChain.cleanup(allocator, self.vkDevice);
         self.vkDevice.cleanup(allocator);
         self.vkSurface.cleanup(self.vkInstance);
-        try self.vkInstance.cleanup(allocator);
+        self.vkInstance.cleanup(allocator);
     }
 };

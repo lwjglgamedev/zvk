@@ -532,7 +532,7 @@ pub const VkCtx = struct {
 
     pub fn create(allocator: std.mem.Allocator, constants: com.common.Constants, window: sdl3.video.Window) !VkCtx {
         var vkInstance = try vk.inst.VkInstance.create(allocator, constants.validation);
-        errdefer vkInstance.cleanup(allocator) catch {};
+        vkInstance.cleanup(allocator);
 
 
         var vkSurface = try vk.surf.VkSurface.create(window, vkInstance);
@@ -546,7 +546,7 @@ pub const VkCtx = struct {
             vkSurface,
         );
         var vkInstance = try vk.inst.VkInstance.create(allocator, constants.validation);
-        errdefer vkInstance.cleanup(allocator) catch {};
+        vkInstance.cleanup(allocator);
 
 
 
@@ -559,10 +559,10 @@ pub const VkCtx = struct {
         };
     }
 
-    pub fn cleanup(self: *VkCtx, allocator: std.mem.Allocator) !void {
+    pub fn cleanup(self: *VkCtx, allocator: std.mem.Allocator) void {
         self.vkDevice.cleanup(allocator);
         self.vkSurface.cleanup(self.vkInstance);
-        try self.vkInstance.cleanup(allocator);
+        self.vkInstance.cleanup(allocator);
     }
 };
 ```
@@ -602,12 +602,15 @@ will also update the `cleanup` function to wait for the device prior to perform 
 
 **File: src/eng/render.zig**
 ```zig
+...
+const log = std.log.scoped(.eng);
+...
 pub const Render = struct {
     ...
-    pub fn cleanup(self: *Render, allocator: std.mem.Allocator) !void {
-        try self.vkCtx.vkDevice.wait();
+    pub fn cleanup(self: *Render, allocator: std.mem.Allocator) void {
+        self.vkCtx.vkDevice.wait() catch |err| log.err("Device wait failed in cleanup: {}", .{err});
 
-        try self.vkCtx.cleanup(allocator);
+        self.vkCtx.cleanup(allocator);
     }
 
     pub fn create(allocator: std.mem.Allocator, constants: com.common.Constants, window: sdl3.video.Window) !Render {

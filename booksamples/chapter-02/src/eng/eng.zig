@@ -20,9 +20,9 @@ pub fn Engine(comptime GameLogic: type) type {
         gameLogic: *GameLogic,
         render: eng.rend.Render,
 
-        fn cleanup(self: *Engine(GameLogic)) !void {
+        fn cleanup(self: *Engine(GameLogic)) void {
             self.gameLogic.cleanup();
-            try self.render.cleanup(self.engCtx.allocator);
+            self.render.cleanup(self.engCtx.allocator);
             self.engCtx.cleanup();
         }
 
@@ -82,7 +82,7 @@ pub fn Engine(comptime GameLogic: type) type {
                 lastTime = now;
             }
 
-            try self.cleanup();
+            self.cleanup();
         }
     };
 }

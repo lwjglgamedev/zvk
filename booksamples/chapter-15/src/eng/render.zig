@@ -64,8 +64,8 @@ pub const Render = struct {
     semsRenderComplete: []vk.sync.VkSemaphore,
     textureCache: eng.tcach.TextureCache,
 
-    pub fn cleanup(self: *Render, allocator: std.mem.Allocator) !void {
-        try self.vkCtx.vkDevice.wait();
+    pub fn cleanup(self: *Render, allocator: std.mem.Allocator) void {
+        self.vkCtx.vkDevice.wait() catch |err| log.err("Device wait failed in cleanup: {}", .{err});
 
         self.renderGui.cleanup(allocator, &self.vkCtx);
         self.renderPost.cleanup(&self.vkCtx);
@@ -89,7 +89,7 @@ pub const Render = struct {
 
         self.cleanupSemphs(allocator);
 
-        try self.vkCtx.cleanup(allocator);
+        self.vkCtx.cleanup(allocator);
     }
 
     fn cleanupSemphs(self: *Render, allocator: std.mem.Allocator) void {
@@ -324,7 +324,7 @@ pub const Render = struct {
             return;
         }
         self.mustResize = false;
-        try self.vkCtx.vkDevice.wait();
+        self.vkCtx.vkDevice.wait() catch |err| log.err("Device wait failed in cleanup: {}", .{err});
         try self.vkCtx.resize(allocator, engCtx.wnd.window);
 
         for (self.semsRenderComplete) |sem| {

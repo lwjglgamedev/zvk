@@ -4,6 +4,7 @@ const sdl3 = @import("sdl3");
 const std = @import("std");
 const vk = @import("vk");
 const vulkan = @import("vulkan");
+const log = std.log.scoped(.eng);
 
 pub const Render = struct {
     vkCtx: vk.ctx.VkCtx,
@@ -18,8 +19,8 @@ pub const Render = struct {
     semsPresComplete: []vk.sync.VkSemaphore,
     semsRenderComplete: []vk.sync.VkSemaphore,
 
-    pub fn cleanup(self: *Render, allocator: std.mem.Allocator) !void {
-        try self.vkCtx.vkDevice.wait();
+    pub fn cleanup(self: *Render, allocator: std.mem.Allocator) void {
+        self.vkCtx.vkDevice.wait() catch |err| log.err("Device wait failed in cleanup: {}", .{err});
 
         self.renderScn.cleanup(allocator, &self.vkCtx);
 
@@ -38,7 +39,7 @@ pub const Render = struct {
 
         self.cleanupSemphs(allocator);
 
-        try self.vkCtx.cleanup(allocator);
+        self.vkCtx.cleanup(allocator);
     }
 
     fn cleanupSemphs(self: *Render, allocator: std.mem.Allocator) void {

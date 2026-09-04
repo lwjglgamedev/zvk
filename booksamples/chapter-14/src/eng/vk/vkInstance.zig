@@ -112,7 +112,7 @@ pub const VkInstance = struct {
         return vulkan.Bool32.false;
     }
 
-    pub fn cleanup(self: *VkInstance, allocator: std.mem.Allocator) !void {
+    pub fn cleanup(self: *VkInstance, allocator: std.mem.Allocator) void {
         log.debug("Destroying Vulkan instance", .{});
         if (self.debugMessenger) |dbg| {
             self.instanceProxy.destroyDebugUtilsMessengerEXT(dbg, null);

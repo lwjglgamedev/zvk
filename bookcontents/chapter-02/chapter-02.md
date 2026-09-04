@@ -305,7 +305,7 @@ We need to complete the code with a `cleanup` function to properly free resource
 ```zig
 pub const VkInstance = struct {
     ...
-    pub fn cleanup(self: *VkInstance, allocator: std.mem.Allocator) !void {
+    pub fn cleanup(self: *VkInstance, allocator: std.mem.Allocator) void {
         log.debug("Destroying Vulkan instance", .{});
         if (self.debugMessenger) |dbg| {
             self.instanceProxy.destroyDebugUtilsMessengerEXT(dbg, null);
@@ -335,7 +335,7 @@ pub const VkCtx = struct {
 
     pub fn create(allocator: std.mem.Allocator, constants: com.common.Constants) !VkCtx {
         var vkInstance = try vk.inst.VkInstance.create(allocator, constants.validation);
-        errdefer vkInstance.cleanup(allocator) catch {};
+        vkInstance.cleanup(allocator);
 
 
 
@@ -345,8 +345,8 @@ pub const VkCtx = struct {
         };
     }
 
-    pub fn cleanup(self: *VkCtx, allocator: std.mem.Allocator) !void {
-        try self.vkInstance.cleanup(allocator);
+    pub fn cleanup(self: *VkCtx, allocator: std.mem.Allocator) void {
+        self.vkInstance.cleanup(allocator);
     }
 };
 ```
@@ -358,8 +358,8 @@ Finally, we can use the Instance `VkCtx` struct in our `Render` struct, in the `
 pub const Render = struct {
     vkCtx: vk.ctx.VkCtx,
 
-    pub fn cleanup(self: *Render, allocator: std.mem.Allocator) !void {
-        try self.vkCtx.cleanup(allocator);
+    pub fn cleanup(self: *Render, allocator: std.mem.Allocator) void {
+        self.vkCtx.cleanup(allocator);
     }
 
     pub fn create(allocator: std.mem.Allocator, constants: com.common.Constants) !Render {

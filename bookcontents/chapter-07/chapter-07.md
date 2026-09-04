@@ -730,7 +730,7 @@ pub const Render = struct {
             return;
         }
         self.mustResize = false;
-        try self.vkCtx.vkDevice.wait();
+        self.vkCtx.vkDevice.wait() catch |err| log.err("Device wait failed in cleanup: {}", .{err});
         try self.vkCtx.resize(allocator, engCtx.wnd.window);
 
         for (self.semsRenderComplete) |sem| {

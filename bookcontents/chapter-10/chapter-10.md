@@ -159,7 +159,7 @@ pub const VkCtx = struct {
         }
     }
 
-    pub fn cleanup(self: *VkCtx, allocator: std.mem.Allocator) !void {
+    pub fn cleanup(self: *VkCtx, allocator: std.mem.Allocator) void {
         self.vkVmaAlloc.cleanup();
         ...
     }
