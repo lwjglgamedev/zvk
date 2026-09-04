@@ -15,8 +15,8 @@ pub const EngCtx = struct {
     scene: eng.scn.Scene,
     wnd: eng.wnd.Wnd,
 
-    pub fn cleanup(self: *EngCtx) !void {
-        try self.wnd.cleanup();
+    pub fn cleanup(self: *EngCtx) void {
+        self.wnd.cleanup();
         self.constants.cleanup(self.allocator);
         self.scene.cleanup(self.allocator);
         zstbi.deinit();
@@ -32,7 +32,7 @@ pub fn Engine(comptime GameLogic: type) type {
         fn cleanup(self: *Engine(GameLogic)) !void {
             self.gameLogic.cleanup();
             try self.render.cleanup(self.engCtx.allocator);
-            try self.engCtx.cleanup();
+            self.engCtx.cleanup();
         }
 
         pub fn create(allocator: std.mem.Allocator, io: std.Io, gameLogic: *GameLogic, wndTitle: [:0]const u8) !Engine(GameLogic) {
@@ -42,17 +42,27 @@ pub fn Engine(comptime GameLogic: type) type {
             var scene = try eng.scn.Scene.create(allocator);
             errdefer scene.cleanup(allocator);
 
+            var wnd = try eng.wnd.Wnd.create(wndTitle);
+            errdefer wnd.cleanup();
+
             const engCtx = EngCtx{
                 .allocator = allocator,
                 .constants = constants,
                 .io = io,
                 .scene = scene,
-                .wnd = try eng.wnd.Wnd.create(wndTitle),
+                .wnd = wnd,
             };
 
             zstbi.init(io, allocator);
+            errdefer zstbi.deinit();
 
-            const render = try eng.rend.Render.create(allocator, io, engCtx.constants, engCtx.wnd.window);
+            const render = try eng.rend.Render.create(
+                allocator,
+                io,
+                engCtx.constants,
+                engCtx.wnd.window,
+            );
+            errdefer render.cleanup(allocator);
 
             return .{
                 .engCtx = engCtx,

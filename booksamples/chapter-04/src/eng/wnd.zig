@@ -65,7 +65,7 @@ pub const Wnd = struct {
         };
     }
 
-    pub fn cleanup(self: *Wnd) !void {
+    pub fn cleanup(self: *Wnd) void {
         log.debug("Destroying window", .{});
         self.window.deinit();
         sdl3.shutdown();

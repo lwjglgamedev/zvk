@@ -628,7 +628,12 @@ pub fn Engine(comptime GameLogic: type) type {
     ...
         pub fn create(allocator: std.mem.Allocator, io: std.Io, gameLogic: *GameLogic, wndTitle: [:0]const u8) !Engine(GameLogic) {
             ...
-            const render = try eng.rend.Render.create(allocator, engCtx.constants, engCtx.wnd.window);
+            const render = try eng.rend.Render.create(
+                allocator,
+                engCtx.constants,
+                engCtx.wnd.window,
+            );
+            errdefer render.cleanup(allocator);
             ...
         }
     ...
