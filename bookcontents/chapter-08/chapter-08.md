@@ -596,6 +596,7 @@ pub const VkTexture = struct {
             .format = vkTextureInfo.format,
         };
         const vkImage = try vk.img.VkImage.create(vkCtx, vkImageData);
+        errdefer vkImage.cleanup(vkCtx);
         const imageViewData = vk.imv.VkImageViewData{ .format = vkTextureInfo.format };
 
         const vkImageView = try vk.imv.VkImageView.create(vkCtx.vkDevice, vkImage.image, imageViewData);
@@ -2092,6 +2093,7 @@ pub const RenderScn = struct {
             .borderColor = vulkan.BorderColor.float_opaque_black,
         };
         const textSampler = try vk.text.VkTextSampler.create(vkCtx, samplerInfo);
+        errdefer textSampler.cleanup(vkCtx);
 
         // Descriptor set layouts
         const descLayoutVtx = try vk.desc.VkDescSetLayout.create(
@@ -2162,7 +2164,8 @@ pub const RenderScn = struct {
                 .binding_description = VtxBuffDesc.binding_description,
             },
         };
-        const vkPipeline = try vk.pipe.VkPipeline.create(allocator, vkCtx, &vkPipelineCreateInfo);
+        var vkPipeline = try vk.pipe.VkPipeline.create(allocator, vkCtx, &vkPipelineCreateInfo);
+        errdefer vkPipeline.cleanup(vkCtx);
 
         return .{
             .buffCamera = buffCamera,

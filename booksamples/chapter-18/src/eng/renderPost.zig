@@ -41,6 +41,7 @@ pub const RenderPost = struct {
             .borderColor = vulkan.BorderColor.float_opaque_black,
         };
         const textSampler = try vk.text.VkTextSampler.create(vkCtx, samplerInfo);
+        errdefer textSampler.cleanup(vkCtx);
 
         // Descriptor sets
         const descLayoutFrg = try vk.desc.VkDescSetLayout.create(
@@ -108,7 +109,8 @@ pub const RenderPost = struct {
             },
             .useBlend = false,
         };
-        const vkPipeline = try vk.pipe.VkPipeline.create(allocator, vkCtx, &vkPipelineCreateInfo);
+        var vkPipeline = try vk.pipe.VkPipeline.create(allocator, vkCtx, &vkPipelineCreateInfo);
+        errdefer vkPipeline.cleanup(vkCtx);
 
         return .{
             .vkPipeline = vkPipeline,

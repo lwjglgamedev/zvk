@@ -21,6 +21,7 @@ pub const Attachment = struct {
         };
 
         const vkImage = try vk.img.VkImage.create(vkCtx, vkImageData);
+        errdefer vkImage.cleanup(vkCtx);
         var aspectMask: vulkan.ImageAspectFlags = vulkan.ImageAspectFlags{ .color_bit = true };
         if (usage.depth_stencil_attachment_bit) {
             aspectMask.color_bit = false;

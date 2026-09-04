@@ -198,6 +198,7 @@ pub const VkTexture = struct {
             .mipLevels = mipLevels,
         };
         const vkImage = try vk.img.VkImage.create(vkCtx, vkImageData);
+        errdefer vkImage.cleanup(vkCtx);
         const imageViewData = vk.imv.VkImageViewData{ .format = vkTextureInfo.format, .levelCount = mipLevels };
 
         const vkImageView = try vk.imv.VkImageView.create(vkCtx.vkDevice, vkImage.image, imageViewData);
@@ -624,7 +625,8 @@ pub const RenderScn = struct {
             .useBlend = true,
             ...
         };
-        const vkPipeline = try vk.pipe.VkPipeline.create(allocator, vkCtx, &vkPipelineCreateInfo);
+        var vkPipeline = try vk.pipe.VkPipeline.create(allocator, vkCtx, &vkPipelineCreateInfo);
+        errdefer vkPipeline.cleanup(vkCtx);
 
         return .{
             .buffsCamera = buffsCamera,

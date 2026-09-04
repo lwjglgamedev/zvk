@@ -109,6 +109,7 @@ pub const RenderLight = struct {
             .borderColor = vulkan.BorderColor.float_opaque_black,
         };
         const textSampler = try vk.text.VkTextSampler.create(vkCtx, samplerInfo);
+        errdefer textSampler.cleanup(vkCtx);
 
         // Descriptor set: Attachments
         const layoutInfos = try allocator.alloc(vk.desc.LayoutInfo, inputAttachments.len);
@@ -203,7 +204,8 @@ pub const RenderLight = struct {
                 .binding_description = EmptyVtxBuffDesc.binding_description,
             },
         };
-        const vkPipeline = try vk.pipe.VkPipeline.create(allocator, vkCtx, &vkPipelineCreateInfo);
+        var vkPipeline = try vk.pipe.VkPipeline.create(allocator, vkCtx, &vkPipelineCreateInfo);
+        errdefer vkPipeline.cleanup(vkCtx);
 
         return .{
             .buffsCascadeShadows = buffsCascadeShadows,

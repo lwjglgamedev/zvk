@@ -73,6 +73,7 @@ pub const VkTexture = struct {
             .mipLevels = mipLevels,
         };
         const vkImage = try vk.img.VkImage.create(vkCtx, vkImageData);
+        errdefer vkImage.cleanup(vkCtx);
         const imageViewData = vk.imv.VkImageViewData{ .format = vkTextureInfo.format, .levelCount = mipLevels };
 
         const image: vulkan.Image = @enumFromInt(@intFromPtr(vkImage.image));

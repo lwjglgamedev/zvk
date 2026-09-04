@@ -58,7 +58,7 @@ pub const RenderGui = struct {
     idxBuffers: []vk.buf.VkBuffer,
     vkPipeline: vk.pipe.VkPipeline,
 
-    pub fn create(allocator: std.mem.Allocator, io: std.Io, vkCtx: *const vk.ctx.VkCtx) !RenderGui {
+    pub fn create(allocator: std.mem.Allocator, io: std.Io, vkCtx: *vk.ctx.VkCtx) !RenderGui {
         // Init GUI
         try initGUI(allocator, vkCtx);
 
@@ -69,6 +69,7 @@ pub const RenderGui = struct {
             .borderColor = vulkan.BorderColor.float_opaque_black,
         };
         const textSampler = try vk.text.VkTextSampler.create(vkCtx, samplerInfo);
+        errdefer textSampler.cleanup(vkCtx);
 
         // Push constants
         const pushConstants = [_]vulkan.PushConstantRange{.{
@@ -126,7 +127,8 @@ pub const RenderGui = struct {
             },
             .useBlend = true,
         };
-        const vkPipeline = try vk.pipe.VkPipeline.create(allocator, vkCtx, &vkPipelineCreateInfo);
+        var vkPipeline = try vk.pipe.VkPipeline.create(allocator, vkCtx, &vkPipelineCreateInfo);
+        errdefer vkPipeline.cleanup(vkCtx);
 
         // Buffers
         const vtxBuffers = try allocator.alloc(vk.buf.VkBuffer, com.common.FRAMES_IN_FLIGHT);

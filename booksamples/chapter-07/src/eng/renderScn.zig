@@ -94,7 +94,8 @@ pub const RenderScn = struct {
                 .binding_description = VtxBuffDesc.binding_description,
             },
         };
-        const vkPipeline = try vk.pipe.VkPipeline.create(allocator, vkCtx, &vkPipelineCreateInfo);
+        var vkPipeline = try vk.pipe.VkPipeline.create(allocator, vkCtx, &vkPipelineCreateInfo);
+        errdefer vkPipeline.cleanup(vkCtx);
 
         return .{
             .depthAttachments = depthAttachments,

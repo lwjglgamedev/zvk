@@ -531,6 +531,7 @@ pub const RenderLight = struct {
             .borderColor = vulkan.BorderColor.float_opaque_black,
         };
         const textSampler = try vk.text.VkTextSampler.create(vkCtx, samplerInfo);
+        errdefer textSampler.cleanup(vkCtx);
 
         // Descriptor sets
         const layoutInfos = try allocator.alloc(vk.desc.LayoutInfo, inputAttachments.len);
@@ -575,7 +576,8 @@ pub const RenderLight = struct {
                 .binding_description = EmptyVtxBuffDesc.binding_description,
             },
         };
-        const vkPipeline = try vk.pipe.VkPipeline.create(allocator, vkCtx, &vkPipelineCreateInfo);
+        var vkPipeline = try vk.pipe.VkPipeline.create(allocator, vkCtx, &vkPipelineCreateInfo);
+        errdefer vkPipeline.cleanup(vkCtx);
 
         return .{
             .descLayoutFrg = descLayoutFrg,
@@ -1002,7 +1004,7 @@ Finally, we need to update the other render structs to adapt to the changes in t
 ```zig
 pub const RenderGui = struct {
     ...
-    pub fn create(allocator: std.mem.Allocator, io: std.Io, vkCtx: *const vk.ctx.VkCtx) !RenderGui {
+    pub fn create(allocator: std.mem.Allocator, io: std.Io, vkCtx: *vk.ctx.VkCtx) !RenderGui {
         ...
         // Pipeline
         const colorFormats = [_]vulkan.Format{vkCtx.vkSwapChain.surfaceFormat.format};

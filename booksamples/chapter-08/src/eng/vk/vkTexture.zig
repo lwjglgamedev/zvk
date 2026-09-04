@@ -65,6 +65,7 @@ pub const VkTexture = struct {
             .format = vkTextureInfo.format,
         };
         const vkImage = try vk.img.VkImage.create(vkCtx, vkImageData);
+        errdefer vkImage.cleanup(vkCtx);
         const imageViewData = vk.imv.VkImageViewData{ .format = vkTextureInfo.format };
 
         const vkImageView = try vk.imv.VkImageView.create(vkCtx.vkDevice, vkImage.image, imageViewData);

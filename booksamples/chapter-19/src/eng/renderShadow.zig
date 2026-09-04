@@ -253,6 +253,7 @@ pub const RenderShadow = struct {
             .borderColor = vulkan.BorderColor.float_opaque_black,
         };
         const textSampler = try vk.text.VkTextSampler.create(vkCtx, samplerInfo);
+        errdefer textSampler.cleanup(vkCtx);
 
         // Descriptor set layouts
         const descLayoutGeom = try vk.desc.VkDescSetLayout.create(
@@ -320,7 +321,8 @@ pub const RenderShadow = struct {
             .viewMask = 0b111, // 3 cascades = bits 0,1,2 set
         };
 
-        const vkPipeline = try vk.pipe.VkPipeline.create(allocator, vkCtx, &vkPipelineCreateInfo);
+        var vkPipeline = try vk.pipe.VkPipeline.create(allocator, vkCtx, &vkPipelineCreateInfo);
+        errdefer vkPipeline.cleanup(vkCtx);
         return .{
             .attColor = attColor,
             .attDepth = attDepth,
