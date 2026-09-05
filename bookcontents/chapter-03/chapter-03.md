@@ -614,7 +614,8 @@ pub const Render = struct {
     }
 
     pub fn create(allocator: std.mem.Allocator, constants: com.common.Constants, window: sdl3.video.Window) !Render {
-        const vkCtx = try vk.ctx.VkCtx.create(allocator, constants, window);
+        var vkCtx = try vk.ctx.VkCtx.create(allocator, constants, window);
+        errdefer vkCtx.cleanup(allocator);
         return .{
             .vkCtx = vkCtx,
         };

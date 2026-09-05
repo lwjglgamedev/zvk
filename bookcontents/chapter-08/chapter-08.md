@@ -2428,6 +2428,7 @@ pub const Render = struct {
 
     pub fn create(allocator: std.mem.Allocator, io: std.Io, constants: com.common.Constants, window: sdl3.video.Window) !Render {
         var vkCtx = try vk.ctx.VkCtx.create(allocator, constants, window);
+        errdefer vkCtx.cleanup(allocator);
         ...
         const materialsCache = eng.mcach.MaterialsCache.create();
         const modelsCache = eng.mcach.ModelsCache.create(allocator);

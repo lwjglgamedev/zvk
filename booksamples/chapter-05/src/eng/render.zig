@@ -52,17 +52,18 @@ pub const Render = struct {
     }
 
     pub fn create(allocator: std.mem.Allocator, constants: com.common.Constants, window: sdl3.video.Window) !Render {
-        const vkCtx = try vk.ctx.VkCtx.create(allocator, constants, window);
+        var vkCtx = try vk.ctx.VkCtx.create(allocator, constants, window);
+        errdefer vkCtx.cleanup(allocator);
 
         const fences = try allocator.alloc(vk.sync.VkFence, com.common.FRAMES_IN_FLIGHT);
-        for (fences) |*fence| {
-            fence.* = try vk.sync.VkFence.create(&vkCtx);
-        }
         errdefer {
             for (fences[0..fences.len]) |*fence| {
                 fence.cleanup(&vkCtx);
             }
             allocator.free(fences);
+        }
+        for (fences) |*fence| {
+            fence.* = try vk.sync.VkFence.create(&vkCtx);
         }
 
         const semsRenderComplete = try allocator.alloc(vk.sync.VkSemaphore, vkCtx.vkSwapChain.imageViews.len);
