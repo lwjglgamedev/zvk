@@ -132,6 +132,7 @@ pub const MaterialsCache = struct {
             vk.vma.VmaUsage.VmaUsageAuto,
             vk.vma.VmaMemoryFlags.None,
         );
+        errdefer dstBuffer.cleanup(vkCtx);
         const data = try srcBuffer.map(vkCtx);
         defer srcBuffer.unMap(vkCtx);
         const mappedData: [*]MaterialBuffRecord = @ptrCast(@alignCast(data));
@@ -245,7 +246,12 @@ pub const ModelsCache = struct {
         const cmdHandle = cmdBuff.cmdBuffProxy.handle;
 
         var srcBuffers = try std.ArrayList(vk.buf.VkBuffer).initCapacity(allocator, 1);
-        defer srcBuffers.deinit(allocator);
+        defer {
+            for (srcBuffers.items) |*buffer| {
+                buffer.cleanup(vkCtx);
+            }
+            srcBuffers.deinit(allocator);
+        }
         try cmdBuff.begin(vkCtx);
 
         for (initData.models) |*modelData| {
@@ -326,10 +332,6 @@ pub const ModelsCache = struct {
 
         try cmdBuff.end(vkCtx);
         try cmdBuff.submitAndWait(vkCtx, vkQueue);
-
-        for (srcBuffers.items) |vkBuff| {
-            vkBuff.cleanup(vkCtx);
-        }
 
         log.debug("Loaded {d} model(s)", .{initData.models.len});
     }

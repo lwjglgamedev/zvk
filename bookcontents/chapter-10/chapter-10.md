@@ -562,6 +562,7 @@ pub const MaterialsCache = struct {
             vk.vma.VmaUsage.VmaUsageAuto,
             vk.vma.VmaMemoryFlags.None,
         );
+        errdefer dstBuffer.cleanup(vkCtx);
         ...
     }
     ...

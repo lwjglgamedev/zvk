@@ -158,6 +158,7 @@ pub const MaterialsCache = struct {
             vk.vma.VmaUsage.VmaUsageAuto,
             vk.vma.VmaMemoryFlags.None,
         );
+        errdefer dstBuffer.cleanup(vkCtx);
         const data = try srcBuffer.map(vkCtx);
         defer srcBuffer.unMap(vkCtx);
         const mappedData: [*]MaterialBuffRecord = @ptrCast(@alignCast(data));
@@ -273,6 +274,7 @@ pub const ModelsCache = struct {
             vk.vma.VmaUsage.VmaUsageAuto,
             vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBitAndCoherent,
         );
+        errdefer srcJointBuffer.cleanup(vkCtx);
         try srcBuffers.append(allocator, srcJointBuffer);
 
         const dstJointBuffer = try vk.buf.VkBuffer.create(
@@ -285,6 +287,7 @@ pub const ModelsCache = struct {
         );
 
         const dataJoints = try srcJointBuffer.map(vkCtx);
+        defer srcJointBuffer.unMap(vkCtx);
         const gpuJoints: [*]u8 = @ptrCast(@alignCast(dataJoints));
 
         const identity = [16]f32{
@@ -297,7 +300,6 @@ pub const ModelsCache = struct {
             const matrix = maybeMatrix orelse identity;
             @memcpy(gpuJoints[i * 64 .. i * 64 + 64], std.mem.sliceAsBytes(&matrix));
         }
-        srcJointBuffer.unMap(vkCtx);
 
         recordTransfer(vkCtx, cmdHandle, &srcJointBuffer, &dstJointBuffer);
 
@@ -323,6 +325,7 @@ pub const ModelsCache = struct {
             vk.vma.VmaUsage.VmaUsageAuto,
             vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBitAndCoherent,
         );
+        errdefer srcWeightsBuffer.cleanup(vkCtx);
         try srcBuffers.append(allocator, srcWeightsBuffer);
 
         const dstWeightsBuffer = try vk.buf.VkBuffer.create(
@@ -335,6 +338,7 @@ pub const ModelsCache = struct {
         );
 
         const dataWeights = try srcWeightsBuffer.map(vkCtx);
+        defer srcWeightsBuffer.unMap(vkCtx);
         const gpuWeights: [*]u8 = @ptrCast(@alignCast(dataWeights));
 
         const rows = weights.len / 4;
@@ -354,7 +358,6 @@ pub const ModelsCache = struct {
             dstPos += 8;
         }
         @memcpy(gpuWeights[0..bufferSize], std.mem.sliceAsBytes(data));
-        srcWeightsBuffer.unMap(vkCtx);
 
         recordTransfer(vkCtx, cmdHandle, &srcWeightsBuffer, &dstWeightsBuffer);
 
@@ -377,7 +380,12 @@ pub const ModelsCache = struct {
         const cmdHandle = cmdBuff.cmdBuffProxy.handle;
 
         var srcBuffers = try std.ArrayList(vk.buf.VkBuffer).initCapacity(allocator, 1);
-        defer srcBuffers.deinit(allocator);
+        defer {
+            for (srcBuffers.items) |*buffer| {
+                buffer.cleanup(vkCtx);
+            }
+            srcBuffers.deinit(allocator);
+        }
         try cmdBuff.begin(vkCtx);
 
         for (initData.models) |*modelData| {
@@ -482,10 +490,6 @@ pub const ModelsCache = struct {
 
         try cmdBuff.end(vkCtx);
         try cmdBuff.submitAndWait(vkCtx, vkQueue);
-
-        for (srcBuffers.items) |vkBuff| {
-            vkBuff.cleanup(vkCtx);
-        }
 
         log.debug("Loaded {d} model(s)", .{initData.models.len});
     }

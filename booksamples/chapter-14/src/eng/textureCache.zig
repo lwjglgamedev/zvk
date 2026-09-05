@@ -28,13 +28,15 @@ pub const TextureCache = struct {
             return error.TextureCacheFull;
         }
         const ownedId = try allocator.dupe(u8, textureInfo.id);
+        errdefer allocator.free(ownedId);
         const vkTextureInfo = vk.text.VkTextureInfo{
             .data = textureInfo.data,
             .width = textureInfo.width,
             .height = textureInfo.height,
             .format = textureInfo.format,
         };
-        const vkTexture = try vk.text.VkTexture.create(vkCtx, &vkTextureInfo);
+        var vkTexture = try vk.text.VkTexture.create(vkCtx, &vkTextureInfo);
+        errdefer vkTexture.cleanup(vkCtx);
         try self.textureMap.put(allocator, ownedId, vkTexture);
     }
 

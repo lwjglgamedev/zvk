@@ -340,7 +340,12 @@ pub const ModelsCache = struct {
         defer cmdBuff.cleanup(vkCtx, cmdPool);
 
         var srcBuffers = try std.ArrayList(vk.buf.VkBuffer).initCapacity(allocator, 1);
-        defer srcBuffers.deinit(allocator);
+        defer {
+            for (srcBuffers.items) |*buffer| {
+                buffer.cleanup(vkCtx);
+            }
+            srcBuffers.deinit(allocator);
+        }
         try cmdBuff.begin(vkCtx);
         const cmdHandle = cmdBuff.cmdBuffProxy.handle;
         ...
@@ -430,12 +435,9 @@ pub const ModelsCache = struct {
         try cmdBuff.end(vkCtx);
         try cmdBuff.submitAndWait(vkCtx, vkQueue);
 
-        for (srcBuffers.items) |vkBuff| {
-            vkBuff.cleanup(vkCtx);
-        }
-
         log.debug("Loaded {d} model(s)", .{initData.models.len});
     }
+
     ...
 };
 **File: src/eng/modelsCache.zig**
