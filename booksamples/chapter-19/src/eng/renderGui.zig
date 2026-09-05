@@ -334,10 +334,8 @@ pub const RenderGui = struct {
             return false;
         }
 
-        const vtxBuffer = self.vtxBuffers[frameIdx];
-        if (vtxBuffer.size < vtxBuffSize) {
-            vtxBuffer.cleanup(vkCtx);
-            self.vtxBuffers[frameIdx] = try vk.buf.VkBuffer.create(
+        if (self.vtxBuffers[frameIdx].size < vtxBuffSize) {
+            const newBuffer = try vk.buf.VkBuffer.create(
                 vkCtx,
                 vtxBuffSize,
                 .{ .vertex_buffer_bit = true },
@@ -345,12 +343,13 @@ pub const RenderGui = struct {
                 vk.vma.VmaUsage.VmaUsageAuto,
                 vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBitAndCoherent,
             );
+            self.vtxBuffers[frameIdx].cleanup(vkCtx);
+            self.vtxBuffers[frameIdx] = newBuffer;
         }
+        const vtxBuffer = self.vtxBuffers[frameIdx];
 
-        const idxBuffer = self.idxBuffers[frameIdx];
-        if (idxBuffer.size < idxBuffSize) {
-            idxBuffer.cleanup(vkCtx);
-            self.idxBuffers[frameIdx] = try vk.buf.VkBuffer.create(
+        if (self.idxBuffers[frameIdx].size < idxBuffSize) {
+            const newBuffer = try vk.buf.VkBuffer.create(
                 vkCtx,
                 idxBuffSize,
                 .{ .index_buffer_bit = true },
@@ -358,7 +357,10 @@ pub const RenderGui = struct {
                 vk.vma.VmaUsage.VmaUsageAuto,
                 vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBitAndCoherent,
             );
+            self.idxBuffers[frameIdx].cleanup(vkCtx);
+            self.idxBuffers[frameIdx] = newBuffer;
         }
+        const idxBuffer = self.idxBuffers[frameIdx];
 
         var vtxOffset: usize = 0;
         var idxOffset: usize = 0;
