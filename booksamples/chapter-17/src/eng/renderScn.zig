@@ -240,7 +240,13 @@ pub const RenderScn = struct {
 
         const numAttachments = 4;
         const attachments = try allocator.alloc(eng.rend.Attachment, numAttachments);
-        errdefer allocator.free(attachments);
+        var initialized: usize = 0;
+        errdefer {
+            for (attachments[0..initialized]) |*attachment| {
+                attachment.cleanup(vkCtx);
+            }
+            allocator.free(attachments);
+        }
 
         for (0..numAttachments) |i| {
             const attachment = try eng.rend.Attachment.create(
@@ -252,6 +258,7 @@ pub const RenderScn = struct {
                 1,
             );
             attachments[i] = attachment;
+            initialized += 1;
         }
         return attachments;
     }

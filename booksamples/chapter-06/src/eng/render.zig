@@ -59,14 +59,16 @@ pub const Render = struct {
         errdefer vkCtx.cleanup(allocator);
 
         const fences = try allocator.alloc(vk.sync.VkFence, com.common.FRAMES_IN_FLIGHT);
+        var initialized: usize = 0;
         errdefer {
-            for (fences[0..fences.len]) |*fence| {
+            for (fences[0..initialized]) |*fence| {
                 fence.cleanup(&vkCtx);
             }
             allocator.free(fences);
         }
         for (fences) |*fence| {
             fence.* = try vk.sync.VkFence.create(&vkCtx);
+            initialized += 1;
         }
 
         const semsRenderComplete = try allocator.alloc(vk.sync.VkSemaphore, vkCtx.vkSwapChain.imageViews.len);
