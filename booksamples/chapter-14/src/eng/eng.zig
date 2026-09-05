@@ -47,13 +47,16 @@ pub fn Engine(comptime GameLogic: type) type {
             var scene = try eng.scn.Scene.create(allocator);
             errdefer scene.cleanup(allocator);
 
+            var wnd = try eng.wnd.Wnd.create(wndTitle);
+            errdefer wnd.cleanup();
+
             const engCtx = EngCtx{
                 .allocator = allocator,
                 .constants = constants,
                 .io = io,
                 .soundMgr = soundMgr,
                 .scene = scene,
-                .wnd = try eng.wnd.Wnd.create(wndTitle),
+                .wnd = wnd,
             };
 
             zstbi.init(io, allocator);
@@ -84,8 +87,8 @@ pub fn Engine(comptime GameLogic: type) type {
         }
 
         pub fn run(self: *Engine(GameLogic)) !void {
-            try self.init();
             defer self.cleanup();
+            try self.init();
 
             const timeU: f32 = 1.0 / self.engCtx.constants.ups;
             var lastTime = std.Io.Clock.now(.awake, self.engCtx.io);
