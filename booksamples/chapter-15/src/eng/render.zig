@@ -32,7 +32,8 @@ pub const Attachment = struct {
             .aspectmask = aspectMask,
         };
         const image: vulkan.Image = @enumFromInt(@intFromPtr(vkImage.image));
-        const vkImageView = try vk.imv.VkImageView.create(vkCtx.vkDevice, image, imageViewData);
+        var vkImageView = try vk.imv.VkImageView.create(vkCtx.vkDevice, image, imageViewData);
+        errdefer vkImageView.cleanup(vkCtx.vkDevice);
 
         return .{
             .vkImage = vkImage,

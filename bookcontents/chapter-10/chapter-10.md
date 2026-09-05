@@ -386,7 +386,8 @@ pub const VkTexture = struct {
     pub fn create(vkCtx: *const vk.ctx.VkCtx, vkTextureInfo: *const VkTextureInfo) !VkTexture {
         ...
         const image: vulkan.Image = @enumFromInt(@intFromPtr(vkImage.image));
-        const vkImageView = try vk.imv.VkImageView.create(vkCtx.vkDevice, image, imageViewData);
+        var vkImageView = try vk.imv.VkImageView.create(vkCtx.vkDevice, image, imageViewData);
+        errdefer vkImageView.cleanup(vkCtx.vkDevice);
         ...
         const vkStageBuffer = try vk.buf.VkBuffer.create(
             vkCtx,
@@ -642,7 +643,8 @@ pub const Attachment = struct {
     pub fn create(vkCtx: *const vk.ctx.VkCtx, width: u32, height: u32, format: vulkan.Format, usage: vulkan.ImageUsageFlags) !Attachment {
         ...
         const image: vulkan.Image = @enumFromInt(@intFromPtr(vkImage.image));
-        const vkImageView = try vk.imv.VkImageView.create(vkCtx.vkDevice, image, imageViewData);
+        var vkImageView = try vk.imv.VkImageView.create(vkCtx.vkDevice, image, imageViewData);
+        errdefer vkImageView.cleanup(vkCtx.vkDevice);
         ...
     }
     ...

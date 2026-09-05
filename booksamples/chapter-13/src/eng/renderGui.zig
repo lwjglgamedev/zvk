@@ -61,6 +61,7 @@ pub const RenderGui = struct {
     pub fn create(allocator: std.mem.Allocator, io: std.Io, vkCtx: *vk.ctx.VkCtx) !RenderGui {
         // Init GUI
         try initGUI(allocator, vkCtx);
+        errdefer zgui.deinit();
 
         // Textures
         const samplerInfo = vk.text.VkTextSamplerInfo{

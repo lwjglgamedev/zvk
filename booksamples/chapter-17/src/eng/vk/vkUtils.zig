@@ -43,6 +43,13 @@ pub fn createHostVisibleBuffs(
     descLayout: vk.desc.VkDescSetLayout,
 ) ![]vk.buf.VkBuffer {
     const buffers = try allocator.alloc(vk.buf.VkBuffer, numBuffers);
+    var initialized: usize = 0;
+    errdefer {
+        for (buffers[0..initialized]) |*buffer| {
+            buffer.cleanup(vkCtx);
+        }
+        allocator.free(buffers);
+    }
     for (buffers, 0..) |*buffer, i| {
         const id = try std.fmt.allocPrint(allocator, "{s}{d}", .{ baseId, i });
         defer allocator.free(id);
@@ -54,6 +61,7 @@ pub fn createHostVisibleBuffs(
             bufferUsage,
             descLayout,
         );
+        initialized += 1;
     }
     return buffers;
 }

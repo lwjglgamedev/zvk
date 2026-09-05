@@ -510,6 +510,13 @@ pub fn createHostVisibleBuffs(
     descLayout: vk.desc.VkDescSetLayout,
 ) ![]vk.buf.VkBuffer {
     const buffers = try allocator.alloc(vk.buf.VkBuffer, numBuffers);
+    var initialized: usize = 0;
+    errdefer {
+        for (buffers[0..initialized]) |*buffer| {
+            buffer.cleanup(vkCtx);
+        }
+        allocator.free(buffers);
+    }
     for (buffers, 0..) |*buffer, i| {
         const id = try std.fmt.allocPrint(allocator, "{s}{d}", .{ baseId, i });
         defer allocator.free(id);
@@ -521,6 +528,7 @@ pub fn createHostVisibleBuffs(
             bufferUsage,
             descLayout,
         );
+        initialized += 1;
     }
     return buffers;
 }
@@ -543,7 +551,13 @@ pub const RenderScn = struct {
             @sizeOf(zm.Mat) * 2,
             .{ .uniform_buffer_bit = true },
             descLayoutVtx,
-        );        
+        );
+        errdefer {
+            for (buffsCamera) |*buffer| {
+                buffer.cleanup(vkCtx);
+            }
+            allocator.free(buffsCamera);
+        }        
         ...
     }
     ...
@@ -819,6 +833,7 @@ pub const RenderLight = struct {
             .descType = vulkan.DescriptorType.storage_buffer,
             .stageFlags = vulkan.ShaderStageFlags{ .fragment_bit = true },
         }});
+        errdefer descLayoutArr.cleanup(vkCtx);
         const buffsLights = try vk.util.createHostVisibleBuffs(
             allocator,
             vkCtx,

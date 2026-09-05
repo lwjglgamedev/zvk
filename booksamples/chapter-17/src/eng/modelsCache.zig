@@ -427,6 +427,7 @@ pub const ModelsCache = struct {
                     vk.vma.VmaUsage.VmaUsageAuto,
                     vk.vma.VmaMemoryFlags.None,
                 );
+                errdefer dstVtxBuffer.cleanup(vkCtx);
 
                 const dataVertices = try srcVtxBuffer.map(vkCtx);
                 const gpuVertices: [*]u8 = @ptrCast(@alignCast(dataVertices));
@@ -452,6 +453,7 @@ pub const ModelsCache = struct {
                     vk.vma.VmaUsage.VmaUsageAuto,
                     vk.vma.VmaMemoryFlags.None,
                 );
+                errdefer dstIdxBuffer.cleanup(vkCtx);
 
                 const dataIndices = try srcIdxBuffer.map(vkCtx);
                 const gpuIndices: [*]u8 = @ptrCast(@alignCast(dataIndices));

@@ -148,6 +148,7 @@ pub const RenderLight = struct {
             .descType = vulkan.DescriptorType.storage_buffer,
             .stageFlags = vulkan.ShaderStageFlags{ .fragment_bit = true },
         }});
+        errdefer descLayoutArr.cleanup(vkCtx);
         const buffsLights = try vk.util.createHostVisibleBuffs(
             allocator,
             vkCtx,

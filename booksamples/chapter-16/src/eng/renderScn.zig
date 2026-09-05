@@ -183,6 +183,12 @@ pub const RenderScn = struct {
             .{ .uniform_buffer_bit = true },
             descLayoutVtx,
         );
+        errdefer {
+            for (buffsCamera) |*buffer| {
+                buffer.cleanup(vkCtx);
+            }
+            allocator.free(buffsCamera);
+        }
 
         // Push constants
         const pushConstants = [_]vulkan.PushConstantRange{

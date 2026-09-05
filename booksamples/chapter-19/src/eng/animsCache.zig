@@ -46,7 +46,13 @@ pub const AnimsCache = struct {
                 }
 
                 var bufferMap: std.StringArrayHashMapUnmanaged(vk.buf.VkBuffer) = .empty;
-
+                errdefer {
+                    var it = bufferMap.iterator();
+                    while (it.next()) |entry| {
+                        entry.value_ptr.cleanup(vkCtx);
+                    }
+                    bufferMap.deinit(allocator);
+                }
                 for (vulkanModel.?.meshes.items) |vulkanMesh| {
                     const animBuffer = try vk.buf.VkBuffer.create(
                         vkCtx,
