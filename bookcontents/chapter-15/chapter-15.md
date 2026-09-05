@@ -802,6 +802,7 @@ pub const RenderLight = struct {
             vkCtx,
             layoutInfos,
         );
+        errdefer descLayoutAtt.cleanup(vkCtx);
         const attDescSet = try vkCtx.vkDescAllocator.addDescSet(
             allocator,
             vkCtx.vkPhysDevice,
@@ -1240,7 +1241,7 @@ const Game = struct {
     ...
     pub fn init(self: *Game, engCtx: *eng.engine.EngCtx, arenaAlloc: std.mem.Allocator) !eng.engine.InitData {
         ...
-        engCtx.scene.ambientLight = zm.Vec{ 1.0, 1.0, 1.0, 0.9 };
+        engCtx.scene.ambientLight = zm.Vec{ 1.0, 1.0, 1.0, 0.1 };
 
         const dirLight = eng.scn.Light{
             .color = zm.Vec{ 1.0, 1.0, 1.0, 1.0 },

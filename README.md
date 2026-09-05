@@ -4,7 +4,7 @@ This [online book](bookcontents/) will introduce the main concepts required to w
 [Vulkan](https://www.khronos.org/vulkan/) in [Zig](https://ziglang.org). You can view the static site
 [here](https://lwjglgamedev.github.io/zvk/).
 
-This book is the result of my self learning language, that I think it may help the community.
+This book is the result of my self learning of the language, that I think it may help the community.
 
 ![Sample screen shot](./bookcontents/chapter-17/rc17-screen-shot.png)
 

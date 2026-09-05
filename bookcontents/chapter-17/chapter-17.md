@@ -1149,6 +1149,7 @@ pub const RenderAnim = struct {
             .pushConstants = null,
         };
         const vkPipeline = try vk.cpipe.VkCompPipeline.create(vkCtx, &vkPipelineCreateInfo);
+        errdefer vkPipeline.cleanup(vkCtx);
 
         const grpSizeMap = std.StringHashMap(u32).init(allocator);
         return .{

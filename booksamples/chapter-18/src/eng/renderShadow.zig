@@ -276,6 +276,7 @@ pub const RenderShadow = struct {
                 .stageFlags = vulkan.ShaderStageFlags{ .fragment_bit = true },
             }},
         );
+        errdefer descLayoutFrgSt.cleanup(vkCtx);
         const descLayoutTexture = try vk.desc.VkDescSetLayout.create(
             allocator,
             vkCtx,
@@ -286,6 +287,7 @@ pub const RenderShadow = struct {
                 .stageFlags = vulkan.ShaderStageFlags{ .fragment_bit = true },
             }},
         );
+        errdefer descLayoutTexture.cleanup(vkCtx);
         const descSetLayouts = [_]vulkan.DescriptorSetLayout{ descLayoutGeom.descSetLayout, descLayoutFrgSt.descSetLayout, descLayoutTexture.descSetLayout };
 
         const buffShadowCascades = try vk.util.createHostVisibleBuff(

@@ -76,6 +76,7 @@ pub fn Engine(comptime GameLogic: type) type {
 
         pub fn run(self: *Engine(GameLogic)) !void {
             try self.init();
+            defer self.cleanup();
 
             const timeU: f32 = 1.0 / self.engCtx.constants.ups;
             var lastTime = std.Io.Clock.now(.awake, self.engCtx.io);
@@ -102,8 +103,6 @@ pub fn Engine(comptime GameLogic: type) type {
                 try self.render.render(&self.engCtx);
                 lastTime = now;
             }
-
-            self.cleanup();
         }
     };
 }

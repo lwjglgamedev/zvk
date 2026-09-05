@@ -118,7 +118,14 @@ pub const RenderScn = struct {
 
     pub fn create(allocator: std.mem.Allocator, io: std.Io, vkCtx: *const vk.ctx.VkCtx) !RenderScn {
         const attachments = try createColorAttachment(allocator, vkCtx);
-        const depthAttachment = try createDepthAttachment(vkCtx);
+        errdefer {
+            for (attachments) |*attachment| {
+                attachment.cleanup(vkCtx);
+            }
+            allocator.free(attachments);
+        }
+        var depthAttachment = try createDepthAttachment(vkCtx);
+        errdefer depthAttachment.cleanup(vkCtx);
         ...
         // Pipeline
         const colorFormats = try allocator.alloc(vulkan.Format, attachments.len);
@@ -408,7 +415,14 @@ pub const RenderScn = struct {
         self.depthAttachment.cleanup(vkCtx);
 
         const attachments = try createColorAttachment(allocator, vkCtx);
-        const depthAttachment = try createDepthAttachment(vkCtx);
+        errdefer {
+            for (attachments) |*attachment| {
+                attachment.cleanup(vkCtx);
+            }
+            allocator.free(attachments);
+        }
+        var depthAttachment = try createDepthAttachment(vkCtx);
+        errdefer depthAttachment.cleanup(vkCtx);
 
         self.attachments = attachments;
         self.depthAttachment = depthAttachment;
@@ -500,7 +514,8 @@ pub const RenderLight = struct {
         vkCtx: *vk.ctx.VkCtx,
         inputAttachments: *const []eng.rend.Attachment,
     ) !RenderLight {
-        const outputAtt = try createColorAttachment(vkCtx);
+        var outputAtt = try createColorAttachment(vkCtx);
+        errdefer outputAtt.cleanup(vkCtx);
 
         // Shader modules
         var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
@@ -812,7 +827,8 @@ pub const RenderLight = struct {
         const allocator = engCtx.allocator;
         self.outputAtt.cleanup(vkCtx);
 
-        const outputAtt = try createColorAttachment(vkCtx);
+        var outputAtt = try createColorAttachment(vkCtx);
+        errdefer outputAtt.cleanup(vkCtx);
 
         const imageViews = try allocator.alloc(vk.imv.VkImageView, inputAttachments.len);
         defer allocator.free(imageViews);

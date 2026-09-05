@@ -18,6 +18,7 @@ pub fn createHostVisibleBuff(
         vk.vma.VmaUsage.VmaUsageAuto,
         vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBitAndCoherent,
     );
+    errdefer buffer.cleanup(vkCtx);
 
     const descSet = try vkCtx.vkDescAllocator.addDescSet(
         allocator,

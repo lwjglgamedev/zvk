@@ -1031,6 +1031,7 @@ pub const ModelsCache = struct {
         log.debug("Loading {d} model(s)", .{initData.models.len});
 
         const cmdBuff = try vk.cmd.VkCmdBuff.create(vkCtx, cmdPool, true);
+        defer cmdBuff.cleanup(vkCtx, cmdPool);
         const cmdHandle = cmdBuff.cmdBuffProxy.handle;
 
         var srcBuffers = try std.ArrayList(vk.buf.VkBuffer).initCapacity(allocator, 1);
@@ -1205,6 +1206,7 @@ pub const MaterialsCache = struct {
         const numMaterials = materialsList.items.len;
         log.debug("Loading {d} material(s)", .{numMaterials});
         const cmdBuff = try vk.cmd.VkCmdBuff.create(vkCtx, cmdPool, true);
+        defer cmdBuff.cleanup(vkCtx, cmdPool);
         const cmdHandle = cmdBuff.cmdBuffProxy.handle;
 
         const buffSize = numMaterials * @sizeOf(MaterialBuffRecord);
@@ -2106,6 +2108,7 @@ pub const RenderScn = struct {
                 .stageFlags = vulkan.ShaderStageFlags{ .vertex_bit = true },
             }},
         );
+        errdefer descLayoutVtx.cleanup(vkCtx);
         const descLayoutFrgSt = try vk.desc.VkDescSetLayout.create(
             allocator,
             vkCtx,
@@ -2116,6 +2119,7 @@ pub const RenderScn = struct {
                 .stageFlags = vulkan.ShaderStageFlags{ .fragment_bit = true },
             }},
         );
+        errdefer descLayoutFrgSt.cleanup(vkCtx);
         const descLayoutTexture = try vk.desc.VkDescSetLayout.create(
             allocator,
             vkCtx,
@@ -2126,6 +2130,7 @@ pub const RenderScn = struct {
                 .stageFlags = vulkan.ShaderStageFlags{ .fragment_bit = true },
             }},
         );
+        errdefer descLayoutTexture.cleanup(vkCtx);
         const descSetLayouts = [_]vulkan.DescriptorSetLayout{ descLayoutVtx.descSetLayout, descLayoutFrgSt.descSetLayout, descLayoutTexture.descSetLayout };
 
         const buffCamera = try vk.util.createHostVisibleBuff(

@@ -115,6 +115,7 @@ pub const RenderScn = struct {
                 .stageFlags = vulkan.ShaderStageFlags{ .vertex_bit = true },
             }},
         );
+        errdefer descLayoutVtx.cleanup(vkCtx);
         const descLayoutFrgSt = try vk.desc.VkDescSetLayout.create(
             allocator,
             vkCtx,
@@ -125,6 +126,7 @@ pub const RenderScn = struct {
                 .stageFlags = vulkan.ShaderStageFlags{ .fragment_bit = true },
             }},
         );
+        errdefer descLayoutFrgSt.cleanup(vkCtx);
         const descLayoutTexture = try vk.desc.VkDescSetLayout.create(
             allocator,
             vkCtx,
@@ -135,6 +137,7 @@ pub const RenderScn = struct {
                 .stageFlags = vulkan.ShaderStageFlags{ .fragment_bit = true },
             }},
         );
+        errdefer descLayoutTexture.cleanup(vkCtx);
         const descSetLayouts = [_]vulkan.DescriptorSetLayout{ descLayoutVtx.descSetLayout, descLayoutFrgSt.descSetLayout, descLayoutTexture.descSetLayout };
 
         const buffsCamera = try createCamBuffers(allocator, vkCtx, descLayoutVtx);

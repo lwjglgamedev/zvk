@@ -54,6 +54,7 @@ pub const RenderPost = struct {
                 .stageFlags = vulkan.ShaderStageFlags{ .fragment_bit = true },
             }},
         );
+        errdefer descLayoutFrg.cleanup(vkCtx);
         const descSetLayouts = [_]vulkan.DescriptorSetLayout{descLayoutFrg.descSetLayout};
         const vkDescSetTxt = try vkCtx.vkDescAllocator.addDescSet(
             allocator,

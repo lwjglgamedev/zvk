@@ -101,6 +101,12 @@ pub const Render = struct {
         for (fences) |*fence| {
             fence.* = try vk.sync.VkFence.create(&vkCtx);
         }
+        errdefer {
+            for (fences[0..fences.len]) |*fence| {
+                fence.cleanup(&vkCtx);
+            }
+            allocator.free(fences);
+        }
 
         const semsRenderComplete = try allocator.alloc(vk.sync.VkSemaphore, vkCtx.vkSwapChain.imageViews.len);
         for (semsRenderComplete) |*sem| {

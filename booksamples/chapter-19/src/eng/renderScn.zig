@@ -63,7 +63,14 @@ pub const RenderScn = struct {
 
     pub fn create(allocator: std.mem.Allocator, io: std.Io, vkCtx: *vk.ctx.VkCtx) !RenderScn {
         const attachments = try createColorAttachment(allocator, vkCtx);
-        const depthAttachment = try createDepthAttachment(vkCtx);
+        errdefer {
+            for (attachments) |*attachment| {
+                attachment.cleanup(vkCtx);
+            }
+            allocator.free(attachments);
+        }
+        var depthAttachment = try createDepthAttachment(vkCtx);
+        errdefer depthAttachment.cleanup(vkCtx);
 
         // Shader modules
         var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
@@ -107,6 +114,7 @@ pub const RenderScn = struct {
                 .stageFlags = vulkan.ShaderStageFlags{ .vertex_bit = true },
             }},
         );
+        errdefer descLayoutVtx.cleanup(vkCtx);
         const descLayoutFrgSt = try vk.desc.VkDescSetLayout.create(
             allocator,
             vkCtx,
@@ -117,6 +125,7 @@ pub const RenderScn = struct {
                 .stageFlags = vulkan.ShaderStageFlags{ .fragment_bit = true },
             }},
         );
+        errdefer descLayoutFrgSt.cleanup(vkCtx);
         const descLayoutTexture = try vk.desc.VkDescSetLayout.create(
             allocator,
             vkCtx,
@@ -127,6 +136,7 @@ pub const RenderScn = struct {
                 .stageFlags = vulkan.ShaderStageFlags{ .fragment_bit = true },
             }},
         );
+        errdefer descLayoutTexture.cleanup(vkCtx);
         const descSetLayouts = [_]vulkan.DescriptorSetLayout{ descLayoutVtx.descSetLayout, descLayoutFrgSt.descSetLayout, descLayoutTexture.descSetLayout };
 
         const buffsCamera = try vk.util.createHostVisibleBuffs(
@@ -501,7 +511,14 @@ pub const RenderScn = struct {
         self.depthAttachment.cleanup(vkCtx);
 
         const attachments = try createColorAttachment(allocator, vkCtx);
-        const depthAttachment = try createDepthAttachment(vkCtx);
+        errdefer {
+            for (attachments) |*attachment| {
+                attachment.cleanup(vkCtx);
+            }
+            allocator.free(attachments);
+        }
+        var depthAttachment = try createDepthAttachment(vkCtx);
+        errdefer depthAttachment.cleanup(vkCtx);
 
         self.attachments = attachments;
         self.depthAttachment = depthAttachment;

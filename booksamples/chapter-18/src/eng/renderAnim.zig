@@ -34,6 +34,7 @@ pub const RenderAnim = struct {
         var cmdPool = try vk.cmd.VkCmdPool.create(vkCtx, vkCtx.vkPhysDevice.queuesInfo.compute_family, false);
         errdefer cmdPool.cleanup(vkCtx);
         const cmdBuff = try vk.cmd.VkCmdBuff.create(vkCtx, &cmdPool, true);
+        errdefer cmdBuff.cleanup(vkCtx, &cmdPool);
         const queue = vk.queue.VkQueue.create(vkCtx, vkCtx.vkPhysDevice.queuesInfo.compute_family);
         const fence = try vk.sync.VkFence.create(vkCtx);
         errdefer fence.cleanup(vkCtx);
@@ -79,6 +80,7 @@ pub const RenderAnim = struct {
             .pushConstants = pushConstants[0..],
         };
         const vkPipeline = try vk.cpipe.VkCompPipeline.create(vkCtx, &vkPipelineCreateInfo);
+        errdefer vkPipeline.cleanup(vkCtx);
 
         const grpSizeMap = std.StringHashMap(u32).init(allocator);
         return .{

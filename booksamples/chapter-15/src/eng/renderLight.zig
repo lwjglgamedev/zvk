@@ -54,7 +54,8 @@ pub const RenderLight = struct {
         vkCtx: *vk.ctx.VkCtx,
         inputAttachments: *const []eng.rend.Attachment,
     ) !RenderLight {
-        const outputAtt = try createColorAttachment(vkCtx);
+        var outputAtt = try createColorAttachment(vkCtx);
+        errdefer outputAtt.cleanup(vkCtx);
 
         // Shader modules
         var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
@@ -106,6 +107,7 @@ pub const RenderLight = struct {
             vkCtx,
             layoutInfos,
         );
+        errdefer descLayoutAtt.cleanup(vkCtx);
         const attDescSet = try vkCtx.vkDescAllocator.addDescSet(
             allocator,
             vkCtx.vkPhysDevice,
@@ -342,7 +344,8 @@ pub const RenderLight = struct {
         const allocator = engCtx.allocator;
         self.outputAtt.cleanup(vkCtx);
 
-        const outputAtt = try createColorAttachment(vkCtx);
+        var outputAtt = try createColorAttachment(vkCtx);
+        errdefer outputAtt.cleanup(vkCtx);
 
         const imageViews = try allocator.alloc(vk.imv.VkImageView, inputAttachments.len);
         defer allocator.free(imageViews);
