@@ -1658,7 +1658,8 @@ pub const Render = struct {
     ...
     pub fn create(allocator: std.mem.Allocator, io: std.Io, constants: com.common.Constants, window: sdl3.video.Window) !Render {
         ...
-        const renderAnim = try eng.ranm.RenderAnim.create(allocator, io, &vkCtx);
+        var renderAnim = try eng.ranm.RenderAnim.create(allocator, io, &vkCtx);
+        errdefer renderAnim.cleanup(&vkCtx);
         ...
         const animsCache = eng.acach.AnimsCache.create();
 

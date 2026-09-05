@@ -950,10 +950,14 @@ pub const Render = struct {
         const queueGraphics = vk.queue.VkQueue.create(&vkCtx, vkCtx.vkPhysDevice.queuesInfo.graphics_family);
         const queuePresent = vk.queue.VkQueue.create(&vkCtx, vkCtx.vkPhysDevice.queuesInfo.present_family);
 
-        const renderGui = try eng.rgui.RenderGui.create(allocator, io, &vkCtx);
-        const renderScn = try eng.rscn.RenderScn.create(allocator, io, &vkCtx);
-        const renderLight = try eng.rlgt.RenderLight.create(allocator, io, &vkCtx, &renderScn.attachments);
+        var renderGui = try eng.rgui.RenderGui.create(allocator, io, &vkCtx);
+        errdefer renderGui.cleanup(allocator, &vkCtx);
+        var renderScn = try eng.rscn.RenderScn.create(allocator, io, &vkCtx);
+        errdefer renderScn.cleanup(allocator, &vkCtx);
+        var renderLight = try eng.rlgt.RenderLight.create(allocator, io, &vkCtx, &renderScn.attachments);
+        errdefer renderLight.cleanup(&vkCtx);
         const renderPost = try eng.rpst.RenderPost.create(allocator, io, &vkCtx, constants, &renderLight.outputAtt);
+        errdefer renderPost.cleanup(&vkCtx);
         ...
         return .{
             .vkCtx = vkCtx,

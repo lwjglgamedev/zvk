@@ -1606,14 +1606,16 @@ pub const Render = struct {
     ...
     pub fn create(allocator: std.mem.Allocator, io: std.Io, constants: com.common.Constants, window: sdl3.video.Window) !Render {
         ...
-        const renderShadow = try eng.rsha.RenderShadow.create(allocator, io, &vkCtx, constants);
+        var renderShadow = try eng.rsha.RenderShadow.create(allocator, io, &vkCtx, constants);
+        errdefer renderShadow.cleanup(&vkCtx);
         const attachments = try allocator.alloc(eng.rend.Attachment, renderScn.attachments.len + 1);
         defer allocator.free(attachments);
         for (0..renderScn.attachments.len) |i| {
             attachments[i] = renderScn.attachments[i];
         }
         attachments[attachments.len - 1] = renderShadow.attColor;
-        const renderLight = try eng.rlgt.RenderLight.create(allocator, io, &vkCtx, constants, &attachments);
+        var renderLight = try eng.rlgt.RenderLight.create(allocator, io, &vkCtx, constants, &attachments);
+        errdefer renderLight.cleanup(allocator, &vkCtx);
         ...
         return .{
             ...

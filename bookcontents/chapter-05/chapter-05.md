@@ -421,6 +421,7 @@ pub const Render = struct {
         const queuePresent = vk.queue.VkQueue.create(&vkCtx, vkCtx.vkPhysDevice.queuesInfo.present_family);
 
         const renderScn = try eng.rscn.RenderScn.create(allocator, &vkCtx);
+        errdefer renderScn.cleanup(allocator, &vkCtx);
 
         return .{
             .vkCtx = vkCtx,

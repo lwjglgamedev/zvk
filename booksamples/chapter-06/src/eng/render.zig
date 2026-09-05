@@ -94,7 +94,8 @@ pub const Render = struct {
         const queueGraphics = vk.queue.VkQueue.create(&vkCtx, vkCtx.vkPhysDevice.queuesInfo.graphics_family);
         const queuePresent = vk.queue.VkQueue.create(&vkCtx, vkCtx.vkPhysDevice.queuesInfo.present_family);
 
-        const renderScn = try eng.rscn.RenderScn.create(allocator, io, &vkCtx);
+        var renderScn = try eng.rscn.RenderScn.create(allocator, io, &vkCtx);
+        errdefer renderScn.cleanup(allocator, &vkCtx);
 
         const modelsCache = eng.mcach.ModelsCache.create(allocator);
 

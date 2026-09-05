@@ -150,9 +150,12 @@ pub const Render = struct {
 
         const attColor = try createColorAttachment(&vkCtx);
 
-        const renderGui = try eng.rgui.RenderGui.create(allocator, io, &vkCtx);
-        const renderPost = try eng.rpst.RenderPost.create(allocator, io, &vkCtx, constants, &attColor);
-        const renderScn = try eng.rscn.RenderScn.create(allocator, io, &vkCtx);
+        var renderGui = try eng.rgui.RenderGui.create(allocator, io, &vkCtx);
+        errdefer renderGui.cleanup(allocator, &vkCtx);
+        var renderPost = try eng.rpst.RenderPost.create(allocator, io, &vkCtx, constants, &attColor);
+        errdefer renderPost.cleanup(&vkCtx);
+        var renderScn = try eng.rscn.RenderScn.create(allocator, io, &vkCtx);
+        errdefer renderScn.cleanup(allocator, &vkCtx);
 
         const materialsCache = eng.mcach.MaterialsCache.create();
         const modelsCache = eng.mcach.ModelsCache.create(allocator);

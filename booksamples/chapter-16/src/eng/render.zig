@@ -158,9 +158,12 @@ pub const Render = struct {
         const queueGraphics = vk.queue.VkQueue.create(&vkCtx, vkCtx.vkPhysDevice.queuesInfo.graphics_family);
         const queuePresent = vk.queue.VkQueue.create(&vkCtx, vkCtx.vkPhysDevice.queuesInfo.present_family);
 
-        const renderGui = try eng.rgui.RenderGui.create(allocator, io, &vkCtx);
-        const renderScn = try eng.rscn.RenderScn.create(allocator, io, &vkCtx);
-        const renderShadow = try eng.rsha.RenderShadow.create(allocator, io, &vkCtx, constants);
+        var renderGui = try eng.rgui.RenderGui.create(allocator, io, &vkCtx);
+        errdefer renderGui.cleanup(allocator, &vkCtx);
+        var renderScn = try eng.rscn.RenderScn.create(allocator, io, &vkCtx);
+        errdefer renderScn.cleanup(allocator, &vkCtx);
+        var renderShadow = try eng.rsha.RenderShadow.create(allocator, io, &vkCtx, constants);
+        errdefer renderShadow.cleanup(&vkCtx);
         const attachments = try allocator.alloc(eng.rend.Attachment, renderScn.attachments.len + 1);
         defer allocator.free(attachments);
         for (0..renderScn.attachments.len) |i| {
@@ -169,6 +172,7 @@ pub const Render = struct {
         attachments[attachments.len - 1] = renderShadow.attColor;
         const renderLight = try eng.rlgt.RenderLight.create(allocator, io, &vkCtx, constants, &attachments);
         const renderPost = try eng.rpst.RenderPost.create(allocator, io, &vkCtx, constants, &renderLight.outputAtt);
+        errdefer renderPost.cleanup(&vkCtx);
 
         const materialsCache = eng.mcach.MaterialsCache.create();
         const modelsCache = eng.mcach.ModelsCache.create(allocator);
