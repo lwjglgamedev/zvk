@@ -165,6 +165,7 @@ pub const MaterialsCache = struct {
 
         for (materialsList.items, 0..) |materialData, i| {
             const materialId = try allocator.dupe(u8, materialData.id);
+            errdefer allocator.free(materialId);
             var vulkanMaterial = VulkanMaterial{
                 .id = materialId,
                 .transparent = false,
@@ -266,7 +267,6 @@ pub const ModelsCache = struct {
         const numMatrices = animatedFrame.jointMatrices.len;
         const bufferSize = numMatrices * @sizeOf([16]f32);
 
-        var appended = false;
         const srcJointBuffer = try vk.buf.VkBuffer.create(
             vkCtx,
             bufferSize,
@@ -275,6 +275,7 @@ pub const ModelsCache = struct {
             vk.vma.VmaUsage.VmaUsageAuto,
             vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBitAndCoherent,
         );
+        var appended = false;
         errdefer if (!appended) srcJointBuffer.cleanup(vkCtx);
         try srcBuffers.append(allocator, srcJointBuffer);
         appended = true;
@@ -328,8 +329,11 @@ pub const ModelsCache = struct {
             vk.vma.VmaUsage.VmaUsageAuto,
             vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBitAndCoherent,
         );
+        var appended = false;
+        errdefer if (!appended) srcWeightsBuffer.cleanup(vkCtx);
         errdefer srcWeightsBuffer.cleanup(vkCtx);
         try srcBuffers.append(allocator, srcWeightsBuffer);
+        appended = true;
 
         const dstWeightsBuffer = try vk.buf.VkBuffer.create(
             vkCtx,
@@ -470,12 +474,16 @@ pub const ModelsCache = struct {
                     buffWeights = try createWeightsBuffers(vkCtx, allocator, cmdHandle, &srcBuffers, modelData.animMeshes.items[meshCount]);
                 }
 
+                const meshId = try allocator.dupe(u8, meshData.id);
+                errdefer allocator.free(meshId);
+                const meshMaterialId = try allocator.dupe(u8, meshData.materialId);
+                errdefer allocator.free(meshMaterialId);
                 const vulkanMesh = VulkanMesh{
                     .buffIdx = dstIdxBuffer,
                     .buffVtx = dstVtxBuffer,
                     .buffWeights = buffWeights,
-                    .id = try allocator.dupe(u8, meshData.id),
-                    .materialId = try allocator.dupe(u8, meshData.materialId),
+                    .id = meshId,
+                    .materialId = meshMaterialId,
                     .numIndices = indicesSize / @sizeOf(u32),
                 };
                 try vulkanMeshes.append(allocator, vulkanMesh);

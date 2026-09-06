@@ -90,7 +90,9 @@ pub const VkDescAllocator = struct {
 
         if (poolInfoOpt == null) {
             const poolInfo = try allocator.create(PoolInfo);
+            errdefer allocator.destroy(poolInfo);
             poolInfo.* = try PoolInfo.create(allocator, vkPhysDevice, vkDevice);
+            errdefer poolInfo.cleanup(allocator, vkDevice);
             try self.poolInfoList.append(allocator, poolInfo);
 
             vkDescPoolOpt = poolInfo.vkDescPool;

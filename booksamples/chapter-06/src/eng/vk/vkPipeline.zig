@@ -117,6 +117,7 @@ pub const VkPipeline = struct {
             .push_constant_range_count = 0,
             .p_push_constant_ranges = null,
         }, null);
+        errdefer vkCtx.vkDevice.deviceProxy.destroyPipelineLayout(pipelineLayout, null);
 
         const gpci = vulkan.GraphicsPipelineCreateInfo{
             .flags = .{},

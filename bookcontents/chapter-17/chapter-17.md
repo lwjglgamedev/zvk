@@ -714,8 +714,11 @@ pub const ModelsCache = struct {
             vk.vma.VmaUsage.VmaUsageAuto,
             vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBitAndCoherent,
         );
+        var appended = false;
+        errdefer if (!appended) srcWeightsBuffer.cleanup(vkCtx);
         errdefer srcWeightsBuffer.cleanup(vkCtx);
         try srcBuffers.append(allocator, srcWeightsBuffer);
+        appended = true;
 
         const dstWeightsBuffer = try vk.buf.VkBuffer.create(
             vkCtx,
@@ -773,7 +776,6 @@ pub const ModelsCache = struct {
         const numMatrices = animatedFrame.jointMatrices.len;
         const bufferSize = numMatrices * @sizeOf([16]f32);
 
-        var appended = false;
         const srcJointBuffer = try vk.buf.VkBuffer.create(
             vkCtx,
             bufferSize,
@@ -782,6 +784,7 @@ pub const ModelsCache = struct {
             vk.vma.VmaUsage.VmaUsageAuto,
             vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBitAndCoherent,
         );
+        var appended = false;
         errdefer if (!appended) srcJointBuffer.cleanup(vkCtx);
         try srcBuffers.append(allocator, srcJointBuffer);
         appended = true;
@@ -975,6 +978,7 @@ pub const VkCompPipeline = struct {
             .push_constant_range_count = if (createInfo.pushConstants) |pc| @as(u32, @intCast(pc.len)) else 0,
             .p_push_constant_ranges = if (createInfo.pushConstants) |pcs| pcs.ptr else null,
         }, null);
+        errdefer vkCtx.vkDevice.deviceProxy.destroyPipelineLayout(pipelineLayout, null);
 
         const pci = vulkan.ComputePipelineCreateInfo{
             .flags = .{},
@@ -1732,6 +1736,7 @@ const Game = struct {
         models[1] = bobModel;
 
         const bobEntity = try eng.ent.Entity.create(engCtx.allocator, BOB_ENTITY_ID, bobModel.id);
+        errdefer bobEntity.cleanup(engCtx.allocator);
         self.bobEntity = bobEntity;
         const maxFrames = bobModel.animations.items[0].frames.len;
         bobEntity.setPos(0.0, 0.0, 0.0);

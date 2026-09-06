@@ -30,6 +30,7 @@ const Game = struct {
         models[0] = sponzaModel;
 
         const sponzaEntity = try eng.ent.Entity.create(engCtx.allocator, ENTITY_ID, sponzaModel.id);
+        errdefer sponzaEntity.cleanup(engCtx.allocator);
         sponzaEntity.setPos(0.0, 0.0, -4.0);
         sponzaEntity.scale = 0.01;
         sponzaEntity.update();

@@ -33,6 +33,7 @@ const Game = struct {
         models[0] = sponzaModel;
 
         const sponzaEntity = try eng.ent.Entity.create(engCtx.allocator, ENTITY_ID, sponzaModel.id);
+        errdefer sponzaEntity.cleanup(engCtx.allocator);
         sponzaEntity.setPos(0.0, 0.0, -4.0);
         sponzaEntity.scale = 0.01;
         sponzaEntity.update();
@@ -42,6 +43,7 @@ const Game = struct {
         models[1] = bobModel;
 
         const bobEntity = try eng.ent.Entity.create(engCtx.allocator, BOB_ENTITY_ID, bobModel.id);
+        errdefer bobEntity.cleanup(engCtx.allocator);
         self.bobEntity = bobEntity;
         const maxFrames = bobModel.animations.items[0].frames.len;
         bobEntity.setPos(0.0, 0.0, 0.0);

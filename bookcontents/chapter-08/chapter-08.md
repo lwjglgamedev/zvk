@@ -1098,11 +1098,15 @@ pub const ModelsCache = struct {
                 @memcpy(gpuIndices, idxData[meshData.idxOffset..endIdx]);
                 srcIdxBuffer.unMap(vkCtx);
 
+                const meshId = try allocator.dupe(u8, meshData.id);
+                errdefer allocator.free(meshId);
+                const meshMaterialId = try allocator.dupe(u8, meshData.materialId);
+                errdefer allocator.free(meshMaterialId);
                 const vulkanMesh = VulkanMesh{
                     .buffIdx = dstIdxBuffer,
                     .buffVtx = dstVtxBuffer,
-                    .id = try allocator.dupe(u8, meshData.id),
-                    .materialId = try allocator.dupe(u8, meshData.materialId),
+                    .id = meshId,
+                    .materialId = meshMaterialId,
                     .numIndices = indicesSize / @sizeOf(u32),
                 };
                 try vulkanMeshes.append(allocator, vulkanMesh);
@@ -1828,7 +1832,9 @@ pub const VkDescAllocator = struct {
 
         if (poolInfoOpt == null) {
             const poolInfo = try allocator.create(PoolInfo);
+            errdefer allocator.destroy(poolInfo);
             poolInfo.* = try PoolInfo.create(allocator, vkPhysDevice, vkDevice);
+            errdefer poolInfo.cleanup(allocator, vkDevice);
             try self.poolInfoList.append(allocator, poolInfo);
 
             vkDescPoolOpt = poolInfo.vkDescPool;
@@ -1973,6 +1979,7 @@ pub const VkPipeline = struct {
             .push_constant_range_count = if (createInfo.pushConstants) |pc| @as(u32, @intCast(pc.len)) else 0,
             .p_push_constant_ranges = if (createInfo.pushConstants) |pcs| pcs.ptr else null,
         }, null);
+        errdefer vkCtx.vkDevice.deviceProxy.destroyPipelineLayout(pipelineLayout, null);
         ...
     }
     ...

@@ -85,6 +85,7 @@ pub const VkSwapChain = struct {
         };
 
         const handle = try device.deviceProxy.createSwapchainKHR(&swapchain_info, null);
+        errdefer device.deviceProxy.destroySwapchainKHR(handle, null);
 
         const imageViews = try createImageViews(
             allocator,

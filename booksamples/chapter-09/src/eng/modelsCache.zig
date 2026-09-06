@@ -125,6 +125,7 @@ pub const MaterialsCache = struct {
 
         for (materialsList.items, 0..) |materialData, i| {
             const materialId = try allocator.dupe(u8, materialData.id);
+            errdefer allocator.free(materialId);
             var vulkanMaterial = VulkanMaterial{
                 .id = materialId,
                 .transparent = false,
@@ -260,11 +261,15 @@ pub const ModelsCache = struct {
                 @memcpy(gpuIndices, idxData[meshData.idxOffset..endIdx]);
                 srcIdxBuffer.unMap(vkCtx);
 
+                const meshId = try allocator.dupe(u8, meshData.id);
+                errdefer allocator.free(meshId);
+                const meshMaterialId = try allocator.dupe(u8, meshData.materialId);
+                errdefer allocator.free(meshMaterialId);
                 const vulkanMesh = VulkanMesh{
                     .buffIdx = dstIdxBuffer,
                     .buffVtx = dstVtxBuffer,
-                    .id = try allocator.dupe(u8, meshData.id),
-                    .materialId = try allocator.dupe(u8, meshData.materialId),
+                    .id = meshId,
+                    .materialId = meshMaterialId,
                     .numIndices = indicesSize / @sizeOf(u32),
                 };
                 try vulkanMeshes.append(allocator, vulkanMesh);

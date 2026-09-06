@@ -155,6 +155,7 @@ pub const VkPipeline = struct {
             .push_constant_range_count = if (createInfo.pushConstants) |pc| @as(u32, @intCast(pc.len)) else 0,
             .p_push_constant_ranges = if (createInfo.pushConstants) |pcs| pcs.ptr else null,
         }, null);
+        errdefer vkCtx.vkDevice.deviceProxy.destroyPipelineLayout(pipelineLayout, null);
 
         const gpci = vulkan.GraphicsPipelineCreateInfo{
             .flags = .{},

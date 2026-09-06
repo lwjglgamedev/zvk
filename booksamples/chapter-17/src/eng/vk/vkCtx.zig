@@ -85,7 +85,8 @@ pub const VkCtx = struct {
         const vsync = self.vkSwapChain.vsync;
         self.vkSwapChain.cleanup(allocator, self.vkDevice);
         self.vkSurface.cleanup(self.vkInstance);
-        const vkSurface = try vk.surf.VkSurface.create(window, self.vkInstance);
+        var vkSurface = try vk.surf.VkSurface.create(window, self.vkInstance);
+        errdefer vkSurface.cleanup(self.vkInstance);
         const vkSwapChain = try vk.swap.VkSwapChain.create(
             allocator,
             window,
