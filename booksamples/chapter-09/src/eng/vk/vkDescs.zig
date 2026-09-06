@@ -24,7 +24,9 @@ const PoolInfo = struct {
             .descriptor_count = try getLimits(vkPhysDevice, vulkan.DescriptorType.storage_buffer),
         } };
         const vkDescPool = try VkDescPool.create(vkDevice, &descPoolSize);
+        errdefer vkDescPool.cleanup(vkDevice);
         var descCount: std.AutoArrayHashMapUnmanaged(vulkan.DescriptorType, u32) = .empty;
+        errdefer descCount.deinit(allocator);
         for (descPoolSize) |item| {
             try descCount.put(allocator, item.type, item.descriptor_count);
         }
@@ -91,7 +93,9 @@ pub const VkDescAllocator = struct {
         if (poolInfoOpt == null) {
             const poolInfo = try allocator.create(PoolInfo);
             errdefer allocator.destroy(poolInfo);
+            errdefer allocator.destroy(poolInfo);
             poolInfo.* = try PoolInfo.create(allocator, vkPhysDevice, vkDevice);
+            errdefer poolInfo.cleanup(allocator, vkDevice);
             errdefer poolInfo.cleanup(allocator, vkDevice);
             try self.poolInfoList.append(allocator, poolInfo);
 
@@ -137,13 +141,17 @@ pub const VkDescAllocator = struct {
     }
 
     pub fn create(allocator: std.mem.Allocator, vkPhysDevice: vk.phys.VkPhysDevice, vkDevice: vk.dev.VkDevice) !VkDescAllocator {
-        const descSetMap = std.StringHashMap(VkDesSet).init(
+        var descSetMap = std.StringHashMap(VkDesSet).init(
             allocator,
         );
+        errdefer descSetMap.deinit();
 
         const poolInfo = try allocator.create(PoolInfo);
+        errdefer allocator.destroy(poolInfo);
         poolInfo.* = try PoolInfo.create(allocator, vkPhysDevice, vkDevice);
+        errdefer poolInfo.cleanup(allocator, vkDevice);
         var poolInfoList = try std.ArrayList(*PoolInfo).initCapacity(allocator, 1);
+        errdefer poolInfoList.deinit(allocator);
         try poolInfoList.append(allocator, poolInfo);
 
         return .{
