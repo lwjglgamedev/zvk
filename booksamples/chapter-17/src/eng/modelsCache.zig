@@ -266,6 +266,7 @@ pub const ModelsCache = struct {
         const numMatrices = animatedFrame.jointMatrices.len;
         const bufferSize = numMatrices * @sizeOf([16]f32);
 
+        var appended = false;
         const srcJointBuffer = try vk.buf.VkBuffer.create(
             vkCtx,
             bufferSize,
@@ -274,8 +275,9 @@ pub const ModelsCache = struct {
             vk.vma.VmaUsage.VmaUsageAuto,
             vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBitAndCoherent,
         );
-        errdefer srcJointBuffer.cleanup(vkCtx);
+        errdefer if (!appended) srcJointBuffer.cleanup(vkCtx);
         try srcBuffers.append(allocator, srcJointBuffer);
+        appended = true;
 
         const dstJointBuffer = try vk.buf.VkBuffer.create(
             vkCtx,

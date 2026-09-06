@@ -220,8 +220,10 @@ pub const RenderShadow = struct {
     }
 
     pub fn create(allocator: std.mem.Allocator, io: std.Io, vkCtx: *vk.ctx.VkCtx, constants: com.common.Constants) !RenderShadow {
-        const attColor = try createColorAttachment(vkCtx, constants.shadowMapSize);
-        const attDepth = try createDepthAttachment(vkCtx, constants.shadowMapSize);
+        var attColor = try createColorAttachment(vkCtx, constants.shadowMapSize);
+        errdefer attColor.cleanup(vkCtx);
+        var attDepth = try createDepthAttachment(vkCtx, constants.shadowMapSize);
+        errdefer attDepth.cleanup(vkCtx);
         const cascadeShadows = [SHADOW_MAP_CASCADE_COUNT]CascadeData{ .{}, .{}, .{} };
 
         // Shader modules
@@ -266,6 +268,7 @@ pub const RenderShadow = struct {
                 .stageFlags = vulkan.ShaderStageFlags{ .vertex_bit = true },
             }},
         );
+        errdefer descLayoutGeom.cleanup(vkCtx);
         const descLayoutFrgSt = try vk.desc.VkDescSetLayout.create(
             allocator,
             vkCtx,
@@ -298,6 +301,7 @@ pub const RenderShadow = struct {
             .{ .uniform_buffer_bit = true },
             descLayoutGeom,
         );
+        errdefer buffShadowCascades.cleanup(vkCtx);
 
         // Push constants
         const pushConstants = [_]vulkan.PushConstantRange{

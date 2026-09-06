@@ -134,6 +134,12 @@ pub const RenderLight = struct {
             .{ .storage_buffer_bit = true },
             descLayoutArr,
         );
+        errdefer {
+            for (buffsLights) |*buffer| {
+                buffer.cleanup(vkCtx);
+            }
+            allocator.free(buffsLights);
+        }
 
         // Descriptor set: SceneInfo
         const descLayoutScene = try vk.desc.VkDescSetLayout.create(allocator, vkCtx, &[_]vk.desc.LayoutInfo{.{
@@ -142,6 +148,7 @@ pub const RenderLight = struct {
             .descType = vulkan.DescriptorType.uniform_buffer,
             .stageFlags = vulkan.ShaderStageFlags{ .fragment_bit = true },
         }});
+        errdefer descLayoutScene.cleanup(vkCtx);
         const buffsSceneInfo = try vk.util.createHostVisibleBuffs(
             allocator,
             vkCtx,
@@ -151,6 +158,12 @@ pub const RenderLight = struct {
             .{ .uniform_buffer_bit = true },
             descLayoutScene,
         );
+        errdefer {
+            for (buffsSceneInfo) |*buffer| {
+                buffer.cleanup(vkCtx);
+            }
+            allocator.free(buffsSceneInfo);
+        }
 
         const descSetLayouts = [_]vulkan.DescriptorSetLayout{
             descLayoutAtt.descSetLayout,
