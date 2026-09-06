@@ -165,13 +165,19 @@ pub const VkSwapChain = struct {
         defer allocator.free(images);
 
         const views = try allocator.alloc(vk.imv.VkImageView, images.len);
+        var created: usize = 0;
+        errdefer {
+            for (views[0..created]) |*view| {
+                view.cleanup(device);
+            }
+            allocator.free(views);
+        }
 
         const ivData = vk.imv.VkImageViewData{ .format = format };
 
-        var i: usize = 0;
-        for (images) |img| {
+        for (images, 0..) |img, i| {
             views[i] = try vk.imv.VkImageView.create(device, img, ivData);
-            i += 1;
+            created += 1;
         }
 
         return views;
