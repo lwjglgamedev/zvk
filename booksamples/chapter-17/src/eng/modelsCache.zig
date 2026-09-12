@@ -423,7 +423,10 @@ pub const ModelsCache = struct {
                     vk.vma.VmaUsage.VmaUsageAuto,
                     vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBitAndCoherent,
                 );
+                var vtxAppended = false;
+                errdefer if (!vtxAppended) srcVtxBuffer.cleanup(vkCtx);
                 try srcBuffers.append(allocator, srcVtxBuffer);
+                vtxAppended = true;
                 const dstVtxBuffer = try vk.buf.VkBuffer.create(
                     vkCtx,
                     verticesSize,
