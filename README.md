@@ -1,10 +1,18 @@
-# Vulkan graphics programming in Zig
+# ZVK — Vulkan Graphics Programming in Zig
+
+**Learn modern Vulkan by building a real-time renderer from scratch in Zig.**
+
+ZVK is an open-source, hands-on guide to **Vulkan 1.3 and graphics programming with Zig**.
 
 This [online book](bookcontents/) will introduce the main concepts required to write graphics games or any other applications using
-[Vulkan](https://www.khronos.org/vulkan/) in [Zig](https://ziglang.org). You can view the static site
-[here](https://lwjglgamedev.github.io/zvk/).
+[Vulkan](https://www.khronos.org/vulkan/) in [Zig](https://ziglang.org). ZVK walks through the graphics stack step by step—from creating a
+simple engine starting with rendering your first triangle to modern techniques such as deferred rendering, cascaded shadows,
+GPU-driven rendering and Buffer Device Address.
 
-This book is the result of my self learning of the language, that I think it may help the community.
+
+[📖 Read the book](https://lwjglgamedev.github.io/zvk/) · [💻 Browse the source](https://github.com/lwjglgamedev/zvk) · ⭐ Star this repository
+
+---
 
 ![Sample screen shot](./bookcontents/chapter-17/rc17-screen-shot.png)
 
