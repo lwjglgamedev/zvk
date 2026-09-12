@@ -48,6 +48,9 @@ jobs:
           restore-keys: |
             zig-deps-
 
+      - name: Install glslc (shaderc)
+        run: sudo apt-get update && sudo apt-get install -y glslc
+
       - name: Build ${{ matrix.chapter }}
         working-directory: booksamples/${{ matrix.chapter }}
         run: zig build
