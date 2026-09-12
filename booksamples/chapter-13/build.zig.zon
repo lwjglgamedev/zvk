@@ -42,7 +42,7 @@
         },
         .zaudio = .{
             .url = "https://github.com/zig-gamedev/zaudio/archive/fed501100b029213898861b60c6b54f8121dff03.tar.gz",
-            .hash = "zaudio-0.11.0-dev-_M-91owyQQD3MVQa4F1xkPgwSFWQi4HhhNfDwKI0PBWX",
+            .hash = "zaudio-0.11.0-dev-_M-91iAzQQCTA0NTL2NJsB1qm6kMRrMWRQApIuyX-1Im",
         },
     },
     .paths = .{
