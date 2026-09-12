@@ -716,7 +716,6 @@ pub const ModelsCache = struct {
         );
         var appended = false;
         errdefer if (!appended) srcWeightsBuffer.cleanup(vkCtx);
-        errdefer srcWeightsBuffer.cleanup(vkCtx);
         try srcBuffers.append(allocator, srcWeightsBuffer);
         appended = true;
 
