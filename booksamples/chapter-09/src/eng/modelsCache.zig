@@ -249,7 +249,10 @@ pub const ModelsCache = struct {
                     vulkan.BufferUsageFlags{ .transfer_src_bit = true },
                     vulkan.MemoryPropertyFlags{ .host_visible_bit = true, .host_coherent_bit = true },
                 );
+                var idxAppended = false;
+                errdefer if (!idxAppended) srcIdxBuffer.cleanup(vkCtx);
                 try srcBuffers.append(allocator, srcIdxBuffer);
+                idxAppended = true;
                 const dstIdxBuffer = try vk.buf.VkBuffer.create(
                     vkCtx,
                     indicesSize,

@@ -513,7 +513,10 @@ pub const ModelsCache = struct {
                     vk.vma.VmaUsage.VmaUsageAuto,
                     vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBitAndCoherent,
                 );
+                var idxAppended = false;
+                errdefer if (!idxAppended) srcIdxBuffer.cleanup(vkCtx);
                 try srcBuffers.append(allocator, srcIdxBuffer);
+                idxAppended = true;
                 const dstIdxBuffer = try vk.buf.VkBuffer.create(
                     vkCtx,
                     indicesSize,
