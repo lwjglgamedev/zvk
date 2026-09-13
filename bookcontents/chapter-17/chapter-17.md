@@ -639,6 +639,7 @@ pub const ModelsCache = struct {
             var vulkanAnimations = try std.ArrayList(VulkanAnimation).initCapacity(allocator, modelData.animations.items.len);
             for (modelData.animations.items) |animData| {
                 var buffers = try std.ArrayList(vk.buf.VkBuffer).initCapacity(allocator, animData.frames.len);
+                errdefer cleanupBufferList(allocator, vkCtx, &buffers);
                 for (animData.frames) |frame| {
                     try buffers.append(allocator, try createJointMatricesBuffers(vkCtx, allocator, cmdHandle, &srcBuffers, frame));
                 }
@@ -689,7 +690,25 @@ pub const ModelsCache = struct {
 ```
 
 We need to update the `dstVtxBuffer` creation since we will be accessing the contents of the vertices buffer in the compute shader through
-storage buffers (this is why we add the `storage_buffer_bit`). The `createWeightsBuffers` function is defined like this:
+storage buffers (this is why we add the `storage_buffer_bit`).
+
+The `cleanupBufferList` function is defined like this:
+
+**File: src/eng/modelsCache.zig**
+```zig
+pub const ModelsCache = struct {
+...
+    fn cleanupBufferList(allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx, buffers: *std.ArrayList(vk.buf.VkBuffer)) void {
+        for (buffers.items) |*buffer| {
+            buffer.cleanup(vkCtx);
+        }
+        buffers.deinit(allocator);
+    }
+...
+};
+```
+
+The `createWeightsBuffers` function is defined like this:
 
 **File: src/eng/modelsCache.zig**
 ```zig

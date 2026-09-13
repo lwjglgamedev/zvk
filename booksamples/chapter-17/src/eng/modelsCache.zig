@@ -250,6 +250,13 @@ pub const ModelsCache = struct {
         self.modelsMap.deinit();
     }
 
+    fn cleanupBufferList(allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx, buffers: *std.ArrayList(vk.buf.VkBuffer)) void {
+        for (buffers.items) |*buffer| {
+            buffer.cleanup(vkCtx);
+        }
+        buffers.deinit(allocator);
+    }
+
     pub fn create(allocator: std.mem.Allocator) ModelsCache {
         const modelsMap = std.StringHashMap(VulkanModel).init(allocator);
         return .{
@@ -402,6 +409,7 @@ pub const ModelsCache = struct {
             var vulkanAnimations = try std.ArrayList(VulkanAnimation).initCapacity(allocator, modelData.animations.items.len);
             for (modelData.animations.items) |animData| {
                 var buffers = try std.ArrayList(vk.buf.VkBuffer).initCapacity(allocator, animData.frames.len);
+                errdefer cleanupBufferList(allocator, vkCtx, &buffers);
                 for (animData.frames) |frame| {
                     try buffers.append(allocator, try createJointMatricesBuffers(vkCtx, allocator, cmdHandle, &srcBuffers, frame));
                 }
