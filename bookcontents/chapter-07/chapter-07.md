@@ -734,24 +734,23 @@ pub const Render = struct {
         self.vkCtx.vkDevice.wait() catch |err| log.err("Device wait failed in cleanup: {}", .{err});
         try self.vkCtx.resize(allocator, engCtx.wnd.window);
 
-        for (self.semsRenderComplete) |sem| {
-            sem.cleanup(&self.vkCtx);
-        }
-        allocator.free(self.semsRenderComplete);
-
-        for (self.semsPresComplete) |sem| {
-            sem.cleanup(&self.vkCtx);
-        }
-        allocator.free(self.semsPresComplete);
+        cleanupSemphs(allocator, &self.vkCtx, self.semsRenderComplete, self.semsRenderComplete.len);
+        cleanupSemphs(allocator, &self.vkCtx, self.semsRenderComplete, self.semsRenderComplete.len);
 
         const semsRenderComplete = try allocator.alloc(vk.sync.VkSemaphore, self.vkCtx.vkSwapChain.imageViews.len);
+        var initSempshRender: usize = 0;
+        errdefer cleanupSemphs(allocator, &self.vkCtx, semsRenderComplete, initSempshRender);
         for (semsRenderComplete) |*sem| {
             sem.* = try vk.sync.VkSemaphore.create(&self.vkCtx);
+            initSempshRender += 1;
         }
 
         const semsPresComplete = try allocator.alloc(vk.sync.VkSemaphore, com.common.FRAMES_IN_FLIGHT);
+        var initSempshPres: usize = 0;
+        errdefer cleanupSemphs(allocator, &self.vkCtx, semsPresComplete, initSempshPres);
         for (semsPresComplete) |*sem| {
             sem.* = try vk.sync.VkSemaphore.create(&self.vkCtx);
+            initSempshPres += 1;
         }
 
         self.semsPresComplete = semsPresComplete;

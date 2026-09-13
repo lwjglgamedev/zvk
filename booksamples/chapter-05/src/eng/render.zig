@@ -29,26 +29,25 @@ pub const Render = struct {
         allocator.free(self.cmdBuffs);
 
         defer allocator.free(self.cmdPools);
-        for (self.fences) |fence| {
-            fence.cleanup(&self.vkCtx);
-        }
-        defer allocator.free(self.fences);
-
-        self.cleanupSemphs(allocator);
+        cleanupFences(allocator, &self.vkCtx, self.fences, self.fences.len);
+        cleanupSemphs(allocator, &self.vkCtx, self.semsPresComplete, self.semsPresComplete.len);
+        cleanupSemphs(allocator, &self.vkCtx, self.semsRenderComplete, self.semsRenderComplete.len);
 
         self.vkCtx.cleanup(allocator);
     }
 
-    fn cleanupSemphs(self: *Render, allocator: std.mem.Allocator) void {
-        for (self.semsRenderComplete) |sem| {
-            sem.cleanup(&self.vkCtx);
+    fn cleanupFences(allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx, fences: []vk.sync.VkFence, initialized: usize) void {
+        for (fences[0..initialized]) |*fence| {
+            fence.cleanup(vkCtx);
         }
-        defer allocator.free(self.semsRenderComplete);
+        allocator.free(fences);
+    }
 
-        for (self.semsPresComplete) |sem| {
-            sem.cleanup(&self.vkCtx);
+    fn cleanupSemphs(allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx, semphs: []vk.sync.VkSemaphore, initialized: usize) void {
+        for (semphs[0..initialized]) |*semph| {
+            semph.cleanup(vkCtx);
         }
-        defer allocator.free(self.semsPresComplete);
+        allocator.free(semphs);
     }
 
     pub fn create(allocator: std.mem.Allocator, constants: com.common.Constants, window: sdl3.video.Window) !Render {
@@ -56,26 +55,27 @@ pub const Render = struct {
         errdefer vkCtx.cleanup(allocator);
 
         const fences = try allocator.alloc(vk.sync.VkFence, com.common.FRAMES_IN_FLIGHT);
-        var initialized: usize = 0;
-        errdefer {
-            for (fences[0..initialized]) |*fence| {
-                fence.cleanup(&vkCtx);
-            }
-            allocator.free(fences);
-        }
+        var initFences: usize = 0;
+        errdefer cleanupFences(allocator, &vkCtx, fences, initFences);
         for (fences) |*fence| {
             fence.* = try vk.sync.VkFence.create(&vkCtx);
-            initialized += 1;
+            initFences += 1;
         }
 
         const semsRenderComplete = try allocator.alloc(vk.sync.VkSemaphore, vkCtx.vkSwapChain.imageViews.len);
+        var initSempshRender: usize = 0;
+        errdefer cleanupSemphs(allocator, &vkCtx, semsRenderComplete, initSempshRender);
         for (semsRenderComplete) |*sem| {
             sem.* = try vk.sync.VkSemaphore.create(&vkCtx);
+            initSempshRender += 1;
         }
 
         const semsPresComplete = try allocator.alloc(vk.sync.VkSemaphore, com.common.FRAMES_IN_FLIGHT);
+        var initSempshPres: usize = 0;
+        errdefer cleanupSemphs(allocator, &vkCtx, semsPresComplete, initSempshPres);
         for (semsPresComplete) |*sem| {
             sem.* = try vk.sync.VkSemaphore.create(&vkCtx);
+            initSempshPres += 1;
         }
 
         const cmdPools = try allocator.alloc(vk.cmd.VkCmdPool, com.common.FRAMES_IN_FLIGHT);
