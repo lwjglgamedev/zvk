@@ -121,11 +121,20 @@ pub const Render = struct {
         }
 
         const cmdPools = try allocator.alloc(vk.cmd.VkCmdPool, com.common.FRAMES_IN_FLIGHT);
+        var initCmdPools: usize = 0;
+        errdefer {
+            for (cmdPools[0..initCmdPools]) |*cmdPool| {
+                cmdPool.cleanup(&vkCtx);
+            }
+            allocator.free(cmdPools);
+        }
         for (cmdPools) |*cmdPool| {
             cmdPool.* = try vk.cmd.VkCmdPool.create(&vkCtx, vkCtx.vkPhysDevice.queuesInfo.graphics_family, false);
+            initCmdPools += 1;
         }
 
         const cmdBuffs = try allocator.alloc(vk.cmd.VkCmdBuff, com.common.FRAMES_IN_FLIGHT);
+        errdefer allocator.free(cmdBuffs);
         for (cmdBuffs, 0..) |*cmdBuff, i| {
             cmdBuff.* = try vk.cmd.VkCmdBuff.create(&vkCtx, &cmdPools[i], true);
         }
