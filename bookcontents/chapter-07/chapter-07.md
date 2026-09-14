@@ -735,7 +735,7 @@ pub const Render = struct {
         try self.vkCtx.resize(allocator, engCtx.wnd.window);
 
         cleanupSemphs(allocator, &self.vkCtx, self.semsRenderComplete, self.semsRenderComplete.len);
-        cleanupSemphs(allocator, &self.vkCtx, self.semsRenderComplete, self.semsRenderComplete.len);
+        cleanupSemphs(allocator, &self.vkCtx, self.semsPresComplete, self.semsPresComplete.len);
 
         const semsRenderComplete = try allocator.alloc(vk.sync.VkSemaphore, self.vkCtx.vkSwapChain.imageViews.len);
         var initSempshRender: usize = 0;
