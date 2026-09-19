@@ -119,7 +119,6 @@ pub const RenderAnim = struct {
         animsCache: *const eng.acach.AnimsCache,
     ) !void {
         try self.fence.wait(vkCtx);
-        try self.fence.reset(vkCtx);
 
         try self.cmdPool.reset(vkCtx);
         try self.cmdBuff.begin(vkCtx);
