@@ -5,6 +5,7 @@ pub const Constants = struct {
     gpu: []const u8,
     ups: f32,
     validation: bool,
+    syncValidation: bool,
 
     pub fn load(allocator: std.mem.Allocator, io: std.Io) !Constants {
         var parser = toml.Parser(Constants).init(allocator);
@@ -19,6 +20,7 @@ pub const Constants = struct {
             .gpu = try allocator.dupe(u8, tmp.gpu),
             .ups = tmp.ups,
             .validation = tmp.validation,
+            .syncValidation = tmp.syncValidation,
         };
 
         return constants;

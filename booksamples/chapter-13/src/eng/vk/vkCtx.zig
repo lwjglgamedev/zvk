@@ -15,7 +15,7 @@ pub const VkCtx = struct {
     vkSwapChain: vk.swap.VkSwapChain,
 
     pub fn create(allocator: std.mem.Allocator, constants: com.common.Constants, window: sdl3.video.Window) !VkCtx {
-        var vkInstance = try vk.inst.VkInstance.create(allocator, constants.validation);
+        var vkInstance = try vk.inst.VkInstance.create(allocator, constants.validation, constants.syncValidation);
         errdefer vkInstance.cleanup(allocator);
 
         var vkSurface = try vk.surf.VkSurface.create(window, vkInstance);

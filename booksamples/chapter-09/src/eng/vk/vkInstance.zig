@@ -11,7 +11,7 @@ pub const VkInstance = struct {
     debugMessenger: ?vulkan.DebugUtilsMessengerEXT = null,
     instanceProxy: vulkan.InstanceProxy,
 
-    pub fn create(allocator: std.mem.Allocator, validate: bool) !VkInstance {
+    pub fn create(allocator: std.mem.Allocator, validate: bool, syncValidate: bool) !VkInstance {
         const rawProc = sdl3.vulkan.getVkGetInstanceProcAddr() catch |err| {
             log.err("Vulkan not available: {}\n", .{err});
             return err;
@@ -41,11 +41,23 @@ pub const VkInstance = struct {
         defer layerNames.deinit(allocator);
 
         const supValidation = try supportsValidation(allocator, &vkb);
+        var syncValidationFeature: vulkan.ValidationFeaturesEXT = .{};
+        const syncValidationEnable = vulkan.ValidationFeatureEnableEXT.synchronization_validation_ext;
+        var useSyncValidation = false;
         if (validate) {
             if (supValidation) {
                 log.debug("Enabling validation", .{});
                 try layerNames.append(allocator, VALIDATION_LAYER);
                 try extensionNames.append(allocator, vulkan.extensions.ext_debug_utils.name);
+                if (syncValidate) {
+                    log.debug("Enabling synchronization validation", .{});
+                    syncValidationFeature = .{
+                        .enabled_validation_feature_count = 1,
+                        .p_enabled_validation_features = @ptrCast(&syncValidationEnable),
+                    };
+                    try extensionNames.append(allocator, vulkan.extensions.ext_validation_features.name);
+                    useSyncValidation = true;
+                }
             } else {
                 log.debug("Validation layer not supported. Make sure Vulkan SDK is installed", .{});
             }
@@ -54,7 +66,7 @@ pub const VkInstance = struct {
             log.debug("Instance create extension: {s}", .{value});
         }
 
-        const createInfo = vulkan.InstanceCreateInfo{
+        var createInfo = vulkan.InstanceCreateInfo{
             .p_application_info = &appInfo,
             .enabled_extension_count = @intCast(extensionNames.items.len),
             .pp_enabled_extension_names = extensionNames.items.ptr,
@@ -62,6 +74,9 @@ pub const VkInstance = struct {
             .pp_enabled_layer_names = layerNames.items.ptr,
             .flags = .{ .enumerate_portability_bit_khr = is_macos },
         };
+        if (useSyncValidation) {
+            createInfo.p_next = &syncValidationFeature;
+        }
         const instance = try vkb.createInstance(&createInfo, null);
 
         const vki = try allocator.create(vulkan.InstanceWrapper);

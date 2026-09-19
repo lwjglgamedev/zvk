@@ -6,6 +6,7 @@ pub const Constants = struct {
     swapChainImages: u8,
     ups: f32,
     validation: bool,
+    syncValidation: bool,
     vsync: bool,
 
     pub fn load(allocator: std.mem.Allocator, io: std.Io) !Constants {
@@ -22,6 +23,7 @@ pub const Constants = struct {
             .swapChainImages = tmp.swapChainImages,
             .ups = tmp.ups,
             .validation = tmp.validation,
+            .syncValidation = tmp.syncValidation,
             .vsync = tmp.vsync,
         };
 

@@ -7,6 +7,7 @@ shadowMapSize=4096
 swapChainImages=3
 ups=40
 validation=true
+syncValidation=false
 vsync=true
 zFar=50.0
 zFarShadow=50.0

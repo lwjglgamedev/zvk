@@ -31,7 +31,7 @@ pub const VkInstance = struct {
     debugMessenger: ?vulkan.DebugUtilsMessengerEXT = null,    
     instanceProxy: vulkan.InstanceProxy,
 
-    pub fn create(allocator: std.mem.Allocator, validate: bool) !VkInstance {
+    pub fn create(allocator: std.mem.Allocator, validate: bool, syncValidate: bool) !VkInstance {
         const rawProc = sdl3.vulkan.getVkGetInstanceProcAddr() catch |err| {
             log.err("Vulkan not available: {}\n", .{err});
             return err;
@@ -52,7 +52,7 @@ that will allow us to access all the functions. We will need this to load the Vu
 ```zig
 pub const VkInstance = struct {
     ...
-    pub fn create(allocator: std.mem.Allocator, validate: bool) !VkInstance {
+    pub fn create(allocator: std.mem.Allocator, validate: bool, syncValidate: bool) !VkInstance {
         ...
         const appInfo = vulkan.ApplicationInfo{
             .p_application_name = "app_name",
@@ -87,7 +87,7 @@ so make sure you check this if you plan to include a new one. Let's review which
 ```zig
 pub const VkInstance = struct {
     ...
-    pub fn create(allocator: std.mem.Allocator, validate: bool) !VkInstance {
+    pub fn create(allocator: std.mem.Allocator, validate: bool, syncValidate: bool) !VkInstance {
         ...
         var extensionNames = try std.ArrayList([*:0]const u8).initCapacity(allocator, 2);
         defer extensionNames.deinit(allocator);
@@ -124,25 +124,39 @@ delivery.
 > to the directory where the validation layers are define: `$VULKAN_SDK/x86_64/share/vulkan/explicit_layer.d` (`VULKAN_SDK` should
 > have the path of the base directory of the Vulkan SDK)
 
-Our `create` function receives a boolean parameter indicating if validation should be enabled or not. If validation is requested, we will
-use the `VK_LAYER_KHRONOS_validation` layer (defined in the constant `VALIDATION_LAYER`). In addition to that, if we support validation
-we will add a new layer to be able to use a callback that will be invoked whenever a validation event occurs.
+Our `create` function receives a first boolean parameter indicating if regular validation should be enabled or not. If regular validation is
+requested, we will use the `VK_LAYER_KHRONOS_validation` layer (defined in the constant `VALIDATION_LAYER`). In addition to that, if we
+support regular validation we will add a new layer to be able to use a callback that will be invoked whenever a validation event occurs.
+The `create` function also receives a second boolean parameter, `syncValidate`, to control synchronization validation independently from
+the regular validation.
 
 **File: src/eng/vk/vkInstance.zig**
 ```zig
 pub const VkInstance = struct {
     ...
-    pub fn create(allocator: std.mem.Allocator, validate: bool) !VkInstance {
+    pub fn create(allocator: std.mem.Allocator, validate: bool, syncValidate: bool) !VkInstance {
         ...
         var layerNames = try std.ArrayList([*:0]const u8).initCapacity(allocator, 2);
         defer layerNames.deinit(allocator);
 
         const supValidation = try supportsValidation(allocator, &vkb);
+        var syncValidationFeature: vulkan.ValidationFeaturesEXT = .{};
+        const syncValidationEnable = vulkan.ValidationFeatureEnableEXT.synchronization_validation_ext;
+        var useSyncValidation = false;
         if (validate) {
             if (supValidation) {
                 log.debug("Enabling validation", .{});
                 try layerNames.append(allocator, VALIDATION_LAYER);
                 try extensionNames.append(allocator, vulkan.extensions.ext_debug_utils.name);
+                if (syncValidate) {
+                    log.debug("Enabling synchronization validation", .{});
+                    syncValidationFeature = .{
+                        .enabled_validation_feature_count = 1,
+                        .p_enabled_validation_features = @ptrCast(&syncValidationEnable),
+                    };
+                    try extensionNames.append(allocator, vulkan.extensions.ext_validation_features.name);
+                    useSyncValidation = true;
+                }
             } else {
                 log.debug("Validation layer not supported. Make sure Vulkan SDK is installed", .{});
             }
@@ -188,6 +202,34 @@ We first get the number of supported layers by calling the `enumerateInstanceLay
 `u32` variable to get the number of supported layers. After that, we call again the `enumerateInstanceLayerProperties` function to get
 the layers themselves passing a preallocated array. If we find the validation layer, we can enable it.
 
+The validation layer also includes a special feature to report synchronization issues in the way we submit commands, called
+*synchronization validation*. It catches problems like missing or incorrectly specified sychronization elements that we will see in future
+chapters.
+
+Synchronization validation is not a standalone feature: it is implemented inside the validation layer itself and toggled through the
+`VK_EXT_validation_features` extension using the `synchronization_validation_ext` feature. That is why it is only enabled when the
+validation layer is both requested and supported--the feature would be silently ignored otherwise.
+
+```zig
+var syncValidationFeature: vulkan.ValidationFeaturesEXT = .{};
+const syncValidationEnable = vulkan.ValidationFeatureEnableEXT.synchronization_validation_ext;
+var useSyncValidation = false;
+...
+if (syncValidate) {
+    log.debug("Enabling synchronization validation", .{});
+    syncValidationFeature = .{
+        .enabled_validation_feature_count = 1,
+        .p_enabled_validation_features = @ptrCast(&syncValidationEnable),
+    };
+    try extensionNames.append(allocator, vulkan.extensions.ext_validation_features.name);
+    useSyncValidation = true;
+}
+```
+
+As the `ValidationFeaturesEXT` structure is part of an extension, we need to pass it through the `p_next` chain of the
+`InstanceCreateInfo` structure, as we will see when creating the instance. Keep in mind that synchronization validation is very verbose
+and noticeably slower than the regular validation, so it is advisable to enable it only while tracking down specific issues.
+
 ## Creating the instance
 
 With all the information we can finally create the Vulkan instance:
@@ -196,9 +238,9 @@ With all the information we can finally create the Vulkan instance:
 ```zig
 pub const VkInstance = struct {
     ...
-    pub fn create(allocator: std.mem.Allocator, validate: bool) !VkInstance {
+    pub fn create(allocator: std.mem.Allocator, validate: bool, syncValidate: bool) !VkInstance {
         ...
-        const createInfo = vulkan.InstanceCreateInfo{
+        var createInfo = vulkan.InstanceCreateInfo{
             .p_application_info = &appInfo,
             .enabled_extension_count = @intCast(extensionNames.items.len),
             .pp_enabled_extension_names = extensionNames.items.ptr,
@@ -206,6 +248,9 @@ pub const VkInstance = struct {
             .pp_enabled_layer_names = layerNames.items.ptr,
             .flags = .{ .enumerate_portability_bit_khr = is_macos },
         };
+        if (useSyncValidation) {
+            createInfo.p_next = &syncValidationFeature;
+        }
         const instance = try vkb.createInstance(&createInfo, null);
 
         const vki = try allocator.create(vulkan.InstanceWrapper);
@@ -217,13 +262,23 @@ pub const VkInstance = struct {
 };
 ```
 
+Note that we now declare `createInfo` as a variable (`var` instead of `const`) because, when synchronization validation is requested, we
+attach the `ValidationFeaturesEXT` structure to the `p_next` chain of the instance creation info:
+
+```zig
+createInfo.p_next = &syncValidationFeature;
+```
+
+Vulkan allows chaining extension-specific structures through the `p_next` attribute. This way we do not modify the base structure, we
+just extend it with optional information that only applies when the corresponding extension is enabled.
+
 If validation is enabled and supported we need to create the debug messenger extension:
 
 **File: src/eng/vk/vkInstance.zig**
 ```zig
 pub const VkInstance = struct {
     ...
-    pub fn create(allocator: std.mem.Allocator, validate: bool) !VkInstance {
+    pub fn create(allocator: std.mem.Allocator, validate: bool, syncValidate: bool) !VkInstance {
         ...
         if (validate and supValidation) {
             debugMessenger = try instanceProxy.createDebugUtilsMessengerEXT(&.{
@@ -287,7 +342,7 @@ Back to the `create` function, with all that information we just create the `VkI
 ```zig
 pub const VkInstance = struct {
     ...
-    pub fn create(allocator: std.mem.Allocator, validate: bool) !VkInstance {
+    pub fn create(allocator: std.mem.Allocator, validate: bool, syncValidate: bool) !VkInstance {
         ...
         return .{
             .vkb = vkb,
@@ -334,7 +389,7 @@ pub const VkCtx = struct {
     vkInstance: vk.inst.VkInstance,
 
     pub fn create(allocator: std.mem.Allocator, constants: com.common.Constants) !VkCtx {
-        var vkInstance = try vk.inst.VkInstance.create(allocator, constants.validation);
+        var vkInstance = try vk.inst.VkInstance.create(allocator, constants.validation, constants.syncValidation);
         errdefer vkInstance.cleanup(allocator);
 
 
@@ -372,19 +427,22 @@ pub const Render = struct {
 };
 ```
 
-We have added a new configuration variable to control if validation should be used or not:
+We have added a new configuration variable to control if validation should be used or not, and a new one to control synchronization
+validation independently:
 
-**File: src/eng/vk/vkCtx.zig**
+**File: src/eng/com/common.zig**
 ```zig
 pub const Constants = struct {
-    ...
+    ups: f32,
     validation: bool,
+    syncValidation: bool,
 
     pub fn load(allocator: std.mem.Allocator, io: std.Io) !Constants {
         ...
         const constants = Constants{
             .ups = tmp.ups,
             .validation = tmp.validation,
+            .syncValidation = tmp.syncValidation,
         };
         ...
     }
@@ -395,7 +453,9 @@ We need to add a new parameter in the `res/cfg/cfg.toml` file:
 
 **File: res/cfg/cfg.toml**
 ```toml
+ups=40
 validation=true
+syncValidation=false
 ```
 
 We will also need to modify the `Engine` type to properly instantiate the `Render` struct:
