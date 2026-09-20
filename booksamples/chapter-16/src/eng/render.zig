@@ -436,7 +436,7 @@ pub const Render = struct {
         const semSignalInfo = vulkan.SemaphoreSubmitInfo{
             .device_index = 0,
             .value = 0,
-            .stage_mask = .{ .bottom_of_pipe_bit = true },
+            .stage_mask = .{ .all_commands_bit = true },
             .semaphore = self.semsRenderComplete[imageIndex].semaphore,
         };
 

@@ -559,7 +559,7 @@ pub const Render = struct {
         const semSignalInfo = vulkan.SemaphoreSubmitInfo{
             .device_index = 0,
             .value = 0,
-            .stage_mask = .{ .bottom_of_pipe_bit = true },
+            .stage_mask = .{ .all_commands_bit = true },
             .semaphore = self.semsRenderComplete[imageIndex].semaphore,
         };
 
@@ -580,8 +580,8 @@ generating the output color, so we use the `color_attachment_output_bit` flag. S
 sure that the image has been acquired when we start outputting final colors. 
 - `semWaitInfo`: It holds a list of semaphores that will be signaled when all the commands have finished. Remember that we use semaphores
 for GPU-GPU synchronization. In this case, we are submitting the semaphore used in the swap chain presentation. This will provoke that the
-image cannot be presented until the commands have finished, that is, until render has finished. This is why we use the `bottom_of_pipe_bit`
-flag (`VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT`), all the commands need to have finalized their journey through the pipeline.
+image cannot be presented until the commands have finished, that is, until render has finished. This is why we use the `all_commands_bit`
+flag (`VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT`), all the commands need to have finalized their journey through the pipeline.
 
 Please notice that we have different array sizes for the presentation complete semaphores and the render complete semaphores. The latter one
 (`semsRenderComplete`) will need to be accessed with the swap chain acquire image index, while the first one (`semsPresComplete`) will
