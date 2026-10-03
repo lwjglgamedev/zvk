@@ -64,6 +64,7 @@ pub const Render = struct {
     cmdBuffs: []vk.cmd.VkCmdBuff,
     currentFrame: u8,
     fences: []vk.sync.VkFence,
+    globalBuffers: eng.mcach.GlobalBuffers,
     materialsCache: eng.mcach.MaterialsCache,
     modelsCache: eng.mcach.ModelsCache,
     mustResize: bool,
@@ -103,6 +104,8 @@ pub const Render = struct {
         cleanupFences(allocator, &self.vkCtx, self.fences, self.fences.len);
         cleanupSemphs(allocator, &self.vkCtx, self.semsPresComplete, self.semsPresComplete.len);
         cleanupSemphs(allocator, &self.vkCtx, self.semsRenderComplete, self.semsRenderComplete.len);
+
+        self.globalBuffers.cleanup(&self.vkCtx);
 
         self.vkCtx.cleanup(allocator);
     }
@@ -171,6 +174,8 @@ pub const Render = struct {
         const queueGraphics = vk.queue.VkQueue.create(&vkCtx, vkCtx.vkPhysDevice.queuesInfo.graphics_family);
         const queuePresent = vk.queue.VkQueue.create(&vkCtx, vkCtx.vkPhysDevice.queuesInfo.present_family);
 
+        const globalBuffs = try eng.mcach.GlobalBuffers.create(&vkCtx);
+
         var renderAnim = try eng.ranm.RenderAnim.create(allocator, io, &vkCtx);
         errdefer renderAnim.cleanup(&vkCtx);
         var renderGui = try eng.rgui.RenderGui.create(allocator, io, &vkCtx);
@@ -202,6 +207,7 @@ pub const Render = struct {
             .cmdBuffs = cmdBuffs,
             .currentFrame = 0,
             .fences = fences,
+            .globalBuffs = globalBuffs,
             .materialsCache = materialsCache,
             .modelsCache = modelsCache,
             .mustResize = false,
