@@ -13,7 +13,7 @@
         },
         .vulkan_headers = .{
             .url = "https://github.com/KhronosGroup/Vulkan-Headers/archive/refs/tags/v1.4.365.tar.gz",
-            .hash = "N-V-__8AAMgnfgKxQBLuasOmdRqVVIc1HwfkjIUSwaryYgzo",
+            .hash = "N-V-__8AALu5iAL64sSFBjPrvXzTQ0ZMxT00hE0_7tezz3z4",
         },
         .toml = .{
             .url = "https://github.com/sam701/zig-toml/archive/c661327bd9f02f774426c4fe78f60621411b7173.tar.gz",

@@ -31,7 +31,7 @@ file just execute: `zig fetch --save https://github.com/sam701/zig-toml/archive/
         ...
         .vulkan_headers = .{
             .url = "https://github.com/KhronosGroup/Vulkan-Headers/archive/refs/tags/v1.4.365.tar.gz",
-            .hash = "N-V-__8AAMgnfgKxQBLuasOmdRqVVIc1HwfkjIUSwaryYgzo",
+            .hash = "N-V-__8AALu5iAL64sSFBjPrvXzTQ0ZMxT00hE0_7tezz3z4",
         },
         ...
     }
