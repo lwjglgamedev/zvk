@@ -2,9 +2,7 @@ const std = @import("std");
 
 const log = std.log.scoped(.eng);
 
-/// JSON-friendly view of a list of items. It mimics the shape produced by
-/// `model-gen` (`{"items": [...], "capacity": N}`) without depending on the
-/// internal layout of `std.ArrayList`, which is not part of the JSON format.
+// Do not use ArrayList to prevent code changes when Zig API is modified
 pub fn JsonList(comptime T: type) type {
     return struct {
         items: []T = &.{},

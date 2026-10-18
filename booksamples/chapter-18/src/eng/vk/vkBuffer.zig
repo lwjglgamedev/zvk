@@ -24,8 +24,8 @@ pub const VkBuffer = struct {
         };
         const allocInfo = vma.VmaAllocationCreateInfo{
             .flags = vmaFlags,
-            .usage = @intFromEnum(vmaUsage),
-            .requiredFlags = @intFromEnum(vmaReqFlags),
+            .usage = @backingInt(vmaUsage),
+            .requiredFlags = @backingInt(vmaReqFlags),
         };
 
         var buffer: vulkan.Buffer = undefined;
@@ -43,7 +43,7 @@ pub const VkBuffer = struct {
         }
 
         var address: ?u64 = null;
-        if (bufferUsage.shader_device_address_bit) {
+        if (bufferUsage.shader_device_address) {
             address = getBufferAddress(vkCtx, buffer);
         }
 
@@ -57,7 +57,7 @@ pub const VkBuffer = struct {
     }
 
     pub fn cleanup(self: *const VkBuffer, vkCtx: *const vk.ctx.VkCtx) void {
-        const c_buffer: vma.VkBuffer = @ptrFromInt(@intFromEnum(self.buffer));
+        const c_buffer: vma.VkBuffer = @ptrFromInt(@backingInt(self.buffer));
         vma.vmaDestroyBuffer(vkCtx.vkVmaAlloc.vmaAlloc, c_buffer, self.allocation);
     }
 

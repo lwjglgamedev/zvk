@@ -599,7 +599,7 @@ pub const RenderShadow = struct {
             .src_stage_mask = .{ .color_attachment_output = true },
             .dst_stage_mask = .{ .fragment_shader = true },
             .src_access_mask = .{ .color_attachment_write = true },
-            .dst_access_mask = .{ .color_attachment_read_bit = true },
+            .dst_access_mask = .{ .color_attachment_read = true },
             .src_queue_family_index = vulkan.QUEUE_FAMILY_IGNORED,
             .dst_queue_family_index = vulkan.QUEUE_FAMILY_IGNORED,
             .subresource_range = .{

@@ -39,7 +39,7 @@ pub const VkCompPipeline = struct {
 
         var pipeline: vulkan.Pipeline = undefined;
         _ = try vkCtx.vkDevice.deviceProxy.createComputePipelines(
-            .null_handle,
+            .null,
             @ptrCast(&pci),
             null,
             @ptrCast(&pipeline),

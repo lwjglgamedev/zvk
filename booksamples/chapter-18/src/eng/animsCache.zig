@@ -51,7 +51,7 @@ pub const AnimsCache = struct {
                 const animBuffer = try vk.buf.VkBuffer.create(
                     vkCtx,
                     vulkanMesh.buffVtx.size,
-                    .{ .vertex_buffer = true, .storage_buffer = true, .shader_device_address_bit = true },
+                    .{ .vertex_buffer = true, .storage_buffer = true, .shader_device_address = true },
                     @backingInt(vk.vma.VmaFlags.None),
                     vk.vma.VmaUsage.VmaUsageAuto,
                     vk.vma.VmaMemoryFlags.None,

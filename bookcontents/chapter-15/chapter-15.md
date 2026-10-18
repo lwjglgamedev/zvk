@@ -338,7 +338,7 @@ pub const MaterialsCache = struct {
             var hasNormalMap: u32 = 0;
             var normalMapIdx: u32 = 0;
             if (materialData.normalMapPath.len > 0) {
-                const nullTermPath = try allocator.dupeZ(u8, materialData.normalMapPath);
+                const nullTermPath = try allocator.dupeSentinel(u8, materialData.normalMapPath, 0);
                 defer allocator.free(nullTermPath);
                 if (try textureCache.addTextureFromPath(allocator, io, vkCtx, vulkan.Format.r8g8b8a8_unorm, nullTermPath)) {
                     if (textureCache.textureMap.getIndex(nullTermPath)) |idx| {
@@ -352,7 +352,7 @@ pub const MaterialsCache = struct {
             var hasRoughMap: u32 = 0;
             var roughMapIdx: u32 = 0;
             if (materialData.metalRoughMapPath.len > 0) {
-                const nullTermPath = try allocator.dupeZ(u8, materialData.metalRoughMapPath);
+                const nullTermPath = try allocator.dupeSentinel(u8, materialData.metalRoughMapPath, 0);
                 defer allocator.free(nullTermPath);
                 if (try textureCache.addTextureFromPath(allocator, io, vkCtx, vulkan.Format.r8g8b8a8_unorm, nullTermPath)) {
                     if (textureCache.textureMap.getIndex(nullTermPath)) |idx| {
@@ -1339,16 +1339,16 @@ const Game = struct {
             var light = &lights.items[i];
 
             var buf1: [32:0]u8 = undefined;
-            const lightId = try std.fmt.bufPrintZ(&buf1, "Light-{d}", .{i});
+            const lightId = try std.fmt.bufPrintSentinel(&buf1, "Light-{d}", .{i}, 0);
             zgui.separatorText(lightId);
 
             var buf2: [32:0]u8 = undefined;
-            const dirId = try std.fmt.bufPrintZ(&buf2, "Directional-{d}", .{i});
+            const dirId = try std.fmt.bufPrintSentinel(&buf2, "Directional-{d}", .{i}, 0);
             var dirLight: bool = light.directional;
             _ = zgui.checkbox(dirId, .{ .v = &dirLight });
             if (light.directional) {
                 var buf3: [32:0]u8 = undefined;
-                const posId = try std.fmt.bufPrintZ(&buf3, "Angle-{d}", .{i});
+                const posId = try std.fmt.bufPrintSentinel(&buf3, "Angle-{d}", .{i}, 0);
                 if (zgui.dragFloat(posId, .{ .v = &self.lightAngle, .speed = 0.50 })) {
                     if (self.lightAngle < 0) {
                         self.lightAngle = 0;
@@ -1362,7 +1362,7 @@ const Game = struct {
             } else {
                 var lightPos = [3]f32{ light.pos[0], light.pos[1], light.pos[2] };
                 var buf3: [32:0]u8 = undefined;
-                const posId = try std.fmt.bufPrintZ(&buf3, "Position-{d}", .{i});
+                const posId = try std.fmt.bufPrintSentinel(&buf3, "Position-{d}", .{i}, 0);
                 if (zgui.dragFloat3(posId, .{ .v = &lightPos, .speed = 0.05 })) {
                     light.pos[0] = lightPos[0];
                     light.pos[1] = lightPos[1];
@@ -1372,7 +1372,7 @@ const Game = struct {
 
             var lightCol = [3]f32{ light.color[0], light.color[1], light.color[2] };
             var buf4: [32:0]u8 = undefined;
-            const lightColorId = try std.fmt.bufPrintZ(&buf4, "Color-{d}", .{i});
+            const lightColorId = try std.fmt.bufPrintSentinel(&buf4, "Color-{d}", .{i}, 0);
 
             if (zgui.colorEdit3(lightColorId, .{ .col = &lightCol, .flags = zgui.ColorEditFlags{} })) {
                 light.color[0] = lightCol[0];

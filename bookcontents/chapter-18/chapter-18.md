@@ -53,7 +53,7 @@ pub const VkBuffer = struct {
     ) !VkBuffer {
         ...
         var address: ?u64 = null;
-        if (bufferUsage.shader_device_address_bit) {
+        if (bufferUsage.shader_device_address) {
             address = getBufferAddress(vkCtx, buffer);
         }
 
@@ -606,7 +606,7 @@ pub const RenderAnim = struct {
         // Push constants
         const pushConstants = [_]vulkan.PushConstantRange{
             .{
-                .stage_flags = vulkan.ShaderStageFlags{ .compute_bit = true },
+                .stage_flags = vulkan.ShaderStageFlags{ .compute = true },
                 .offset = 0,
                 .size = @sizeOf(PushConstants),
             },
@@ -693,7 +693,7 @@ pub const RenderAnim = struct {
         vkCtx.vkDevice.deviceProxy.cmdPushConstants(
             cmdHandle,
             self.vkPipeline.pipelineLayout,
-            vulkan.ShaderStageFlags{ .compute_bit = true },
+            vulkan.ShaderStageFlags{ .compute = true },
             0,
             @sizeOf(PushConstants),
             &pushConstants,
@@ -727,7 +727,7 @@ pub const MaterialsCache = struct {
         const dstJointBuffer = try vk.buf.VkBuffer.create(
             vkCtx,
             bufferSize,
-            vulkan.BufferUsageFlags{ .storage_buffer = true, .transfer_dst = true, .shader_device_address_bit = true },
+            vulkan.BufferUsageFlags{ .storage_buffer = true, .transfer_dst = true, .shader_device_address = true },
             @intFromEnum(vk.vma.VmaFlags.DedicatedMemory),
             vk.vma.VmaUsage.VmaUsageAuto,
             vk.vma.VmaMemoryFlags.None,
@@ -746,7 +746,7 @@ pub const MaterialsCache = struct {
         const dstWeightsBuffer = try vk.buf.VkBuffer.create(
             vkCtx,
             bufferSize,
-            vulkan.BufferUsageFlags{ .vertex_buffer = true, .storage_buffer = true, .transfer_dst = true, .shader_device_address_bit = true },
+            vulkan.BufferUsageFlags{ .vertex_buffer = true, .storage_buffer = true, .transfer_dst = true, .shader_device_address = true },
             @intFromEnum(vk.vma.VmaFlags.DedicatedMemory),
             vk.vma.VmaUsage.VmaUsageAuto,
             vk.vma.VmaMemoryFlags.None,
@@ -767,7 +767,7 @@ pub const MaterialsCache = struct {
                 const dstVtxBuffer = try vk.buf.VkBuffer.create(
                     vkCtx,
                     verticesSize,
-                    vulkan.BufferUsageFlags{ .vertex_buffer = true, .storage_buffer = true, .transfer_dst = true, .shader_device_address_bit = true },
+                    vulkan.BufferUsageFlags{ .vertex_buffer = true, .storage_buffer = true, .transfer_dst = true, .shader_device_address = true },
                     @intFromEnum(vk.vma.VmaFlags.DedicatedMemory),
                     vk.vma.VmaUsage.VmaUsageAuto,
                     vk.vma.VmaMemoryFlags.None,
@@ -776,7 +776,7 @@ pub const MaterialsCache = struct {
                 const dstIdxBuffer = try vk.buf.VkBuffer.create(
                     vkCtx,
                     indicesSize,
-                    vulkan.BufferUsageFlags{ .index_buffer = true, .transfer_dst = true, .shader_device_address_bit = true },
+                    vulkan.BufferUsageFlags{ .index_buffer = true, .transfer_dst = true, .shader_device_address = true },
                     @intFromEnum(vk.vma.VmaFlags.DedicatedMemory),
                     vk.vma.VmaUsage.VmaUsageAuto,
                     vk.vma.VmaMemoryFlags.None,
@@ -804,7 +804,7 @@ pub const AnimsCache = struct {
                 const animBuffer = try vk.buf.VkBuffer.create(
                     vkCtx,
                     vulkanMesh.buffVtx.size,
-                    .{ .vertex_buffer = true, .storage_buffer = true, .shader_device_address_bit = true },
+                    .{ .vertex_buffer = true, .storage_buffer = true, .shader_device_address = true },
                     @intFromEnum(vk.vma.VmaFlags.None),
                     vk.vma.VmaUsage.VmaUsageAuto,
                     vk.vma.VmaMemoryFlags.None,

@@ -92,7 +92,7 @@ pub const VkPhysDevice = struct {
                 present_family = family;
             }
 
-            if (compute_family == null and properties.queue_count > 0 and properties.queue_flags.compute_bit) {
+            if (compute_family == null and properties.queue_count > 0 and properties.queue_flags.compute) {
                 compute_family = family;
             }
         }

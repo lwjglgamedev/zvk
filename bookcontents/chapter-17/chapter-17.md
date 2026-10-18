@@ -1008,7 +1008,7 @@ pub const VkCompPipeline = struct {
 
         var pipeline: vulkan.Pipeline = undefined;
         _ = try vkCtx.vkDevice.deviceProxy.createComputePipelines(
-            .null_handle,
+            .null,
             @ptrCast(&pci),
             null,
             @ptrCast(&pipeline),
@@ -1059,7 +1059,7 @@ pub const VkPhysDevice = struct {
         ...
         for (families, 0..) |properties, i| {
             ...
-            if (compute_family == null and properties.queue_count > 0 and properties.queue_flags.compute_bit) {
+            if (compute_family == null and properties.queue_count > 0 and properties.queue_flags.compute) {
                 compute_family = family;
             }
         }
@@ -1151,7 +1151,7 @@ pub const RenderAnim = struct {
                 .binding = 0,
                 .descCount = 1,
                 .descType = vulkan.DescriptorType.storage_buffer,
-                .stageFlags = vulkan.ShaderStageFlags{ .compute_bit = true },
+                .stageFlags = vulkan.ShaderStageFlags{ .compute = true },
             }},
         );
         const layout = descLayout.descSetLayout;
@@ -1167,7 +1167,7 @@ pub const RenderAnim = struct {
         }, null);
         defer vkCtx.vkDevice.deviceProxy.destroyShaderModule(comp, null);
 
-        const moduleInfo = vk.pipe.ShaderModuleInfo{ .module = comp, .stage = .{ .compute_bit = true } };
+        const moduleInfo = vk.pipe.ShaderModuleInfo{ .module = comp, .stage = .{ .compute = true } };
 
         const vkPipelineCreateInfo = vk.cpipe.VkCompPipelineCreateInfo{
             .descSetLayouts = descSetLayouts[0..],
@@ -1304,10 +1304,10 @@ pub const RenderAnim = struct {
         const descAllocator = &vkCtx.vkDescAllocator;
 
         const memBarrier = [_]vulkan.MemoryBarrier2{.{
-            .src_stage_mask = .{ .vertex_input_bit = true },
-            .dst_stage_mask = .{ .compute_shader_bit = true },
+            .src_stage_mask = .{ .vertex_input = true },
+            .dst_stage_mask = .{ .compute_shader = true },
             .src_access_mask = .{},
-            .dst_access_mask = .{ .shader_write_bit = true },
+            .dst_access_mask = .{ .shader_write = true },
         }};
         const depInfo = vulkan.DependencyInfo{
             .memory_barrier_count = memBarrier.len,

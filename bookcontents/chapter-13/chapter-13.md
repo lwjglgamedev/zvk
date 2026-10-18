@@ -12,7 +12,7 @@ wrapper for [miniaudio](https://github.com/mackron/miniaudio) library. It is a s
 to manage sound.
 
 In order to use it we first need to include the [zaudio](https://github.com/zig-gamedev/zaudio/) dependency in the `build.zig.zon` file by
-executing the following command: `zig fetch --save=zaudio https://github.com/zig-gamedev/zaudio/archive/fed501100b029213898861b60c6b54f8121dff03.tar.gz`.
+executing the following command: `zig fetch --save=zaudio https://github.com/zig-gamedev/zaudio/archive/199ee1070dfbaeac865cad831b64026771fe0667.tar.gz`.
 
 After that we shall modify the `build.zig` file:
 

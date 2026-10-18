@@ -46,7 +46,7 @@ pub const RenderAnim = struct {
                 .binding = 0,
                 .descCount = 1,
                 .descType = vulkan.DescriptorType.storage_buffer,
-                .stageFlags = vulkan.ShaderStageFlags{ .compute_bit = true },
+                .stageFlags = vulkan.ShaderStageFlags{ .compute = true },
             }},
         );
         const layout = descLayout.descSetLayout;
@@ -63,12 +63,12 @@ pub const RenderAnim = struct {
         }, null);
         defer vkCtx.vkDevice.deviceProxy.destroyShaderModule(comp, null);
 
-        const moduleInfo = vk.pipe.ShaderModuleInfo{ .module = comp, .stage = .{ .compute_bit = true } };
+        const moduleInfo = vk.pipe.ShaderModuleInfo{ .module = comp, .stage = .{ .compute = true } };
 
         // Push constants
         const pushConstants = [_]vulkan.PushConstantRange{
             .{
-                .stage_flags = vulkan.ShaderStageFlags{ .compute_bit = true },
+                .stage_flags = vulkan.ShaderStageFlags{ .compute = true },
                 .offset = 0,
                 .size = @sizeOf(PushConstants),
             },
@@ -127,10 +127,10 @@ pub const RenderAnim = struct {
         const device = vkCtx.vkDevice.deviceProxy;
 
         const memBarrier = [_]vulkan.MemoryBarrier2{.{
-            .src_stage_mask = .{ .vertex_input_bit = true },
-            .dst_stage_mask = .{ .compute_shader_bit = true },
+            .src_stage_mask = .{ .vertex_input = true },
+            .dst_stage_mask = .{ .compute_shader = true },
             .src_access_mask = .{},
-            .dst_access_mask = .{ .shader_write_bit = true },
+            .dst_access_mask = .{ .shader_write = true },
         }};
         const depInfo = vulkan.DependencyInfo{
             .memory_barrier_count = memBarrier.len,
@@ -206,7 +206,7 @@ pub const RenderAnim = struct {
         vkCtx.vkDevice.deviceProxy.cmdPushConstants(
             cmdHandle,
             self.vkPipeline.pipelineLayout,
-            vulkan.ShaderStageFlags{ .compute_bit = true },
+            vulkan.ShaderStageFlags{ .compute = true },
             0,
             @sizeOf(PushConstants),
             &pushConstants,

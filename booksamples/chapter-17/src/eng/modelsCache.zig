@@ -188,7 +188,7 @@ pub const MaterialsCache = struct {
             var hasNormalMap: u32 = 0;
             var normalMapIdx: u32 = 0;
             if (materialData.normalMapPath.len > 0) {
-                const nullTermPath = try allocator.dupeZ(u8, materialData.normalMapPath);
+                const nullTermPath = try allocator.dupeSentinel(u8, materialData.normalMapPath, 0);
                 defer allocator.free(nullTermPath);
                 if (try textureCache.addTextureFromPath(allocator, io, vkCtx, vulkan.Format.r8g8b8a8_unorm, nullTermPath)) {
                     if (textureCache.textureMap.getIndex(nullTermPath)) |idx| {
@@ -202,7 +202,7 @@ pub const MaterialsCache = struct {
             var hasRoughMap: u32 = 0;
             var roughMapIdx: u32 = 0;
             if (materialData.metalRoughMapPath.len > 0) {
-                const nullTermPath = try allocator.dupeZ(u8, materialData.metalRoughMapPath);
+                const nullTermPath = try allocator.dupeSentinel(u8, materialData.metalRoughMapPath, 0);
                 defer allocator.free(nullTermPath);
                 if (try textureCache.addTextureFromPath(allocator, io, vkCtx, vulkan.Format.r8g8b8a8_unorm, nullTermPath)) {
                     if (textureCache.textureMap.getIndex(nullTermPath)) |idx| {
