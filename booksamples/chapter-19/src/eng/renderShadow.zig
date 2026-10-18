@@ -185,7 +185,7 @@ fn orthoVulkan(left: f32, right: f32, bottom: f32, top: f32, near: f32, far: f32
 }
 
 const PushConstantsVtx = extern struct {
-    modelMatrix: zm.Mat,
+    modelMatrix: [16]f32,
     materialIdx: u32,
     vtxAddress: u64,
     idxAddress: u64,
@@ -629,7 +629,7 @@ pub const RenderShadow = struct {
         materialIdx: u32,
     ) void {
         const pushConstantsVtx = PushConstantsVtx{
-            .modelMatrix = entity.modelMatrix,
+            .modelMatrix = zm.matToArr(entity.modelMatrix),
             .materialIdx = materialIdx,
             .vtxAddress = vtxAddress,
             .idxAddress = idxAddress,

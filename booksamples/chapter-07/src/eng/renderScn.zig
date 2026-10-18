@@ -31,9 +31,9 @@ pub const VtxBuffDesc = struct {
     textCoords: [2]f32,
 };
 
-const PushConstantsVtx = struct {
-    modelMatrix: zm.Mat,
-    projMatrix: zm.Mat,
+const PushConstantsVtx = extern struct {
+    modelMatrix: [16]f32,
+    projMatrix: [16]f32,
 };
 
 const DEPTH_FORMAT = vulkan.Format.d16_unorm;
@@ -247,8 +247,8 @@ pub const RenderScn = struct {
 
     fn setPushConstants(self: *RenderScn, vkCtx: *const vk.ctx.VkCtx, cmdHandle: vulkan.CommandBuffer, entity: *eng.ent.Entity, engCtx: *const eng.engine.EngCtx) void {
         const pushConstantsVtx = PushConstantsVtx{
-            .modelMatrix = entity.modelMatrix,
-            .projMatrix = engCtx.scene.camera.projData.projMatrix,
+            .modelMatrix = zm.matToArr(entity.modelMatrix),
+            .projMatrix = zm.matToArr(engCtx.scene.camera.projData.projMatrix),
         };
         vkCtx.vkDevice.deviceProxy.cmdPushConstants(
             cmdHandle,

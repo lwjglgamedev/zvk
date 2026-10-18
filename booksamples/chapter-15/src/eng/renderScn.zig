@@ -52,8 +52,8 @@ pub const VtxBuffDesc = struct {
     bitangent: [3]f32,
 };
 
-const PushConstantsVtx = struct {
-    modelMatrix: zm.Mat,
+const PushConstantsVtx = extern struct {
+    modelMatrix: [16]f32,
 };
 
 const PushConstantsFrg = extern struct {
@@ -554,7 +554,7 @@ pub const RenderScn = struct {
 
     fn setPushConstants(self: *RenderScn, vkCtx: *const vk.ctx.VkCtx, cmdHandle: vulkan.CommandBuffer, entity: *eng.ent.Entity, materialIdx: u32) void {
         const pushConstantsVtx = PushConstantsVtx{
-            .modelMatrix = entity.modelMatrix,
+            .modelMatrix = zm.matToArr(entity.modelMatrix),
         };
         vkCtx.vkDevice.deviceProxy.cmdPushConstants(
             cmdHandle,

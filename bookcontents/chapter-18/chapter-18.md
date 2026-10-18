@@ -227,7 +227,7 @@ pub const VtxBuffDesc = struct {
 };
 
 const PushConstantsVtx = extern struct {
-    modelMatrix: zm.Mat,
+    modelMatrix: [16]f32,
     vtxAddress: u64,
     idxAddress: u64,
 };
@@ -337,7 +337,7 @@ pub const RenderScn = struct {
         materialIdx: u32,
     ) void {
         const pushConstantsVtx = PushConstantsVtx{
-            .modelMatrix = entity.modelMatrix,
+            .modelMatrix = zm.matToArr(entity.modelMatrix),
             .vtxAddress = vtxAddress,
             .idxAddress = idxAddress,
         };
@@ -466,7 +466,7 @@ pub const RenderShadow = struct {
         materialIdx: u32,
     ) void {
         const pushConstantsVtx = PushConstantsVtx{
-            .modelMatrix = entity.modelMatrix,
+            .modelMatrix = zm.matToArr(entity.modelMatrix),
             .materialIdx = materialIdx,
             .vtxAddress = vtxAddress,
             .idxAddress = idxAddress,

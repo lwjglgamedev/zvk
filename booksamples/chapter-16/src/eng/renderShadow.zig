@@ -184,8 +184,8 @@ fn orthoVulkan(left: f32, right: f32, bottom: f32, top: f32, near: f32, far: f32
     };
 }
 
-const PushConstantsVtx = struct {
-    modelMatrix: zm.Mat,
+const PushConstantsVtx = extern struct {
+    modelMatrix: [16]f32,
     materialIdx: u32,
 };
 
@@ -608,7 +608,7 @@ pub const RenderShadow = struct {
 
     fn setPushConstants(self: *RenderShadow, vkCtx: *const vk.ctx.VkCtx, cmdHandle: vulkan.CommandBuffer, entity: *eng.ent.Entity, materialIdx: u32) void {
         const pushConstantsVtx = PushConstantsVtx{
-            .modelMatrix = entity.modelMatrix,
+            .modelMatrix = zm.matToArr(entity.modelMatrix),
             .materialIdx = materialIdx,
         };
         vkCtx.vkDevice.deviceProxy.cmdPushConstants(
