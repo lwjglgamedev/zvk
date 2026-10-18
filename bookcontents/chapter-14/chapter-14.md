@@ -64,7 +64,7 @@ pub const VkPipeline = struct {
                 .alpha_blend_op = .add,
                 .src_alpha_blend_factor = .src_alpha,
                 .dst_alpha_blend_factor = .zero,
-                .color_write_mask = .{ .r_bit = true, .g_bit = true, .b_bit = true, .a_bit = true },
+                .color_write_mask = .{ .r = true, .g = true, .b = true, .a = true },
             };
         }
 
@@ -169,8 +169,8 @@ pub const RenderScn = struct {
     fn createColorAttachment(allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx) ![]eng.rend.Attachment {
         const extent = vkCtx.vkSwapChain.extent;
         const flags = vulkan.ImageUsageFlags{
-            .color_attachment_bit = true,
-            .sampled_bit = true,
+            .color_attachment = true,
+            .sampled = true,
         };
 
         const numAttachments = 1;
@@ -205,7 +205,7 @@ pub const RenderScn = struct {
     fn createDepthAttachment(vkCtx: *const vk.ctx.VkCtx) !eng.rend.Attachment {
         const extent = vkCtx.vkSwapChain.extent;
         const flags = vulkan.ImageUsageFlags{
-            .depth_stencil_attachment_bit = true,
+            .depth_stencil_attachment = true,
         };
         return try eng.rend.Attachment.create(
             vkCtx,
@@ -301,14 +301,14 @@ pub const RenderScn = struct {
             const barrier = vulkan.ImageMemoryBarrier2{
                 .old_layout = vulkan.ImageLayout.undefined,
                 .new_layout = vulkan.ImageLayout.color_attachment_optimal,
-                .src_stage_mask = .{ .color_attachment_output_bit = true },
-                .dst_stage_mask = .{ .color_attachment_output_bit = true },
+                .src_stage_mask = .{ .color_attachment_output = true },
+                .dst_stage_mask = .{ .color_attachment_output = true },
                 .src_access_mask = .{},
-                .dst_access_mask = .{ .color_attachment_write_bit = true },
+                .dst_access_mask = .{ .color_attachment_write = true },
                 .src_queue_family_index = vulkan.QUEUE_FAMILY_IGNORED,
                 .dst_queue_family_index = vulkan.QUEUE_FAMILY_IGNORED,
                 .subresource_range = .{
-                    .aspect_mask = .{ .color_bit = true },
+                    .aspect_mask = .{ .color = true },
                     .base_mip_level = 0,
                     .level_count = vulkan.REMAINING_MIP_LEVELS,
                     .base_array_layer = 0,
@@ -322,19 +322,19 @@ pub const RenderScn = struct {
         barriers[barriers.len - 1] = vulkan.ImageMemoryBarrier2{
             .old_layout = vulkan.ImageLayout.undefined,
             .new_layout = vulkan.ImageLayout.depth_attachment_optimal,
-            .src_stage_mask = .{ .early_fragment_tests_bit = true, .late_fragment_tests_bit = true },
-            .dst_stage_mask = .{ .early_fragment_tests_bit = true, .late_fragment_tests_bit = true },
+            .src_stage_mask = .{ .early_fragment_tests = true, .late_fragment_tests = true },
+            .dst_stage_mask = .{ .early_fragment_tests = true, .late_fragment_tests = true },
             .src_access_mask = .{
-                .depth_stencil_attachment_write_bit = true,
+                .depth_stencil_attachment_write = true,
             },
             .dst_access_mask = .{
-                .depth_stencil_attachment_read_bit = true,
-                .depth_stencil_attachment_write_bit = true,
+                .depth_stencil_attachment_read = true,
+                .depth_stencil_attachment_write = true,
             },
             .src_queue_family_index = vulkan.QUEUE_FAMILY_IGNORED,
             .dst_queue_family_index = vulkan.QUEUE_FAMILY_IGNORED,
             .subresource_range = .{
-                .aspect_mask = .{ .depth_bit = true },
+                .aspect_mask = .{ .depth = true },
                 .base_mip_level = 0,
                 .level_count = vulkan.REMAINING_MIP_LEVELS,
                 .base_array_layer = 0,
@@ -369,14 +369,14 @@ pub const RenderScn = struct {
                 vulkan.ImageMemoryBarrier2{
                     .old_layout = vulkan.ImageLayout.color_attachment_optimal,
                     .new_layout = vulkan.ImageLayout.read_only_optimal,
-                    .src_stage_mask = .{ .color_attachment_output_bit = true },
-                    .dst_stage_mask = .{ .fragment_shader_bit = true },
-                    .src_access_mask = .{ .color_attachment_write_bit = true },
+                    .src_stage_mask = .{ .color_attachment_output = true },
+                    .dst_stage_mask = .{ .fragment_shader = true },
+                    .src_access_mask = .{ .color_attachment_write = true },
                     .dst_access_mask = .{ .color_attachment_read_bit = true },
                     .src_queue_family_index = vulkan.QUEUE_FAMILY_IGNORED,
                     .dst_queue_family_index = vulkan.QUEUE_FAMILY_IGNORED,
                     .subresource_range = .{
-                        .aspect_mask = .{ .color_bit = true },
+                        .aspect_mask = .{ .color = true },
                         .base_mip_level = 0,
                         .level_count = vulkan.REMAINING_MIP_LEVELS,
                         .base_array_layer = 0,
@@ -535,8 +535,8 @@ pub const RenderLight = struct {
         defer vkCtx.vkDevice.deviceProxy.destroyShaderModule(frag, null);
 
         const modulesInfo = try allocator.alloc(vk.pipe.ShaderModuleInfo, 2);
-        modulesInfo[0] = .{ .module = vert, .stage = .{ .vertex_bit = true } };
-        modulesInfo[1] = .{ .module = frag, .stage = .{ .fragment_bit = true } };
+        modulesInfo[0] = .{ .module = vert, .stage = .{ .vertex = true } };
+        modulesInfo[1] = .{ .module = frag, .stage = .{ .fragment = true } };
         defer allocator.free(modulesInfo);
 
         // Textures
@@ -558,7 +558,7 @@ pub const RenderLight = struct {
                 .binding = 0,
                 .descCount = 1,
                 .descType = vulkan.DescriptorType.combined_image_sampler,
-                .stageFlags = vulkan.ShaderStageFlags{ .fragment_bit = true },
+                .stageFlags = vulkan.ShaderStageFlags{ .fragment = true },
             };
             imageViews[i] = inputAttachments.ptr[i].vkImageView;
         }
@@ -637,8 +637,8 @@ pub const RenderLight = struct {
     fn createColorAttachment(vkCtx: *const vk.ctx.VkCtx) !eng.rend.Attachment {
         const extent = vkCtx.vkSwapChain.extent;
         const flags = vulkan.ImageUsageFlags{
-            .color_attachment_bit = true,
-            .sampled_bit = true,
+            .color_attachment = true,
+            .sampled = true,
         };
         const attColor = try eng.rend.Attachment.create(
             vkCtx,
@@ -750,14 +750,14 @@ pub const RenderLight = struct {
         const initBarriers = [_]vulkan.ImageMemoryBarrier2{.{
             .old_layout = vulkan.ImageLayout.undefined,
             .new_layout = vulkan.ImageLayout.color_attachment_optimal,
-            .src_stage_mask = .{ .color_attachment_output_bit = true },
-            .dst_stage_mask = .{ .color_attachment_output_bit = true },
+            .src_stage_mask = .{ .color_attachment_output = true },
+            .dst_stage_mask = .{ .color_attachment_output = true },
             .src_access_mask = .{},
-            .dst_access_mask = .{ .color_attachment_write_bit = true },
+            .dst_access_mask = .{ .color_attachment_write = true },
             .src_queue_family_index = vulkan.QUEUE_FAMILY_IGNORED,
             .dst_queue_family_index = vulkan.QUEUE_FAMILY_IGNORED,
             .subresource_range = .{
-                .aspect_mask = .{ .color_bit = true },
+                .aspect_mask = .{ .color = true },
                 .base_mip_level = 0,
                 .level_count = vulkan.REMAINING_MIP_LEVELS,
                 .base_array_layer = 0,
@@ -791,14 +791,14 @@ pub const RenderLight = struct {
         const initBarriers = [_]vulkan.ImageMemoryBarrier2{.{
             .old_layout = vulkan.ImageLayout.color_attachment_optimal,
             .new_layout = vulkan.ImageLayout.shader_read_only_optimal,
-            .src_stage_mask = .{ .color_attachment_output_bit = true },
-            .dst_stage_mask = .{ .fragment_shader_bit = true },
-            .src_access_mask = .{ .color_attachment_write_bit = true },
-            .dst_access_mask = .{ .shader_read_bit = true },
+            .src_stage_mask = .{ .color_attachment_output = true },
+            .dst_stage_mask = .{ .fragment_shader = true },
+            .src_access_mask = .{ .color_attachment_write = true },
+            .dst_access_mask = .{ .shader_read = true },
             .src_queue_family_index = vulkan.QUEUE_FAMILY_IGNORED,
             .dst_queue_family_index = vulkan.QUEUE_FAMILY_IGNORED,
             .subresource_range = .{
-                .aspect_mask = .{ .color_bit = true },
+                .aspect_mask = .{ .color = true },
                 .base_mip_level = 0,
                 .level_count = vulkan.REMAINING_MIP_LEVELS,
                 .base_array_layer = 0,

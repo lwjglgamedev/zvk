@@ -380,8 +380,8 @@ pub const ModelsCache = struct {
                 const srcVtxBuffer = try vk.buf.VkBuffer.create(
                     vkCtx,
                     verticesSize,
-                    vulkan.BufferUsageFlags{ .transfer_src_bit = true },
-                    vulkan.MemoryPropertyFlags{ .host_visible_bit = true, .host_coherent_bit = true },
+                    vulkan.BufferUsageFlags{ .transfer_src = true },
+                    vulkan.MemoryPropertyFlags{ .host_visible = true, .host_coherent = true },
                 );
                 var vtxAppended = false;
                 errdefer if (!vtxAppended) srcVtxBuffer.cleanup(vkCtx);
@@ -390,8 +390,8 @@ pub const ModelsCache = struct {
                 const dstVtxBuffer = try vk.buf.VkBuffer.create(
                     vkCtx,
                     verticesSize,
-                    vulkan.BufferUsageFlags{ .vertex_buffer_bit = true, .transfer_dst_bit = true },
-                    vulkan.MemoryPropertyFlags{ .device_local_bit = true },
+                    vulkan.BufferUsageFlags{ .vertex_buffer = true, .transfer_dst = true },
+                    vulkan.MemoryPropertyFlags{ .device_local = true },
                 );
 
                 const dataVertices = try srcVtxBuffer.map(vkCtx);
@@ -403,8 +403,8 @@ pub const ModelsCache = struct {
                 const srcIdxBuffer = try vk.buf.VkBuffer.create(
                     vkCtx,
                     indicesSize,
-                    vulkan.BufferUsageFlags{ .transfer_src_bit = true },
-                    vulkan.MemoryPropertyFlags{ .host_visible_bit = true, .host_coherent_bit = true },
+                    vulkan.BufferUsageFlags{ .transfer_src = true },
+                    vulkan.MemoryPropertyFlags{ .host_visible = true, .host_coherent = true },
                 );
                 var idxAppended = false;
                 errdefer if (!idxAppended) srcIdxBuffer.cleanup(vkCtx);
@@ -413,8 +413,8 @@ pub const ModelsCache = struct {
                 const dstIdxBuffer = try vk.buf.VkBuffer.create(
                     vkCtx,
                     indicesSize,
-                    vulkan.BufferUsageFlags{ .index_buffer_bit = true, .transfer_dst_bit = true },
-                    vulkan.MemoryPropertyFlags{ .device_local_bit = true },
+                    vulkan.BufferUsageFlags{ .index_buffer = true, .transfer_dst = true },
+                    vulkan.MemoryPropertyFlags{ .device_local = true },
                 );
 
                 const dataIndices = try srcIdxBuffer.map(vkCtx);
@@ -748,7 +748,7 @@ pub const VkPipeline = struct {
     pub fn create(allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx, createInfo: *const VkPipelineCreateInfo) !VkPipeline {
         ...
         const pmsci = vulkan.PipelineMultisampleStateCreateInfo{
-            .rasterization_samples = .{ .@"1_bit" = true },
+            .rasterization_samples = .{ .@"1" = true },
             .sample_shading_enable = vulkan.Bool32.false,
             .min_sample_shading = 0,
             .alpha_to_coverage_enable = vulkan.Bool32.false,
@@ -802,7 +802,7 @@ pub const VkPipeline = struct {
             .alpha_blend_op = .add,
             .src_alpha_blend_factor = .src_alpha,
             .dst_alpha_blend_factor = .zero,
-            .color_write_mask = .{ .r_bit = true, .g_bit = true, .b_bit = true, .a_bit = true },
+            .color_write_mask = .{ .r = true, .g = true, .b = true, .a = true },
         };
 
         const pcbsci = vulkan.PipelineColorBlendStateCreateInfo{
@@ -900,14 +900,14 @@ pub const VkPipeline = struct {
             .p_dynamic_state = &pdsci,
             .layout = pipelineLayout,
             .subpass = 0,
-            .base_pipeline_handle = .null_handle,
+            .base_pipeline_handle = .null,
             .base_pipeline_index = -1,
             .p_next = @constCast(&renderCreateInfo),
         };
 
         var pipeline: vulkan.Pipeline = undefined;
         _ = try vkCtx.vkDevice.deviceProxy.createGraphicsPipelines(
-            .null_handle,
+            .null,
             @ptrCast(&gpci),
             null,
             @ptrCast(&pipeline),
@@ -1073,8 +1073,8 @@ pub const RenderScn = struct {
         defer vkCtx.vkDevice.deviceProxy.destroyShaderModule(frag, null);
 
         const modulesInfo = try allocator.alloc(vk.pipe.ShaderModuleInfo, 2);
-        modulesInfo[0] = .{ .module = vert, .stage = .{ .vertex_bit = true } };
-        modulesInfo[1] = .{ .module = frag, .stage = .{ .fragment_bit = true } };
+        modulesInfo[0] = .{ .module = vert, .stage = .{ .vertex = true } };
+        modulesInfo[1] = .{ .module = frag, .stage = .{ .fragment = true } };
         defer allocator.free(modulesInfo);
 
         // Pipeline

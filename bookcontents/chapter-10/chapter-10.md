@@ -40,6 +40,8 @@ In order to use VMA library you will need to add the following entry to the `bui
 }
 ```
 
+We will need also to add the `translate-c` àckage by execueting: `zig fetch --save git+https://codeberg.org/ziglang/translate-c#zig-0.17.x`.
+
 We will need to add the VMA dependency in the `build.zig` file:
 
 **File: build.zig**
@@ -54,6 +56,18 @@ pub fn build(b: *std.Build) void {
     const vmaDep = b.dependency("vma", .{});
     const vmaIncludePath = vmaDep.path("include");
     exe.root_module.link_libcpp = true;
+
+    // VMA C bindings via translate-c
+    const vmaTranslateC = b.addTranslateC(.{
+        .root_source_file = vmaDep.path("include/vk_mem_alloc.h"),
+        .target = target,
+        .optimize = optimize,
+    });
+    vmaTranslateC.addIncludePath(vmaIncludePath);
+    vmaTranslateC.addIncludePath(vkIncludePath);
+    const vmaC = vmaTranslateC.createModule();    
+    ...
+    vk.addImport("vma_c", vmaC);
     ...
     vk.addIncludePath(vmaIncludePath);
     vk.addIncludePath(vkIncludePath);
@@ -85,10 +99,9 @@ We will create a new struct named `VkVmaAlloc` to handle the initialization of t
 
 **File: src/eng/vk/vma.zig**
 ```zig
+const vulkan = @import("vulkan");
 const vke = @import("mod.zig");
-pub const vma = @cImport({
-    @cInclude("vk_mem_alloc.h");
-});
+pub const vma = @import("vma_c");
 
 pub const VmaFlags = enum(u32) {
     None = 0,
@@ -115,16 +128,17 @@ pub const VkVmaAlloc = struct {
         };
 
         const createInfo = vma.VmaAllocatorCreateInfo{
-            .physicalDevice = @ptrFromInt(@intFromEnum(vkPhysDevice.pdev)),
-            .device = @ptrFromInt(@intFromEnum(vkDevice.deviceProxy.handle)),
-            .instance = @ptrFromInt(@intFromEnum(vkInstance.instanceProxy.handle)),
+            .physicalDevice = @ptrFromInt(@intFromPtr(vkPhysDevice.pdev)),
+            .device = @ptrFromInt(@intFromPtr(vkDevice.deviceProxy.handle)),
+            .instance = @ptrFromInt(@intFromPtr(vkInstance.instanceProxy.handle)),
             .pVulkanFunctions = @ptrCast(&vulkanFuncs),
             .vulkanApiVersion = @bitCast(vulkan.API_VERSION_1_3),
         };
         var vmaAlloc: vma.VmaAllocator = undefined;
-    if (vma.vmaCreateAllocator(&createInfo, &vmaAlloc) != 0) {
-        return error.VmaAllocatorCreationFailed;
-    }        return .{ .vmaAlloc = vmaAlloc };
+        if (vma.vmaCreateAllocator(&createInfo, &vmaAlloc) != 0) {
+            return error.VmaAllocatorCreationFailed;
+        }
+        return .{ .vmaAlloc = vmaAlloc };
     }
 
     pub fn cleanup(self: *const VkVmaAlloc) void {
@@ -392,7 +406,7 @@ pub const VkTexture = struct {
         const vkStageBuffer = try vk.buf.VkBuffer.create(
             vkCtx,
             dataSize,
-            vulkan.BufferUsageFlags{ .transfer_src_bit = true },
+            vulkan.BufferUsageFlags{ .transfer_src = true },
             @intFromEnum(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSequentialWriteBit),
             vk.vma.VmaUsage.VmaUsageAuto,
             vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBitAndCoherent,
@@ -487,7 +501,7 @@ pub const ModelsCache = struct {
                 const srcVtxBuffer = try vk.buf.VkBuffer.create(
                     vkCtx,
                     verticesSize,
-                    vulkan.BufferUsageFlags{ .transfer_src_bit = true },
+                    vulkan.BufferUsageFlags{ .transfer_src = true },
                     @intFromEnum(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSequentialWriteBit),
                     vk.vma.VmaUsage.VmaUsageAuto,
                     vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBitAndCoherent,
@@ -499,7 +513,7 @@ pub const ModelsCache = struct {
                 const dstVtxBuffer = try vk.buf.VkBuffer.create(
                     vkCtx,
                     verticesSize,
-                    vulkan.BufferUsageFlags{ .vertex_buffer_bit = true, .transfer_dst_bit = true },
+                    vulkan.BufferUsageFlags{ .vertex_buffer = true, .transfer_dst = true },
                     @intFromEnum(vk.vma.VmaFlags.None),
                     vk.vma.VmaUsage.VmaUsageAuto,
                     vk.vma.VmaMemoryFlags.None,
@@ -508,7 +522,7 @@ pub const ModelsCache = struct {
                 const srcIdxBuffer = try vk.buf.VkBuffer.create(
                     vkCtx,
                     indicesSize,
-                    vulkan.BufferUsageFlags{ .transfer_src_bit = true },
+                    vulkan.BufferUsageFlags{ .transfer_src = true },
                     @intFromEnum(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSequentialWriteBit),
                     vk.vma.VmaUsage.VmaUsageAuto,
                     vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBitAndCoherent,
@@ -520,7 +534,7 @@ pub const ModelsCache = struct {
                 const dstIdxBuffer = try vk.buf.VkBuffer.create(
                     vkCtx,
                     indicesSize,
-                    vulkan.BufferUsageFlags{ .index_buffer_bit = true, .transfer_dst_bit = true },
+                    vulkan.BufferUsageFlags{ .index_buffer = true, .transfer_dst = true },
                     @intFromEnum(vk.vma.VmaFlags.None),
                     vk.vma.VmaUsage.VmaUsageAuto,
                     vk.vma.VmaMemoryFlags.None,
@@ -555,7 +569,7 @@ pub const MaterialsCache = struct {
         const srcBuffer = try vk.buf.VkBuffer.create(
             vkCtx,
             buffSize,
-            vulkan.BufferUsageFlags{ .transfer_src_bit = true },
+            vulkan.BufferUsageFlags{ .transfer_src = true },
             @intFromEnum(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSequentialWriteBit),
             vk.vma.VmaUsage.VmaUsageAuto,
             vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBitAndCoherent,
@@ -564,7 +578,7 @@ pub const MaterialsCache = struct {
         const dstBuffer = try vk.buf.VkBuffer.create(
             vkCtx,
             buffSize,
-            vulkan.BufferUsageFlags{ .storage_buffer_bit = true, .transfer_dst_bit = true },
+            vulkan.BufferUsageFlags{ .storage_buffer = true, .transfer_dst = true },
             @intFromEnum(vk.vma.VmaFlags.None),
             vk.vma.VmaUsage.VmaUsageAuto,
             vk.vma.VmaMemoryFlags.None,

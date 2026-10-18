@@ -26,7 +26,7 @@ pub const VkSwapChain = struct {
             self.handle,
             std.math.maxInt(u64),
             semaphore.semaphore,
-            .null_handle,
+            .null,
         );
 
         if (res) |ok| {
@@ -144,16 +144,16 @@ pub const VkSwapChain = struct {
             .image_extent = extent,
             .image_array_layers = 1,
             .image_usage = .{
-                .color_attachment_bit = true,
+                .color_attachment = true,
             },
             .image_sharing_mode = if (sameFamily) .exclusive else .concurrent,
             .queue_family_index_count = if (sameFamily) 0 else qfi.len,
             .p_queue_family_indices = if (sameFamily) null else &qfi,
             .pre_transform = caps.current_transform,
-            .composite_alpha = .{ .opaque_bit_khr = true },
+            .composite_alpha = .{ .opaque_khr = true },
             .present_mode = presentMode,
             .clipped = vulkan.Bool32.true,
-            .old_swapchain = .null_handle,
+            .old_swapchain = .null,
         };
 
         const handle = try device.deviceProxy.createSwapchainKHR(&swapchain_info, null);

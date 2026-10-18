@@ -174,7 +174,7 @@ pub const VkDescPool = struct {
             maxSets += descPoolSize.descriptor_count;
         }
         const createInfo = vulkan.DescriptorPoolCreateInfo{
-            .flags = .{ .free_descriptor_set_bit = true },
+            .flags = .{ .free_descriptor_set = true },
             .p_pool_sizes = descPoolSizes.ptr,
             .pool_size_count = @as(u32, @intCast(descPoolSizes.len)),
             .max_sets = maxSets,

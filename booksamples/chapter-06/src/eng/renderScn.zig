@@ -50,8 +50,8 @@ pub const RenderScn = struct {
         defer vkCtx.vkDevice.deviceProxy.destroyShaderModule(frag, null);
 
         const modulesInfo = try allocator.alloc(vk.pipe.ShaderModuleInfo, 2);
-        modulesInfo[0] = .{ .module = vert, .stage = .{ .vertex_bit = true } };
-        modulesInfo[1] = .{ .module = frag, .stage = .{ .fragment_bit = true } };
+        modulesInfo[0] = .{ .module = vert, .stage = .{ .vertex = true } };
+        modulesInfo[1] = .{ .module = frag, .stage = .{ .fragment = true } };
         defer allocator.free(modulesInfo);
 
         // Pipeline

@@ -138,7 +138,7 @@ pub fn main(init: std.process.Init) !void {
         },
     };
     const fileMaterialsName = try std.fmt.allocPrint(allocator, "{s}-mat.json", .{modelId});
-    try jsonMat.write(materialList);
+    try jsonMat.write(eng.mdata.JsonList(eng.mdata.MaterialData).fromList(materialList));
     const fileMaterials = try dir.createFile(io, fileMaterialsName, .{ .truncate = true });
     defer fileMaterials.close(io);
     try fileMaterials.writeStreamingAll(io, writerMaterials.written());
@@ -150,7 +150,7 @@ pub fn main(init: std.process.Init) !void {
 
     const modelData = eng.mdata.ModelData{
         .id = modelId,
-        .meshes = meshDataList,
+        .meshes = eng.mdata.JsonList(eng.mdata.MeshData).fromList(meshDataList),
         .idxFilename = idxRelPath,
         .vtxFilename = vtxRelPath,
     };

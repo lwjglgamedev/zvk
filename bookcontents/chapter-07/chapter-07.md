@@ -6,7 +6,8 @@ information, a depth image. In addition to that, we will add support for window 
 chapter [here](../../booksamples/chapter-07).
 
 We will be using the [zmath](https://github.com/zig-gamedev/zmath) so you will need to include it in the `build.zig.zon` file by executing:
-`zig fetch --save https://github.com/zig-gamedev/zmath/archive/9e42b04a24c970a297b365f3d3022f92dbf3219d.tar.gz`. In addition, you will need to include it in the `build.zig` file:
+`zig fetch --save https://github.com/zig-gamedev/zmath/archive/df7890f154f87f5091b7d340f6e612678c537e63.tar.gz`.
+In addition, you will need to include it in the `build.zig` file:
 
 **File: build.zig**
 ```zig
@@ -216,7 +217,7 @@ pub const Attachment = struct {
 
     pub fn create(vkCtx: *const vk.ctx.VkCtx, width: u32, height: u32, format: vulkan.Format, usage: vulkan.ImageUsageFlags) !Attachment {
         var currUsage = usage;
-        currUsage.sampled_bit = true;
+        currUsage.sampled = true;
         const vkImageData = vk.img.VkImageData{
             .format = format,
             .width = width,
@@ -226,10 +227,10 @@ pub const Attachment = struct {
 
         const vkImage = try vk.img.VkImage.create(vkCtx, vkImageData);
         errdefer vkImage.cleanup(vkCtx);
-        var aspectMask: vulkan.ImageAspectFlags = vulkan.ImageAspectFlags{ .color_bit = true };
-        if (usage.depth_stencil_attachment_bit) {
-            aspectMask.color_bit = false;
-            aspectMask.depth_bit = true;
+        var aspectMask: vulkan.ImageAspectFlags = vulkan.ImageAspectFlags{ .color = true };
+        if (usage.depth_stencil_attachment) {
+            aspectMask.color = false;
+            aspectMask.depth = true;
         }
         const imageViewData = vk.imv.VkImageViewData{
             .format = format,
@@ -604,7 +605,7 @@ pub const VkPipeline = struct {
             .p_dynamic_state = &pdsci,
             .layout = pipelineLayout,
             .subpass = 0,
-            .base_pipeline_handle = .null_handle,
+            .base_pipeline_handle = .null,
             .base_pipeline_index = -1,
             .p_next = @constCast(&renderCreateInfo),
         };
@@ -851,13 +852,13 @@ pub const RenderScn = struct {
         defer vkCtx.vkDevice.deviceProxy.destroyShaderModule(frag, null);
 
         const modulesInfo = try allocator.alloc(vk.pipe.ShaderModuleInfo, 2);
-        modulesInfo[0] = .{ .module = vert, .stage = .{ .vertex_bit = true } };
-        modulesInfo[1] = .{ .module = frag, .stage = .{ .fragment_bit = true } };
+        modulesInfo[0] = .{ .module = vert, .stage = .{ .vertex = true } };
+        modulesInfo[1] = .{ .module = frag, .stage = .{ .fragment = true } };
         defer allocator.free(modulesInfo);
 
         // Push constants
         const pushConstants = [_]vulkan.PushConstantRange{.{
-            .stage_flags = vulkan.ShaderStageFlags{ .vertex_bit = true },
+            .stage_flags = vulkan.ShaderStageFlags{ .vertex = true },
             .offset = 0,
             .size = @sizeOf(PushConstantsVtx),
         }};
@@ -979,19 +980,19 @@ pub const RenderScn = struct {
         const initBarriers = [_]vulkan.ImageMemoryBarrier2{.{
             .old_layout = vulkan.ImageLayout.undefined,
             .new_layout = vulkan.ImageLayout.depth_attachment_optimal,
-            .src_stage_mask = .{ .early_fragment_tests_bit = true, .late_fragment_tests_bit = true },
-            .dst_stage_mask = .{ .early_fragment_tests_bit = true, .late_fragment_tests_bit = true },
+            .src_stage_mask = .{ .early_fragment_tests = true, .late_fragment_tests = true },
+            .dst_stage_mask = .{ .early_fragment_tests = true, .late_fragment_tests = true },
             .src_access_mask = .{
-                .depth_stencil_attachment_write_bit = true,
+                .depth_stencil_attachment_write = true,
             },
             .dst_access_mask = .{
-                .depth_stencil_attachment_read_bit = true,
-                .depth_stencil_attachment_write_bit = true,
+                .depth_stencil_attachment_read = true,
+                .depth_stencil_attachment_write = true,
             },
             .src_queue_family_index = vulkan.QUEUE_FAMILY_IGNORED,
             .dst_queue_family_index = vulkan.QUEUE_FAMILY_IGNORED,
             .subresource_range = .{
-                .aspect_mask = .{ .depth_bit = true },
+                .aspect_mask = .{ .depth = true },
                 .base_mip_level = 0,
                 .level_count = vulkan.REMAINING_MIP_LEVELS,
                 .base_array_layer = 0,
@@ -1069,7 +1070,7 @@ pub const RenderScn = struct {
         vkCtx.vkDevice.deviceProxy.cmdPushConstants(
             cmdHandle,
             self.vkPipeline.pipelineLayout,
-            vulkan.ShaderStageFlags{ .vertex_bit = true },
+            vulkan.ShaderStageFlags{ .vertex = true },
             0,
             @sizeOf(PushConstantsVtx),
             &pushConstantsVtx,

@@ -144,8 +144,8 @@ pub const MaterialsCache = struct {
         const srcBuffer = try vk.buf.VkBuffer.create(
             vkCtx,
             buffSize,
-            vulkan.BufferUsageFlags{ .transfer_src_bit = true },
-            @intFromEnum(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSequentialWriteBit),
+            vulkan.BufferUsageFlags{ .transfer_src = true },
+            @backingInt(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSequentialWriteBit),
             vk.vma.VmaUsage.VmaUsageAuto,
             vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBitAndCoherent,
         );
@@ -153,8 +153,8 @@ pub const MaterialsCache = struct {
         const dstBuffer = try vk.buf.VkBuffer.create(
             vkCtx,
             buffSize,
-            vulkan.BufferUsageFlags{ .storage_buffer_bit = true, .transfer_dst_bit = true },
-            @intFromEnum(vk.vma.VmaFlags.None),
+            vulkan.BufferUsageFlags{ .storage_buffer = true, .transfer_dst = true },
+            @backingInt(vk.vma.VmaFlags.None),
             vk.vma.VmaUsage.VmaUsageAuto,
             vk.vma.VmaMemoryFlags.None,
         );
@@ -173,7 +173,7 @@ pub const MaterialsCache = struct {
             var hasTexture: u32 = 0;
             var textureIdx: u32 = 0;
             if (materialData.texturePath.len > 0) {
-                const nullTermPath = try allocator.dupeZ(u8, materialData.texturePath);
+                const nullTermPath = try allocator.dupeSentinel(u8, materialData.texturePath, 0);
                 defer allocator.free(nullTermPath);
                 if (try textureCache.addTextureFromPath(allocator, io, vkCtx, vulkan.Format.r8g8b8a8_srgb, nullTermPath)) {
                     if (textureCache.textureMap.getIndex(nullTermPath)) |idx| {
@@ -277,8 +277,8 @@ pub const ModelsCache = struct {
         const srcJointBuffer = try vk.buf.VkBuffer.create(
             vkCtx,
             bufferSize,
-            vulkan.BufferUsageFlags{ .transfer_src_bit = true },
-            @intFromEnum(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSequentialWriteBit),
+            vulkan.BufferUsageFlags{ .transfer_src = true },
+            @backingInt(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSequentialWriteBit),
             vk.vma.VmaUsage.VmaUsageAuto,
             vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBitAndCoherent,
         );
@@ -290,8 +290,8 @@ pub const ModelsCache = struct {
         const dstJointBuffer = try vk.buf.VkBuffer.create(
             vkCtx,
             bufferSize,
-            vulkan.BufferUsageFlags{ .storage_buffer_bit = true, .transfer_dst_bit = true },
-            @intFromEnum(vk.vma.VmaFlags.None),
+            vulkan.BufferUsageFlags{ .storage_buffer = true, .transfer_dst = true },
+            @backingInt(vk.vma.VmaFlags.None),
             vk.vma.VmaUsage.VmaUsageAuto,
             vk.vma.VmaMemoryFlags.None,
         );
@@ -330,8 +330,8 @@ pub const ModelsCache = struct {
         const srcWeightsBuffer = try vk.buf.VkBuffer.create(
             vkCtx,
             bufferSize,
-            vulkan.BufferUsageFlags{ .transfer_src_bit = true },
-            @intFromEnum(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSequentialWriteBit),
+            vulkan.BufferUsageFlags{ .transfer_src = true },
+            @backingInt(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSequentialWriteBit),
             vk.vma.VmaUsage.VmaUsageAuto,
             vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBitAndCoherent,
         );
@@ -343,8 +343,8 @@ pub const ModelsCache = struct {
         const dstWeightsBuffer = try vk.buf.VkBuffer.create(
             vkCtx,
             bufferSize,
-            vulkan.BufferUsageFlags{ .vertex_buffer_bit = true, .storage_buffer_bit = true, .transfer_dst_bit = true },
-            @intFromEnum(vk.vma.VmaFlags.None),
+            vulkan.BufferUsageFlags{ .vertex_buffer = true, .storage_buffer = true, .transfer_dst = true },
+            @backingInt(vk.vma.VmaFlags.None),
             vk.vma.VmaUsage.VmaUsageAuto,
             vk.vma.VmaMemoryFlags.None,
         );
@@ -426,8 +426,8 @@ pub const ModelsCache = struct {
                 const srcVtxBuffer = try vk.buf.VkBuffer.create(
                     vkCtx,
                     verticesSize,
-                    vulkan.BufferUsageFlags{ .transfer_src_bit = true },
-                    @intFromEnum(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSequentialWriteBit),
+                    vulkan.BufferUsageFlags{ .transfer_src = true },
+                    @backingInt(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSequentialWriteBit),
                     vk.vma.VmaUsage.VmaUsageAuto,
                     vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBitAndCoherent,
                 );
@@ -438,8 +438,8 @@ pub const ModelsCache = struct {
                 const dstVtxBuffer = try vk.buf.VkBuffer.create(
                     vkCtx,
                     verticesSize,
-                    vulkan.BufferUsageFlags{ .vertex_buffer_bit = true, .storage_buffer_bit = true, .transfer_dst_bit = true },
-                    @intFromEnum(vk.vma.VmaFlags.None),
+                    vulkan.BufferUsageFlags{ .vertex_buffer = true, .storage_buffer = true, .transfer_dst = true },
+                    @backingInt(vk.vma.VmaFlags.None),
                     vk.vma.VmaUsage.VmaUsageAuto,
                     vk.vma.VmaMemoryFlags.None,
                 );
@@ -455,8 +455,8 @@ pub const ModelsCache = struct {
                 const srcIdxBuffer = try vk.buf.VkBuffer.create(
                     vkCtx,
                     indicesSize,
-                    vulkan.BufferUsageFlags{ .transfer_src_bit = true },
-                    @intFromEnum(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSequentialWriteBit),
+                    vulkan.BufferUsageFlags{ .transfer_src = true },
+                    @backingInt(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSequentialWriteBit),
                     vk.vma.VmaUsage.VmaUsageAuto,
                     vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBitAndCoherent,
                 );
@@ -467,8 +467,8 @@ pub const ModelsCache = struct {
                 const dstIdxBuffer = try vk.buf.VkBuffer.create(
                     vkCtx,
                     indicesSize,
-                    vulkan.BufferUsageFlags{ .index_buffer_bit = true, .transfer_dst_bit = true },
-                    @intFromEnum(vk.vma.VmaFlags.None),
+                    vulkan.BufferUsageFlags{ .index_buffer = true, .transfer_dst = true },
+                    @backingInt(vk.vma.VmaFlags.None),
                     vk.vma.VmaUsage.VmaUsageAuto,
                     vk.vma.VmaMemoryFlags.None,
                 );

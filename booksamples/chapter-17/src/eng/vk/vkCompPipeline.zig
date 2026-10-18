@@ -33,7 +33,7 @@ pub const VkCompPipeline = struct {
             .flags = .{},
             .stage = pssci,
             .layout = pipelineLayout,
-            .base_pipeline_handle = .null_handle,
+            .base_pipeline_handle = .null,
             .base_pipeline_index = -1,
         };
 

@@ -48,14 +48,14 @@ pub const VkInstance = struct {
             if (supValidation) {
                 log.debug("Enabling validation", .{});
                 try layerNames.append(allocator, VALIDATION_LAYER);
-                try extensionNames.append(allocator, vulkan.extensions.ext_debug_utils.name);
+                try extensionNames.append(allocator, vulkan.instance_extensions.ext_debug_utils.name);
                 if (syncValidate) {
                     log.debug("Enabling synchronization validation", .{});
                     syncValidationFeature = .{
                         .enabled_validation_feature_count = 1,
                         .p_enabled_validation_features = @ptrCast(&syncValidationEnable),
                     };
-                    try extensionNames.append(allocator, vulkan.extensions.ext_validation_features.name);
+                    try extensionNames.append(allocator, vulkan.instance_extensions.ext_validation_features.name);
                     useSyncValidation = true;
                 }
             } else {
@@ -72,7 +72,7 @@ pub const VkInstance = struct {
             .pp_enabled_extension_names = extensionNames.items.ptr,
             .enabled_layer_count = @intCast(layerNames.items.len),
             .pp_enabled_layer_names = layerNames.items.ptr,
-            .flags = .{ .enumerate_portability_bit_khr = is_macos },
+            .flags = .{ .enumerate_portability_khr = is_macos },
         };
         if (useSyncValidation) {
             createInfo.p_next = &syncValidationFeature;
@@ -87,13 +87,13 @@ pub const VkInstance = struct {
         if (validate and supValidation) {
             debugMessenger = try instanceProxy.createDebugUtilsMessengerEXT(&.{
                 .message_severity = .{
-                    .warning_bit_ext = true,
-                    .error_bit_ext = true,
+                    .warning_ext = true,
+                    .error_ext = true,
                 },
                 .message_type = .{
-                    .general_bit_ext = true,
-                    .validation_bit_ext = true,
-                    .performance_bit_ext = true,
+                    .general_ext = true,
+                    .validation_ext = true,
+                    .performance_ext = true,
                 },
                 .pfn_user_callback = &VkInstance.debugUtilsMessengerCallback,
                 .p_user_data = null,
@@ -115,11 +115,11 @@ pub const VkInstance = struct {
     ) callconv(.c) vulkan.Bool32 {
         _ = msgType;
         const message: [*c]const u8 = if (callback_data) |cb_data| cb_data.p_message else "NO MESSAGE!";
-        if (severity.error_bit_ext) {
+        if (severity.error_ext) {
             log.err("{s}", .{message});
-        } else if (severity.warning_bit_ext) {
+        } else if (severity.warning_ext) {
             log.warn("{s}", .{message});
-        } else if (severity.info_bit_ext) {
+        } else if (severity.info_ext) {
             log.info("{s}", .{message});
         } else {
             log.debug("{s}", .{message});

@@ -27,7 +27,7 @@ const com = @import("com");
 const vk = @import("mod.zig");
 
 const log = std.log.scoped(.vk);
-const reqExtensions = [_][*:0]const u8{vulkan.extensions.khr_swapchain.name};
+const reqExtensions = [_][*:0]const u8{vulkan.device_extensions.khr_swapchain.name};
 
 const QueuesInfo = struct {
     graphics_family: u32,
@@ -199,7 +199,7 @@ pub const VkPhysDevice = struct {
         for (families, 0..) |properties, i| {
             const family: u32 = @intCast(i);
 
-            if (graphics_family == null and properties.queue_count > 0 and properties.queue_flags.graphics_bit) {
+            if (graphics_family == null and properties.queue_count > 0 and properties.queue_flags.graphics) {
                 graphics_family = family;
             }
 
@@ -249,7 +249,7 @@ const vulkan = @import("vulkan");
 const vk = @import("mod.zig");
 
 const log = std.log.scoped(.vk);
-const reqExtensions = [_][*:0]const u8{vulkan.extensions.khr_swapchain.name};
+const reqExtensions = [_][*:0]const u8{vulkan.device_extensions.khr_swapchain.name};
 
 pub const VkDevice = struct {
     deviceProxy: vulkan.DeviceProxy,
@@ -389,7 +389,7 @@ pub const VkSurface = struct {
 
     pub fn create(window: sdl3.video.Window, vkInstance: vk.inst.VkInstance) !VkSurface {
         const vkHandle = vkInstance.instanceProxy.handle;
-        const instancePtr: ?*sdl3.c.struct_VkInstance_T = @ptrFromInt(@intFromEnum(vkHandle));
+        const instancePtr: ?*sdl3.c.struct_VkInstance_T = @ptrFromInt(@intFromPtr(vkHandle));
 
         const surface = sdl3.vulkan.Surface.init(window, instancePtr, null) catch |err| {
             const sdlError = sdl3.c.SDL_GetError();

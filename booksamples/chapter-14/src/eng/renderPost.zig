@@ -51,7 +51,7 @@ pub const RenderPost = struct {
                 .binding = 0,
                 .descCount = 1,
                 .descType = vulkan.DescriptorType.combined_image_sampler,
-                .stageFlags = vulkan.ShaderStageFlags{ .fragment_bit = true },
+                .stageFlags = vulkan.ShaderStageFlags{ .fragment = true },
             }},
         );
         errdefer descLayoutFrg.cleanup(vkCtx);
@@ -67,7 +67,7 @@ pub const RenderPost = struct {
 
         // Push constants
         const pushConstants = [_]vulkan.PushConstantRange{.{
-            .stage_flags = vulkan.ShaderStageFlags{ .fragment_bit = true },
+            .stage_flags = vulkan.ShaderStageFlags{ .fragment = true },
             .offset = 0,
             .size = @sizeOf(PushConstants),
         }};
@@ -93,8 +93,8 @@ pub const RenderPost = struct {
         defer vkCtx.vkDevice.deviceProxy.destroyShaderModule(frag, null);
 
         const modulesInfo = try allocator.alloc(vk.pipe.ShaderModuleInfo, 2);
-        modulesInfo[0] = .{ .module = vert, .stage = .{ .vertex_bit = true } };
-        modulesInfo[1] = .{ .module = frag, .stage = .{ .fragment_bit = true }, .specInfo = &specConstants };
+        modulesInfo[0] = .{ .module = vert, .stage = .{ .vertex = true } };
+        modulesInfo[1] = .{ .module = frag, .stage = .{ .fragment = true }, .specInfo = &specConstants };
         defer allocator.free(modulesInfo);
 
         // Pipeline
@@ -224,7 +224,7 @@ pub const RenderPost = struct {
         vkCtx.vkDevice.deviceProxy.cmdPushConstants(
             cmdHandle,
             self.vkPipeline.pipelineLayout,
-            vulkan.ShaderStageFlags{ .fragment_bit = true },
+            vulkan.ShaderStageFlags{ .fragment = true },
             0,
             @sizeOf(PushConstants),
             &pushConstants,

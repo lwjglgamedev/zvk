@@ -4,7 +4,7 @@ const com = @import("com");
 const vk = @import("mod.zig");
 
 const log = std.log.scoped(.vk);
-const reqExtensions = [_][*:0]const u8{vulkan.extensions.khr_swapchain.name};
+const reqExtensions = [_][*:0]const u8{vulkan.device_extensions.khr_swapchain.name};
 
 const QueuesInfo = struct {
     graphics_family: u32,
@@ -80,7 +80,7 @@ pub const VkPhysDevice = struct {
         for (families, 0..) |properties, i| {
             const family: u32 = @intCast(i);
 
-            if (graphics_family == null and properties.queue_count > 0 and properties.queue_flags.graphics_bit) {
+            if (graphics_family == null and properties.queue_count > 0 and properties.queue_flags.graphics) {
                 graphics_family = family;
             }
 

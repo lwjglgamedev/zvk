@@ -25,7 +25,7 @@ pub const VkPipeline = struct {
             .alpha_blend_op = .add,
             .src_alpha_blend_factor = .src_alpha,
             .dst_alpha_blend_factor = .zero,
-            .color_write_mask = .{ .r_bit = true, .g_bit = true, .b_bit = true, .a_bit = true },
+            .color_write_mask = .{ .r = true, .g = true, .b = true, .a = true },
         };
        ...
     }
@@ -138,7 +138,7 @@ pub const MaterialsCache = struct {
             var hasTexture: u32 = 0;
             var textureIdx: u32 = 0;
             if (materialData.texturePath.len > 0) {
-                const nullTermPath = try allocator.dupeZ(u8, materialData.texturePath);
+                const nullTermPath = try allocator.dupeSentinel(u8, materialData.texturePath, 0);
                 defer allocator.free(nullTermPath);
                 if (try textureCache.addTextureFromPath(allocator, io, vkCtx, nullTermPath)) {
                     if (textureCache.textureMap.getIndex(nullTermPath)) |idx| {
@@ -187,9 +187,9 @@ pub const VkTexture = struct {
         const mipLevels: u32 = @as(u32, @intFromFloat(std.math.floor(std.math.log2(@as(f64, @floatFromInt(minDimension)))))) + 1;
 
         const flags = vulkan.ImageUsageFlags{
-            .transfer_dst_bit = true,
-            .transfer_src_bit = true,
-            .sampled_bit = true,
+            .transfer_dst = true,
+            .transfer_src = true,
+            .sampled = true,
         };
         const vkImageData = vk.img.VkImageData{
             .width = vkTextureInfo.width,
@@ -247,14 +247,14 @@ pub const VkTexture = struct {
         var barrier = [_]vulkan.ImageMemoryBarrier2{.{
             .old_layout = vulkan.ImageLayout.transfer_dst_optimal,
             .new_layout = vulkan.ImageLayout.transfer_src_optimal,
-            .src_stage_mask = .{ .all_transfer_bit = true },
-            .dst_stage_mask = .{ .all_transfer_bit = true },
-            .src_access_mask = .{ .transfer_write_bit = true },
-            .dst_access_mask = .{ .transfer_read_bit = true },
+            .src_stage_mask = .{ .all_transfer = true },
+            .dst_stage_mask = .{ .all_transfer = true },
+            .src_access_mask = .{ .transfer_write = true },
+            .dst_access_mask = .{ .transfer_read = true },
             .src_queue_family_index = vulkan.QUEUE_FAMILY_IGNORED,
             .dst_queue_family_index = vulkan.QUEUE_FAMILY_IGNORED,
             .subresource_range = .{
-                .aspect_mask = .{ .color_bit = true },
+                .aspect_mask = .{ .color = true },
                 .base_array_layer = 0,
                 .base_mip_level = 0,
                 .level_count = 1,
@@ -288,10 +288,10 @@ pub const VkTexture = struct {
         for (1..self.mipLevels) |i| {
             barrier[0].old_layout = vulkan.ImageLayout.transfer_dst_optimal;
             barrier[0].new_layout = vulkan.ImageLayout.transfer_src_optimal;
-            barrier[0].src_access_mask = .{ .transfer_write_bit = true };
-            barrier[0].dst_access_mask = .{ .transfer_read_bit = true };
-            barrier[0].src_stage_mask = .{ .all_transfer_bit = true };
-            barrier[0].dst_stage_mask = .{ .all_transfer_bit = true };
+            barrier[0].src_access_mask = .{ .transfer_write = true };
+            barrier[0].dst_access_mask = .{ .transfer_read = true };
+            barrier[0].src_stage_mask = .{ .all_transfer = true };
+            barrier[0].dst_stage_mask = .{ .all_transfer = true };
             barrier[0].subresource_range.base_mip_level = @as(u32, @intCast(i)) - 1;
 
             device.cmdPipelineBarrier2(cmdHandle, &depInfo);
@@ -319,7 +319,7 @@ pub const VkTexture = struct {
             ...
             const imageBlit = [_]vulkan.ImageBlit.{{
                 .src_subresource = .{
-                    .aspect_mask = .{ .color_bit = true },
+                    .aspect_mask = .{ .color = true },
                     .mip_level = @as(u32, @intCast(i)) - 1,
                     .base_array_layer = 0,
                     .layer_count = 1,
@@ -337,7 +337,7 @@ pub const VkTexture = struct {
                     },
                 },
                 .dst_subresource = .{
-                    .aspect_mask = .{ .color_bit = true },
+                    .aspect_mask = .{ .color = true },
                     .mip_level = @as(u32, @intCast(i)),
                     .base_array_layer = 0,
                     .layer_count = 1,
@@ -409,10 +409,10 @@ pub const VkTexture = struct {
             ...
             barrier[0].old_layout = vulkan.ImageLayout.transfer_src_optimal;
             barrier[0].new_layout = vulkan.ImageLayout.shader_read_only_optimal;
-            barrier[0].src_access_mask = .{ .transfer_read_bit = true };
-            barrier[0].dst_access_mask = .{ .shader_read_bit = true };
-            barrier[0].src_stage_mask = .{ .all_transfer_bit = true };
-            barrier[0].dst_stage_mask = .{ .fragment_shader_bit = true };
+            barrier[0].src_access_mask = .{ .transfer_read = true };
+            barrier[0].dst_access_mask = .{ .shader_read = true };
+            barrier[0].src_stage_mask = .{ .all_transfer = true };
+            barrier[0].dst_stage_mask = .{ .fragment_shader = true };
 
             device.cmdPipelineBarrier2(cmdHandle, &depInfo);
 
@@ -442,14 +442,14 @@ pub const VkTexture = struct {
         const endBarriers = [_]vulkan.ImageMemoryBarrier2.{{
             .old_layout = vulkan.ImageLayout.transfer_dst_optimal,
             .new_layout = vulkan.ImageLayout.shader_read_only_optimal,
-            .src_stage_mask = .{ .all_transfer_bit = true },
-            .dst_stage_mask = .{ .fragment_shader_bit = true },
-            .src_access_mask = .{ .transfer_write_bit = true },
-            .dst_access_mask = .{ .shader_read_bit = true },
+            .src_stage_mask = .{ .all_transfer = true },
+            .dst_stage_mask = .{ .fragment_shader = true },
+            .src_access_mask = .{ .transfer_write = true },
+            .dst_access_mask = .{ .shader_read = true },
             .src_queue_family_index = vulkan.QUEUE_FAMILY_IGNORED,
             .dst_queue_family_index = vulkan.QUEUE_FAMILY_IGNORED,
             .subresource_range = .{
-                .aspect_mask = .{ .color_bit = true },
+                .aspect_mask = .{ .color = true },
                 .base_mip_level = lastMip,
                 .level_count = 1,
                 .base_array_layer = 0,
@@ -655,7 +655,7 @@ pub const RenderScn = struct {
                 vkCtx,
                 id,
                 @sizeOf(zm.Mat) * 2,
-                .{ .uniform_buffer_bit = true },
+                .{ .uniform_buffer = true },
                 descLayout,
             );
         }

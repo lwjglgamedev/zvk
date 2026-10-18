@@ -16,11 +16,11 @@ The build file (`build.zig`) is quite standard. It just builds an executable add
 We will use the following dependencies:
 
 - [SDL3](https://github.com/Gota7/zig-sdl3) Zig bindings. We will use SDL3 to create windows and handle user input. In order to add the
-dependency to the `build.zig.zon` file just execute: `zig fetch --save https://codeberg.org/7Games/zig-sdl3/archive/v0.2.2.tar.gz`
+dependency to the `build.zig.zon` file just execute: `zig fetch --save "git+https://codeberg.org/7Games/zig-sdl3#82eab2e5a41a7b128f70afd7a6468fa736951cf1"`
 - [TOML](https://github.com/sam701/zig-toml) to be able to parse configuration files. In order to add the dependency to the `build.zig.zon`
-file just execute: `zig fetch --save https://github.com/sam701/zig-toml/archive/24e0deeceaad1b7f1b12027ebae1c65ff1d86e33.tar.gz`
+file just execute: `zig fetch --save https://github.com/sam701/zig-toml/archive/c661327bd9f02f774426c4fe78f60621411b7173.tar.gz`
 - [Vulkan](https://github.com/Snektron/vulkan-zig) Zig bindings. In order to add the dependency to the `build.zig.zon` file just execute:
-`zig fetch --save https://github.com/Snektron/vulkan-zig/archive/b496a6a561ffbbeb530b0f9ed4e059f88c0723a5.tar.gz`
+`zig fetch --save https://github.com/Snektron/vulkan-zig/archive/1fa628fd49d89468241c2cab14bad41a312e79fc.tar.gz`
 - [Vulkan Headers](https://github.com/KhronosGroup/Vulkan-Headers) we will need to add to the `build.zig.zon` file the following entry
 
 **File: build.zig.zon**
@@ -30,7 +30,7 @@ file just execute: `zig fetch --save https://github.com/sam701/zig-toml/archive/
     .dependencies = .{
         ...
         .vulkan_headers = .{
-            .url = "https://github.com/KhronosGroup/Vulkan-Headers/archive/refs/tags/v1.4.359.tar.gz",
+            .url = "https://github.com/KhronosGroup/Vulkan-Headers/archive/refs/tags/v1.4.365.tar.gz",
             .hash = "N-V-__8AAMgnfgKxQBLuasOmdRqVVIc1HwfkjIUSwaryYgzo",
         },
         ...
@@ -109,9 +109,7 @@ pub fn build(b: *std.Build) void {
 
     run_cmd.step.dependOn(b.getInstallStep());
 
-    if (b.args) |args| {
-        run_cmd.addArgs(args);
-    }
+    run_cmd.addPassthruArgs();
 }
 ```
 

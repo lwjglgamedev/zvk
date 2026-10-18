@@ -67,7 +67,7 @@ pub const VkPipeline = struct {
         };
 
         const pmsci = vulkan.PipelineMultisampleStateCreateInfo{
-            .rasterization_samples = .{ .@"1_bit" = true },
+            .rasterization_samples = .{ .@"1" = true },
             .sample_shading_enable = vulkan.Bool32.false,
             .min_sample_shading = 0,
             .alpha_to_coverage_enable = vulkan.Bool32.false,
@@ -93,7 +93,7 @@ pub const VkPipeline = struct {
                 .alpha_blend_op = .add,
                 .src_alpha_blend_factor = .src_alpha,
                 .dst_alpha_blend_factor = .zero,
-                .color_write_mask = .{ .r_bit = true, .g_bit = true, .b_bit = true, .a_bit = true },
+                .color_write_mask = .{ .r = true, .g = true, .b = true, .a = true },
             };
         }
 
@@ -173,14 +173,14 @@ pub const VkPipeline = struct {
             .p_dynamic_state = &pdsci,
             .layout = pipelineLayout,
             .subpass = 0,
-            .base_pipeline_handle = .null_handle,
+            .base_pipeline_handle = .null,
             .base_pipeline_index = -1,
             .p_next = @constCast(&renderCreateInfo),
         };
 
         var pipeline: vulkan.Pipeline = undefined;
         _ = try vkCtx.vkDevice.deviceProxy.createGraphicsPipelines(
-            .null_handle,
+            .null,
             @ptrCast(&gpci),
             null,
             @ptrCast(&pipeline),

@@ -2,6 +2,18 @@ const std = @import("std");
 
 const log = std.log.scoped(.eng);
 
+// Do not use ArrayList to prevent code changes when Zig API is modified
+pub fn JsonList(comptime T: type) type {
+    return struct {
+        items: []T = &.{},
+        capacity: usize = 0,
+
+        pub fn fromList(list: std.ArrayListUnmanaged(T)) @This() {
+            return .{ .items = list.items, .capacity = list.capacity };
+        }
+    };
+}
+
 pub const AnimatedFrame = struct {
     jointMatrices: []?[16]f32,
 };
@@ -38,11 +50,11 @@ pub const MeshData = struct {
 
 pub const ModelData = struct {
     id: []const u8,
-    meshes: std.ArrayListUnmanaged(MeshData),
+    meshes: JsonList(MeshData),
     idxFilename: []const u8,
     vtxFilename: []const u8,
-    animations: std.ArrayListUnmanaged(AnimationData),
-    animMeshes: std.ArrayListUnmanaged(AnimMeshData),
+    animations: JsonList(AnimationData),
+    animMeshes: JsonList(AnimMeshData),
 
     pub fn cleanup(self: *const ModelData, allocator: std.mem.Allocator) void {
         allocator.free(self.id);
@@ -72,7 +84,7 @@ pub fn loadMaterials(allocator: std.mem.Allocator, io: std.Io, path: []const u8)
     const bytes = try fileReader.interface.readAlloc(allocator, fileSize);
     defer allocator.free(bytes);
 
-    const parsed = try std.json.parseFromSlice(std.ArrayListUnmanaged(MaterialData), allocator, bytes, .{});
+    const parsed = try std.json.parseFromSlice(JsonList(MaterialData), allocator, bytes, .{});
     defer parsed.deinit();
 
     var materials = try std.ArrayList(MaterialData).initCapacity(allocator, parsed.value.items.len);

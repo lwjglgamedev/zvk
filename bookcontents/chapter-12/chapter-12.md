@@ -11,7 +11,7 @@ You can find the complete source code for this chapter [here](../../booksamples/
 ## zgui dependencies
 
 We will need to add the [zgui](https://github.com/zig-gamedev/zgui) dependency to the `build.zig.zon` using the command:
-`zig fetch --save https://github.com/zig-gamedev/zgui/archive/d6c4f53c2fbd54673790dc2a5208160a3586ef29.tar.gz`.
+`zig fetch --save https://github.com/zig-gamedev/zgui/archive/6dad095852f36ac844d4cbc57ace9719b551946e.tar.gz`.
 
 We will need to update the `build.zig` file to include the zgui dependency in the `eng` and `root` modules:
 
@@ -129,7 +129,7 @@ pub const RenderGui = struct {
 
         // Push constants
         const pushConstants = [_]vulkan.PushConstantRange{.{
-            .stage_flags = vulkan.ShaderStageFlags{ .vertex_bit = true },
+            .stage_flags = vulkan.ShaderStageFlags{ .vertex = true },
             .offset = 0,
             .size = @sizeOf(PushConstants),
         }};
@@ -142,7 +142,7 @@ pub const RenderGui = struct {
                 .binding = 0,
                 .descCount = 1,
                 .descType = vulkan.DescriptorType.combined_image_sampler,
-                .stageFlags = vulkan.ShaderStageFlags{ .fragment_bit = true },
+                .stageFlags = vulkan.ShaderStageFlags{ .fragment = true },
             }},
         );
         errdefer descLayoutFrg.cleanup(vkCtx);
@@ -167,8 +167,8 @@ pub const RenderGui = struct {
         defer vkCtx.vkDevice.deviceProxy.destroyShaderModule(frag, null);
 
         const modulesInfo = try allocator.alloc(vk.pipe.ShaderModuleInfo, 2);
-        modulesInfo[0] = .{ .module = vert, .stage = .{ .vertex_bit = true } };
-        modulesInfo[1] = .{ .module = frag, .stage = .{ .fragment_bit = true } };
+        modulesInfo[0] = .{ .module = vert, .stage = .{ .vertex = true } };
+        modulesInfo[1] = .{ .module = frag, .stage = .{ .fragment = true } };
         defer allocator.free(modulesInfo);
 
         // Pipeline
@@ -208,7 +208,7 @@ pub const RenderGui = struct {
             vtxBuffers[i] = try vk.buf.VkBuffer.create(
                 vkCtx,
                 DEFAULT_VTX_BUFF_SIZE,
-                .{ .vertex_buffer_bit = true },
+                .{ .vertex_buffer = true },
                 @intFromEnum(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSequentialWriteBit),
                 vk.vma.VmaUsage.VmaUsageAuto,
                 vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBitAndCoherent,
@@ -216,7 +216,7 @@ pub const RenderGui = struct {
             idxBuffers[i] = try vk.buf.VkBuffer.create(
                 vkCtx,
                 DEFAULT_IDX_BUFF_SIZE,
-                .{ .index_buffer_bit = true },
+                .{ .index_buffer = true },
                 @intFromEnum(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSequentialWriteBit),
                 vk.vma.VmaUsage.VmaUsageAuto,
                 vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBitAndCoherent,
@@ -447,7 +447,7 @@ pub const RenderGui = struct {
         vkCtx.vkDevice.deviceProxy.cmdPushConstants(
             cmdHandle,
             self.vkPipeline.pipelineLayout,
-            vulkan.ShaderStageFlags{ .vertex_bit = true },
+            vulkan.ShaderStageFlags{ .vertex = true },
             0,
             @sizeOf(PushConstants),
             &pushConstants,
@@ -497,7 +497,7 @@ pub const RenderGui = struct {
             const newBuffer = try vk.buf.VkBuffer.create(
                 vkCtx,
                 vtxBuffSize,
-                .{ .vertex_buffer_bit = true },
+                .{ .vertex_buffer = true },
                 @intFromEnum(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSequentialWriteBit),
                 vk.vma.VmaUsage.VmaUsageAuto,
                 vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBitAndCoherent,
@@ -511,7 +511,7 @@ pub const RenderGui = struct {
             const newBuffer = try vk.buf.VkBuffer.create(
                 vkCtx,
                 idxBuffSize,
-                .{ .index_buffer_bit = true },
+                .{ .index_buffer = true },
                 @intFromEnum(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSequentialWriteBit),
                 vk.vma.VmaUsage.VmaUsageAuto,
                 vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBitAndCoherent,
@@ -771,7 +771,7 @@ pub const VkTexture = struct {
         const vkStageBuffer = try vk.buf.VkBuffer.create(
             vkCtx,
             dataSize,
-            vulkan.BufferUsageFlags{ .transfer_src_bit = true },
+            vulkan.BufferUsageFlags{ .transfer_src = true },
             @intFromEnum(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSequentialWriteBit),
             vk.vma.VmaUsage.VmaUsageAuto,
             vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBitAndCoherent,

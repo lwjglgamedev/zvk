@@ -108,14 +108,14 @@ pub const MaterialsCache = struct {
         const srcBuffer = try vk.buf.VkBuffer.create(
             vkCtx,
             buffSize,
-            vulkan.BufferUsageFlags{ .transfer_src_bit = true },
-            vulkan.MemoryPropertyFlags{ .host_visible_bit = true },
+            vulkan.BufferUsageFlags{ .transfer_src = true },
+            vulkan.MemoryPropertyFlags{ .host_visible = true },
         );
         defer srcBuffer.cleanup(vkCtx);
         const dstBuffer = try vk.buf.VkBuffer.create(
             vkCtx,
             buffSize,
-            vulkan.BufferUsageFlags{ .storage_buffer_bit = true, .transfer_dst_bit = true },
+            vulkan.BufferUsageFlags{ .storage_buffer = true, .transfer_dst = true },
             vulkan.MemoryPropertyFlags{},
         );
         const data = try srcBuffer.map(vkCtx);
@@ -128,7 +128,7 @@ pub const MaterialsCache = struct {
             var hasTexture: u32 = 0;
             var textureIdx: u32 = 0;
             if (materialData.texturePath.len > 0) {
-                const nullTermPath = try allocator.dupeZ(u8, materialData.texturePath);
+                const nullTermPath = try allocator.dupeSentinel(u8, materialData.texturePath, 0);
                 defer allocator.free(nullTermPath);
                 if (try textureCache.addTextureFromPath(allocator, io, vkCtx, nullTermPath)) {
                     if (textureCache.textureMap.getIndex(nullTermPath)) |idx| {
@@ -215,8 +215,8 @@ pub const ModelsCache = struct {
                 const srcVtxBuffer = try vk.buf.VkBuffer.create(
                     vkCtx,
                     verticesSize,
-                    vulkan.BufferUsageFlags{ .transfer_src_bit = true },
-                    vulkan.MemoryPropertyFlags{ .host_visible_bit = true, .host_coherent_bit = true },
+                    vulkan.BufferUsageFlags{ .transfer_src = true },
+                    vulkan.MemoryPropertyFlags{ .host_visible = true, .host_coherent = true },
                 );
                 var vtxAppended = false;
                 errdefer if (!vtxAppended) srcVtxBuffer.cleanup(vkCtx);
@@ -225,8 +225,8 @@ pub const ModelsCache = struct {
                 const dstVtxBuffer = try vk.buf.VkBuffer.create(
                     vkCtx,
                     verticesSize,
-                    vulkan.BufferUsageFlags{ .vertex_buffer_bit = true, .transfer_dst_bit = true },
-                    vulkan.MemoryPropertyFlags{ .device_local_bit = true },
+                    vulkan.BufferUsageFlags{ .vertex_buffer = true, .transfer_dst = true },
+                    vulkan.MemoryPropertyFlags{ .device_local = true },
                 );
                 errdefer dstVtxBuffer.cleanup(vkCtx);
 
@@ -240,8 +240,8 @@ pub const ModelsCache = struct {
                 const srcIdxBuffer = try vk.buf.VkBuffer.create(
                     vkCtx,
                     indicesSize,
-                    vulkan.BufferUsageFlags{ .transfer_src_bit = true },
-                    vulkan.MemoryPropertyFlags{ .host_visible_bit = true, .host_coherent_bit = true },
+                    vulkan.BufferUsageFlags{ .transfer_src = true },
+                    vulkan.MemoryPropertyFlags{ .host_visible = true, .host_coherent = true },
                 );
                 var idxAppended = false;
                 errdefer if (!idxAppended) srcIdxBuffer.cleanup(vkCtx);
@@ -250,8 +250,8 @@ pub const ModelsCache = struct {
                 const dstIdxBuffer = try vk.buf.VkBuffer.create(
                     vkCtx,
                     indicesSize,
-                    vulkan.BufferUsageFlags{ .index_buffer_bit = true, .transfer_dst_bit = true },
-                    vulkan.MemoryPropertyFlags{ .device_local_bit = true },
+                    vulkan.BufferUsageFlags{ .index_buffer = true, .transfer_dst = true },
+                    vulkan.MemoryPropertyFlags{ .device_local = true },
                 );
                 errdefer dstIdxBuffer.cleanup(vkCtx);
 

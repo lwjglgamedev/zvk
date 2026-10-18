@@ -1,14 +1,11 @@
 const vulkan = @import("vulkan");
 const vke = @import("mod.zig");
-pub const vma = @cImport({
-    @cInclude("vk_mem_alloc.h");
-});
+pub const vma = @import("vma_c");
 
 pub const VmaFlags = enum(u32) {
     None = 0,
     VmaAllocationCreateHostAccessSequentialWriteBit = vma.VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
     CreateMappedBit = vma.VMA_ALLOCATION_CREATE_MAPPED_BIT,
-    DedicatedMemory = vma.VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT,
 };
 
 pub const VmaUsage = enum(u32) {
@@ -30,10 +27,9 @@ pub const VkVmaAlloc = struct {
         };
 
         const createInfo = vma.VmaAllocatorCreateInfo{
-            .flags = vma.VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT,
-            .physicalDevice = @ptrFromInt(@intFromEnum(vkPhysDevice.pdev)),
-            .device = @ptrFromInt(@intFromEnum(vkDevice.deviceProxy.handle)),
-            .instance = @ptrFromInt(@intFromEnum(vkInstance.instanceProxy.handle)),
+            .physicalDevice = @ptrFromInt(@intFromPtr(vkPhysDevice.pdev)),
+            .device = @ptrFromInt(@intFromPtr(vkDevice.deviceProxy.handle)),
+            .instance = @ptrFromInt(@intFromPtr(vkInstance.instanceProxy.handle)),
             .pVulkanFunctions = @ptrCast(&vulkanFuncs),
             .vulkanApiVersion = @bitCast(vulkan.API_VERSION_1_3),
         };

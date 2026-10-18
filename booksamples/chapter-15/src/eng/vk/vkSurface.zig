@@ -14,7 +14,7 @@ pub const VkSurface = struct {
 
     pub fn create(window: sdl3.video.Window, vkInstance: vk.inst.VkInstance) !VkSurface {
         const vkHandle = vkInstance.instanceProxy.handle;
-        const instancePtr: ?*sdl3.c.struct_VkInstance_T = @ptrFromInt(@intFromEnum(vkHandle));
+        const instancePtr: ?*sdl3.c.struct_VkInstance_T = @ptrFromInt(@intFromPtr(vkHandle));
 
         const surface = sdl3.vulkan.Surface.init(window, instancePtr, null) catch |err| {
             const sdlError = sdl3.c.SDL_GetError();
@@ -22,7 +22,7 @@ pub const VkSurface = struct {
             return err;
         };
 
-        return .{ .surface = @enumFromInt(@intFromPtr(surface.surface)) };
+        return .{ .surface = @fromBackingInt(@intCast(@intFromPtr(surface.surface))) };
     }
 
     pub fn getSurfaceCaps(self: *const VkSurface, vkInstance: vk.inst.VkInstance, vkPhysDevice: vk.phys.VkPhysDevice) !vulkan.SurfaceCapabilitiesKHR {

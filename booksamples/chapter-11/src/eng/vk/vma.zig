@@ -1,8 +1,6 @@
 const vulkan = @import("vulkan");
 const vke = @import("mod.zig");
-pub const vma = @cImport({
-    @cInclude("vk_mem_alloc.h");
-});
+pub const vma = @import("vma_c");
 
 pub const VmaFlags = enum(u32) {
     None = 0,
@@ -29,9 +27,9 @@ pub const VkVmaAlloc = struct {
         };
 
         const createInfo = vma.VmaAllocatorCreateInfo{
-            .physicalDevice = @ptrFromInt(@intFromEnum(vkPhysDevice.pdev)),
-            .device = @ptrFromInt(@intFromEnum(vkDevice.deviceProxy.handle)),
-            .instance = @ptrFromInt(@intFromEnum(vkInstance.instanceProxy.handle)),
+            .physicalDevice = @ptrFromInt(@intFromPtr(vkPhysDevice.pdev)),
+            .device = @ptrFromInt(@intFromPtr(vkDevice.deviceProxy.handle)),
+            .instance = @ptrFromInt(@intFromPtr(vkInstance.instanceProxy.handle)),
             .pVulkanFunctions = @ptrCast(&vulkanFuncs),
             .vulkanApiVersion = @bitCast(vulkan.API_VERSION_1_3),
         };

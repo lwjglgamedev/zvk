@@ -9,10 +9,11 @@ You can find the complete source code for this chapter [here](../../booksamples/
 In order to load complex models from disk we will use the [Assimp](https://github.com/assimp/assimp) library. There is a build project for
 this librray in zig [here](https://github.com/allyourcodebase/assimp) but it seems it is no longer mantained. Therefore, I have had to
 create a fork and modify it to compile with latest stable Zig version and to provide the structs I need. You will need
-to add the dependency to the `build.zig.zon` using `zig fetch --save zig fetch --save https://github.com/lwjglgamedev/assimp/archive/8813349e5d85412a8284b95b4170dd63a2fb0252.tar.gz`.
+to add the dependency to the `build.zig.zon` using `zig fetch --save zig fetch --save https://github.com/lwjglgamedev/assimp/archive/e43a33e5be214ef9253957518349e6ac03181307.tar.gz`.
 
 We will create a new executable to process 3D models and to generate an intermediate format which will be able to load while rendering.
-This executable will process a 3D model and will generate the required files to load the model data into Vulkan. Therefore, in the `build.zig` file we will add the following code at the end:
+This executable will process a 3D model and will generate the required files to load the model data into Vulkan. Therefore, in the
+`build.zig` file we will add the following code at the end:
 
 **File: build.zig**
 ```zig
@@ -37,7 +38,7 @@ pub fn build(b: *std.Build) void {
 The code for that executable will be located in the `src/eng/modelGen.zig` file.
 
 Since we will also need to load textures, we will use the [Zstbi](https://github.com/zig-gamedev/zstbi) library. Therefore, you will need to
-add the dependency to the `build.zig.zon` using `zig fetch --save https://github.com/zig-gamedev/zstbi/archive/664305dd52640be15cbebd7cd73d1199679933e1.tar.gz`.
+add the dependency to the `build.zig.zon` using `zig fetch --save https://github.com/zig-gamedev/zstbi/archive/bc96f28d341f9c7fb9cbc5dc65aa4c5cf0c8f007.tar.gz`.
 
 In the `build.zig` file we need to define the zstbi dependency and add it to the `eng` and the root modules:
 
@@ -285,7 +286,7 @@ pub fn main() !void {
         },
     };
     const fileMaterialsName = try std.fmt.allocPrint(allocator, "{s}-mat.json", .{modelId});
-    try jsonMat.write(materialList);
+    try jsonMat.write(eng.mdata.JsonList(eng.mdata.MaterialData).fromList(materialList));
     const fileMaterials = try dir.createFile(io, fileMaterialsName, .{ .truncate = true });
     defer fileMaterials.close(io);
     try fileMaterials.writeStreamingAll(io, writerMaterials.written());
@@ -307,7 +308,7 @@ pub fn main() !void {
 
     const modelData = eng.mdata.ModelData{
         .id = modelId,
-        .meshes = meshDataList,
+        .meshes = eng.mdata.JsonList(eng.mdata.MeshData).fromList(meshDataList),
         .idxFilename = idxRelPath,
         .vtxFilename = vtxRelPath,
     };
@@ -320,9 +321,20 @@ follows (Remember that this struct is stored in the `src/eng/modelData.zig` file
 
 **File: src/eng/modelData.zig**
 ```zig
+pub fn JsonList(comptime T: type) type {
+    return struct {
+        items: []T = &.{},
+        capacity: usize = 0,
+
+        pub fn fromList(list: std.ArrayListUnmanaged(T)) @This() {
+            return .{ .items = list.items, .capacity = list.capacity };
+        }
+    };
+}
+
 pub const ModelData = struct {
     id: []const u8,
-    meshes: std.ArrayListUnmanaged(MeshData),
+    meshes: JsonList(MeshData),
     idxFilename: []const u8,
     vtxFilename: []const u8,
 
@@ -337,6 +349,13 @@ pub const ModelData = struct {
     }
 };
 ```
+
+The `meshes` attribute is not a `std.ArrayListUnmanaged` but a `JsonList`, a small type that we define in the same file to control
+exactly how lists are represented in JSON. Serializing a standard library collection directly couples our data files to the internal
+layout of that collection, which is an implementation detail that can change between compiler versions (in fact, `std.ArrayList` gained
+an internal field that our JSON files know nothing about, breaking the parsing of previously generated files). `JsonList` only exposes
+the `items` and `capacity` attributes, matching the shape we want on disk, and its `fromList` function converts a regular list to this
+representation when we dump the model information.
 
 After that, going back to the `main` function, we will just dump model information to a JSON file:
 
@@ -586,8 +605,8 @@ pub const VkTexture = struct {
 
     pub fn create(vkCtx: *const vk.ctx.VkCtx, vkTextureInfo: *const VkTextureInfo) !VkTexture {
         const flags = vulkan.ImageUsageFlags{
-            .transfer_dst_bit = true,
-            .sampled_bit = true,
+            .transfer_dst = true,
+            .sampled = true,
         };
         const vkImageData = vk.img.VkImageData{
             .width = vkTextureInfo.width,
@@ -605,8 +624,8 @@ pub const VkTexture = struct {
         const vkStageBuffer = try vk.buf.VkBuffer.create(
             vkCtx,
             dataSize,
-            .{ .transfer_src_bit = true },
-            .{ .host_visible_bit = true, .host_coherent_bit = true },
+            .{ .transfer_src = true },
+            .{ .host_visible = true, .host_coherent = true },
         );
         try vk.buf.copyDataToBuffer(vkCtx, &vkStageBuffer, &vkTextureInfo.data);
 
@@ -693,14 +712,14 @@ pub const VkTexture = struct {
         const initBarriers = [_]vulkan.ImageMemoryBarrier2{.{
             .old_layout = vulkan.ImageLayout.undefined,
             .new_layout = vulkan.ImageLayout.transfer_dst_optimal,
-            .src_stage_mask = .{ .top_of_pipe_bit = true },
-            .dst_stage_mask = .{ .all_transfer_bit = true },
+            .src_stage_mask = .{ .top_of_pipe = true },
+            .dst_stage_mask = .{ .all_transfer = true },
             .src_access_mask = .{},
-            .dst_access_mask = .{ .transfer_write_bit = true },
+            .dst_access_mask = .{ .transfer_write = true },
             .src_queue_family_index = vulkan.QUEUE_FAMILY_IGNORED,
             .dst_queue_family_index = vulkan.QUEUE_FAMILY_IGNORED,
             .subresource_range = .{
-                .aspect_mask = .{ .color_bit = true },
+                .aspect_mask = .{ .color = true },
                 .base_mip_level = 0,
                 .level_count = vulkan.REMAINING_MIP_LEVELS,
                 .base_array_layer = 0,
@@ -720,7 +739,7 @@ pub const VkTexture = struct {
             .buffer_row_length = 0,
             .buffer_image_height = 0,
             .image_subresource = .{
-                .aspect_mask = vulkan.ImageAspectFlags{ .color_bit = true },
+                .aspect_mask = vulkan.ImageAspectFlags{ .color = true },
                 .mip_level = 0,
                 .base_array_layer = 0,
                 .layer_count = 1,
@@ -748,14 +767,14 @@ pub const VkTexture = struct {
         const endBarriers = [_]vulkan.ImageMemoryBarrier2{.{
             .old_layout = vulkan.ImageLayout.transfer_dst_optimal,
             .new_layout = vulkan.ImageLayout.shader_read_only_optimal,
-            .src_stage_mask = .{ .all_transfer_bit = true },
-            .dst_stage_mask = .{ .fragment_shader_bit = true },
-            .src_access_mask = .{ .transfer_write_bit = true },
-            .dst_access_mask = .{ .shader_read_bit = true },
+            .src_stage_mask = .{ .all_transfer = true },
+            .dst_stage_mask = .{ .fragment_shader = true },
+            .src_access_mask = .{ .transfer_write = true },
+            .dst_access_mask = .{ .shader_read = true },
             .src_queue_family_index = vulkan.QUEUE_FAMILY_IGNORED,
             .dst_queue_family_index = vulkan.QUEUE_FAMILY_IGNORED,
             .subresource_range = .{
-                .aspect_mask = .{ .color_bit = true },
+                .aspect_mask = .{ .color = true },
                 .base_mip_level = 0,
                 .level_count = vulkan.REMAINING_MIP_LEVELS,
                 .base_array_layer = 0,
@@ -1058,8 +1077,8 @@ pub const ModelsCache = struct {
                 const srcVtxBuffer = try vk.buf.VkBuffer.create(
                     vkCtx,
                     verticesSize,
-                    vulkan.BufferUsageFlags{ .transfer_src_bit = true },
-                    vulkan.MemoryPropertyFlags{ .host_visible_bit = true, .host_coherent_bit = true },
+                    vulkan.BufferUsageFlags{ .transfer_src = true },
+                    vulkan.MemoryPropertyFlags{ .host_visible = true, .host_coherent = true },
                 );
                 var vtxAppended = false;
                 errdefer if (!vtxAppended) srcVtxBuffer.cleanup(vkCtx);
@@ -1068,8 +1087,8 @@ pub const ModelsCache = struct {
                 const dstVtxBuffer = try vk.buf.VkBuffer.create(
                     vkCtx,
                     verticesSize,
-                    vulkan.BufferUsageFlags{ .vertex_buffer_bit = true, .transfer_dst_bit = true },
-                    vulkan.MemoryPropertyFlags{ .device_local_bit = true },
+                    vulkan.BufferUsageFlags{ .vertex_buffer = true, .transfer_dst = true },
+                    vulkan.MemoryPropertyFlags{ .device_local = true },
                 );
                 errdefer dstVtxBuffer.cleanup(vkCtx);
 
@@ -1083,8 +1102,8 @@ pub const ModelsCache = struct {
                 const srcIdxBuffer = try vk.buf.VkBuffer.create(
                     vkCtx,
                     indicesSize,
-                    vulkan.BufferUsageFlags{ .transfer_src_bit = true },
-                    vulkan.MemoryPropertyFlags{ .host_visible_bit = true, .host_coherent_bit = true },
+                    vulkan.BufferUsageFlags{ .transfer_src = true },
+                    vulkan.MemoryPropertyFlags{ .host_visible = true, .host_coherent = true },
                 );
                 var idxAppended = false;
                 errdefer if (!idxAppended) srcIdxBuffer.cleanup(vkCtx);
@@ -1093,8 +1112,8 @@ pub const ModelsCache = struct {
                 const dstIdxBuffer = try vk.buf.VkBuffer.create(
                     vkCtx,
                     indicesSize,
-                    vulkan.BufferUsageFlags{ .index_buffer_bit = true, .transfer_dst_bit = true },
-                    vulkan.MemoryPropertyFlags{ .device_local_bit = true },
+                    vulkan.BufferUsageFlags{ .index_buffer = true, .transfer_dst = true },
+                    vulkan.MemoryPropertyFlags{ .device_local = true },
                 );
                 errdefer dstIdxBuffer.cleanup(vkCtx);
 
@@ -1229,14 +1248,14 @@ pub const MaterialsCache = struct {
         const srcBuffer = try vk.buf.VkBuffer.create(
             vkCtx,
             buffSize,
-            vulkan.BufferUsageFlags{ .transfer_src_bit = true },
-            vulkan.MemoryPropertyFlags{ .host_visible_bit = true },
+            vulkan.BufferUsageFlags{ .transfer_src = true },
+            vulkan.MemoryPropertyFlags{ .host_visible = true },
         );
         defer srcBuffer.cleanup(vkCtx);
         const dstBuffer = try vk.buf.VkBuffer.create(
             vkCtx,
             buffSize,
-            vulkan.BufferUsageFlags{ .storage_buffer_bit = true, .transfer_dst_bit = true },
+            vulkan.BufferUsageFlags{ .storage_buffer = true, .transfer_dst = true },
             vulkan.MemoryPropertyFlags{},
         );
         const data = try srcBuffer.map(vkCtx);
@@ -1249,7 +1268,7 @@ pub const MaterialsCache = struct {
             var hasTexture: u32 = 0;
             var textureIdx: u32 = 0;
             if (materialData.texturePath.len > 0) {
-                const nullTermPath = try allocator.dupeZ(u8, materialData.texturePath);
+                const nullTermPath = try allocator.dupeSentinel(u8, materialData.texturePath, 0);
                 defer allocator.free(nullTermPath);
                 if (try textureCache.addTextureFromPath(allocator, io, vkCtx, nullTermPath)) {
                     if (textureCache.textureMap.getIndex(nullTermPath)) |idx| {
@@ -1323,7 +1342,7 @@ pub const VkDescPool = struct {
             maxSets += descPoolSize.descriptor_count;
         }
         const createInfo = vulkan.DescriptorPoolCreateInfo{
-            .flags = .{ .free_descriptor_set_bit = true },
+            .flags = .{ .free_descriptor_set = true },
             .p_pool_sizes = descPoolSizes.ptr,
             .pool_size_count = @as(u32, @intCast(descPoolSizes.len)),
             .max_sets = maxSets,
@@ -1441,13 +1460,13 @@ const descLayoutAB = try vk.desc.VkDescSetLayout.create(
         .binding = 0,
         .descCount = 1,
         .descType = vulkan.DescriptorType.uniform_buffer,
-        .stageFlags = vulkan.ShaderStageFlags{ .vertex_bit = true },
+        .stageFlags = vulkan.ShaderStageFlags{ .vertex = true },
         },
         .{
         .binding = 1,
         .descCount = 1,
         .descType = vulkan.DescriptorType.uniform_buffer,
-        .stageFlags = vulkan.ShaderStageFlags{ .vertex_bit = true },
+        .stageFlags = vulkan.ShaderStageFlags{ .vertex = true },
         },
 },
 );
@@ -1460,7 +1479,7 @@ const descLayoutC = try vk.desc.VkDescSetLayout.create(
         .binding = 0,
         .descCount = 1,
         .descType = vulkan.DescriptorType.uniform_buffer,
-        .stageFlags = vulkan.ShaderStageFlags{ .vertex_bit = true },
+        .stageFlags = vulkan.ShaderStageFlags{ .vertex = true },
         },
 },
 );
@@ -2132,7 +2151,7 @@ pub const RenderScn = struct {
                 .binding = 0,
                 .descCount = 1,
                 .descType = vulkan.DescriptorType.uniform_buffer,
-                .stageFlags = vulkan.ShaderStageFlags{ .vertex_bit = true },
+                .stageFlags = vulkan.ShaderStageFlags{ .vertex = true },
             }},
         );
         errdefer descLayoutVtx.cleanup(vkCtx);
@@ -2143,7 +2162,7 @@ pub const RenderScn = struct {
                 .binding = 0,
                 .descCount = 1,
                 .descType = vulkan.DescriptorType.storage_buffer,
-                .stageFlags = vulkan.ShaderStageFlags{ .fragment_bit = true },
+                .stageFlags = vulkan.ShaderStageFlags{ .fragment = true },
             }},
         );
         errdefer descLayoutFrgSt.cleanup(vkCtx);
@@ -2154,7 +2173,7 @@ pub const RenderScn = struct {
                 .binding = 0,
                 .descCount = eng.tcach.MAX_TEXTURES,
                 .descType = vulkan.DescriptorType.combined_image_sampler,
-                .stageFlags = vulkan.ShaderStageFlags{ .fragment_bit = true },
+                .stageFlags = vulkan.ShaderStageFlags{ .fragment = true },
             }},
         );
         errdefer descLayoutTexture.cleanup(vkCtx);
@@ -2165,19 +2184,19 @@ pub const RenderScn = struct {
             vkCtx,
             DESC_ID_CAM,
             @sizeOf(zm.Mat),
-            .{ .uniform_buffer_bit = true },
+            .{ .uniform_buffer = true },
             descLayoutVtx,
         );
 
         // Push constants
         const pushConstants = [_]vulkan.PushConstantRange{
             .{
-                .stage_flags = vulkan.ShaderStageFlags{ .vertex_bit = true },
+                .stage_flags = vulkan.ShaderStageFlags{ .vertex = true },
                 .offset = 0,
                 .size = @sizeOf(PushConstantsVtx),
             },
             .{
-                .stage_flags = vulkan.ShaderStageFlags{ .fragment_bit = true },
+                .stage_flags = vulkan.ShaderStageFlags{ .fragment = true },
                 .offset = @sizeOf(PushConstantsVtx),
                 .size = @sizeOf(PushConstantsFrg),
             },
@@ -2251,7 +2270,7 @@ pub fn createHostVisibleBuff(
         vkCtx,
         size,
         bufferUsage,
-        .{ .host_visible_bit = true, .host_coherent_bit = true },
+        .{ .host_visible = true, .host_coherent = true },
     );
 
     const descSet = try vkCtx.vkDescAllocator.addDescSet(
@@ -2392,7 +2411,7 @@ pub const RenderScn = struct {
         vkCtx.vkDevice.deviceProxy.cmdPushConstants(
             cmdHandle,
             self.vkPipeline.pipelineLayout,
-            vulkan.ShaderStageFlags{ .vertex_bit = true },
+            vulkan.ShaderStageFlags{ .vertex = true },
             0,
             @sizeOf(PushConstantsVtx),
             &pushConstantsVtx,
@@ -2403,7 +2422,7 @@ pub const RenderScn = struct {
         vkCtx.vkDevice.deviceProxy.cmdPushConstants(
             cmdHandle,
             self.vkPipeline.pipelineLayout,
-            vulkan.ShaderStageFlags{ .fragment_bit = true },
+            vulkan.ShaderStageFlags{ .fragment = true },
             @sizeOf(PushConstantsVtx),
             @sizeOf(PushConstantsFrg),
             &pushConstantsFrg,
@@ -2572,7 +2591,7 @@ pub fn loadMaterials(allocator: std.mem.Allocator, io: std.Io, path: []const u8)
     const bytes = try fileReader.interface.readAlloc(allocator, fileSize);
     defer allocator.free(bytes);
 
-    const parsed = try std.json.parseFromSlice(std.ArrayListUnmanaged(MaterialData), allocator, bytes, .{});
+    const parsed = try std.json.parseFromSlice(JsonList(MaterialData), allocator, bytes, .{});
     defer parsed.deinit();
 
     var materials = try std.ArrayList(MaterialData).initCapacity(allocator, parsed.value.items.len);

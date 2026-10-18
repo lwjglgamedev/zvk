@@ -23,7 +23,7 @@ pub const VkCmdPool = struct {
     commandPool: vulkan.CommandPool,
 
     pub fn create(vkCtx: *const vk.ctx.VkCtx, queueFamilyIndex: u32, resetSupport: bool) !VkCmdPool {
-        const createInfo: vulkan.CommandPoolCreateInfo = .{ .queue_family_index = queueFamilyIndex, .flags = .{ .reset_command_buffer_bit = resetSupport } };
+        const createInfo: vulkan.CommandPoolCreateInfo = .{ .queue_family_index = queueFamilyIndex, .flags = .{ .reset_command_buffer = resetSupport } };
         const commandPool = try vkCtx.vkDevice.deviceProxy.createCommandPool(&createInfo, null);
         return .{ .commandPool = commandPool };
     }
@@ -91,7 +91,7 @@ buffer:
 pub const VkCmdBuff = struct {
     ...
     pub fn begin(self: *const VkCmdBuff, vkCtx: *const vk.ctx.VkCtx) !void {
-        const beginInfo: vulkan.CommandBufferBeginInfo = .{ .flags = .{ .one_time_submit_bit = self.oneTime } };
+        const beginInfo: vulkan.CommandBufferBeginInfo = .{ .flags = .{ .one_time_submit = self.oneTime } };
         try vkCtx.vkDevice.deviceProxy.beginCommandBuffer(self.cmdBuffProxy.handle, &beginInfo);
     }
     ...
@@ -178,7 +178,7 @@ pub const VkFence = struct {
     fence: vulkan.Fence,
 
     pub fn create(vkCtx: *const vk.ctx.VkCtx) !VkFence {
-        const fence = try vkCtx.*.vkDevice.deviceProxy.createFence(&.{ .flags = .{ .signaled_bit = true } }, null);
+        const fence = try vkCtx.*.vkDevice.deviceProxy.createFence(&.{ .flags = .{ .signaled = true } }, null);
         return .{ .fence = fence };
     }
 
@@ -552,14 +552,14 @@ pub const Render = struct {
         const semWaitInfo = vulkan.SemaphoreSubmitInfo{
             .device_index = 0,
             .value = 0,
-            .stage_mask = .{ .color_attachment_output_bit = true },
+            .stage_mask = .{ .color_attachment_output = true },
             .semaphore = self.semsPresComplete[self.currentFrame].semaphore,
         };
 
         const semSignalInfo = vulkan.SemaphoreSubmitInfo{
             .device_index = 0,
             .value = 0,
-            .stage_mask = .{ .all_commands_bit = true },
+            .stage_mask = .{ .all_commands = true },
             .semaphore = self.semsRenderComplete[imageIndex].semaphore,
         };
 
@@ -604,7 +604,7 @@ pub const VkSwapChain = struct {
             self.handle,
             std.math.maxInt(u64),
             semaphore.semaphore,
-            .null_handle,
+            .null,
         );
 
         if (res) |ok| {
@@ -793,14 +793,14 @@ pub const Render = struct {
         const initBarriers = [_]vulkan.ImageMemoryBarrier2{.{
             .old_layout = vulkan.ImageLayout.undefined,
             .new_layout = vulkan.ImageLayout.color_attachment_optimal,
-            .src_stage_mask = .{ .color_attachment_output_bit = true },
-            .dst_stage_mask = .{ .color_attachment_output_bit = true },
+            .src_stage_mask = .{ .color_attachment_output = true },
+            .dst_stage_mask = .{ .color_attachment_output = true },
             .src_access_mask = .{},
-            .dst_access_mask = .{ .color_attachment_write_bit = true },
+            .dst_access_mask = .{ .color_attachment_write = true },
             .src_queue_family_index = vulkan.QUEUE_FAMILY_IGNORED,
             .dst_queue_family_index = vulkan.QUEUE_FAMILY_IGNORED,
             .subresource_range = .{
-                .aspect_mask = .{ .color_bit = true },
+                .aspect_mask = .{ .color = true },
                 .base_mip_level = 0,
                 .level_count = vulkan.REMAINING_MIP_LEVELS,
                 .base_array_layer = 0,
@@ -870,14 +870,14 @@ pub const Render = struct {
         const endBarriers = [_]vulkan.ImageMemoryBarrier2{.{
             .old_layout = vulkan.ImageLayout.color_attachment_optimal,
             .new_layout = vulkan.ImageLayout.present_src_khr,
-            .src_stage_mask = .{ .color_attachment_output_bit = true },
-            .dst_stage_mask = .{ .bottom_of_pipe_bit = true },
-            .src_access_mask = .{ .color_attachment_write_bit = true },
+            .src_stage_mask = .{ .color_attachment_output = true },
+            .dst_stage_mask = .{ .bottom_of_pipe = true },
+            .src_access_mask = .{ .color_attachment_write = true },
             .dst_access_mask = .{},
             .src_queue_family_index = vulkan.QUEUE_FAMILY_IGNORED,
             .dst_queue_family_index = vulkan.QUEUE_FAMILY_IGNORED,
             .subresource_range = .{
-                .aspect_mask = .{ .color_bit = true },
+                .aspect_mask = .{ .color = true },
                 .base_mip_level = 0,
                 .level_count = vulkan.REMAINING_MIP_LEVELS,
                 .base_array_layer = 0,

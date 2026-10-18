@@ -2,7 +2,7 @@ const vk = @import("mod.zig");
 const vulkan = @import("vulkan");
 
 pub const VkImageViewData = struct {
-    aspectmask: vulkan.ImageAspectFlags = vulkan.ImageAspectFlags{ .color_bit = true },
+    aspectmask: vulkan.ImageAspectFlags = vulkan.ImageAspectFlags{ .color = true },
     baseArrayLayer: u32 = 0,
     baseMipLevel: u32 = 0,
     format: vulkan.Format,
@@ -42,6 +42,6 @@ pub const VkImageView = struct {
 
     pub fn cleanup(self: *VkImageView, vkDevice: vk.dev.VkDevice) void {
         vkDevice.deviceProxy.destroyImageView(self.view, null);
-        self.view = .null_handle;
+        self.view = .null;
     }
 };

@@ -74,7 +74,7 @@ pub const RenderGui = struct {
 
         // Push constants
         const pushConstants = [_]vulkan.PushConstantRange{.{
-            .stage_flags = vulkan.ShaderStageFlags{ .vertex_bit = true },
+            .stage_flags = vulkan.ShaderStageFlags{ .vertex = true },
             .offset = 0,
             .size = @sizeOf(PushConstants),
         }};
@@ -87,7 +87,7 @@ pub const RenderGui = struct {
                 .binding = 0,
                 .descCount = 1,
                 .descType = vulkan.DescriptorType.combined_image_sampler,
-                .stageFlags = vulkan.ShaderStageFlags{ .fragment_bit = true },
+                .stageFlags = vulkan.ShaderStageFlags{ .fragment = true },
             }},
         );
         errdefer descLayoutFrg.cleanup(vkCtx);
@@ -112,8 +112,8 @@ pub const RenderGui = struct {
         defer vkCtx.vkDevice.deviceProxy.destroyShaderModule(frag, null);
 
         const modulesInfo = try allocator.alloc(vk.pipe.ShaderModuleInfo, 2);
-        modulesInfo[0] = .{ .module = vert, .stage = .{ .vertex_bit = true } };
-        modulesInfo[1] = .{ .module = frag, .stage = .{ .fragment_bit = true } };
+        modulesInfo[0] = .{ .module = vert, .stage = .{ .vertex = true } };
+        modulesInfo[1] = .{ .module = frag, .stage = .{ .fragment = true } };
         defer allocator.free(modulesInfo);
 
         // Pipeline
@@ -139,16 +139,16 @@ pub const RenderGui = struct {
             vtxBuffers[i] = try vk.buf.VkBuffer.create(
                 vkCtx,
                 DEFAULT_VTX_BUFF_SIZE,
-                .{ .vertex_buffer_bit = true },
-                @intFromEnum(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSequentialWriteBit),
+                .{ .vertex_buffer = true },
+                @backingInt(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSequentialWriteBit),
                 vk.vma.VmaUsage.VmaUsageAuto,
                 vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBitAndCoherent,
             );
             idxBuffers[i] = try vk.buf.VkBuffer.create(
                 vkCtx,
                 DEFAULT_IDX_BUFF_SIZE,
-                .{ .index_buffer_bit = true },
-                @intFromEnum(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSequentialWriteBit),
+                .{ .index_buffer = true },
+                @backingInt(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSequentialWriteBit),
                 vk.vma.VmaUsage.VmaUsageAuto,
                 vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBitAndCoherent,
             );
@@ -270,7 +270,7 @@ pub const RenderGui = struct {
                 device.cmdSetScissor(cmdHandle, 0, &scissor);
 
                 const descSetInt = @intFromPtr(cmd.texture_ref.tex_data.?.backend_user_data.?);
-                const descSet: vulkan.DescriptorSet = @enumFromInt(descSetInt);
+                const descSet: vulkan.DescriptorSet = @fromBackingInt(@intCast(descSetInt));
                 descSets[0] = descSet;
 
                 device.cmdBindDescriptorSets(
@@ -307,7 +307,7 @@ pub const RenderGui = struct {
         vkCtx.vkDevice.deviceProxy.cmdPushConstants(
             cmdHandle,
             self.vkPipeline.pipelineLayout,
-            vulkan.ShaderStageFlags{ .vertex_bit = true },
+            vulkan.ShaderStageFlags{ .vertex = true },
             0,
             @sizeOf(PushConstants),
             &pushConstants,
@@ -339,8 +339,8 @@ pub const RenderGui = struct {
             const newBuffer = try vk.buf.VkBuffer.create(
                 vkCtx,
                 vtxBuffSize,
-                .{ .vertex_buffer_bit = true },
-                @intFromEnum(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSequentialWriteBit),
+                .{ .vertex_buffer = true },
+                @backingInt(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSequentialWriteBit),
                 vk.vma.VmaUsage.VmaUsageAuto,
                 vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBitAndCoherent,
             );
@@ -353,8 +353,8 @@ pub const RenderGui = struct {
             const newBuffer = try vk.buf.VkBuffer.create(
                 vkCtx,
                 idxBuffSize,
-                .{ .index_buffer_bit = true },
-                @intFromEnum(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSequentialWriteBit),
+                .{ .index_buffer = true },
+                @backingInt(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSequentialWriteBit),
                 vk.vma.VmaUsage.VmaUsageAuto,
                 vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBitAndCoherent,
             );
@@ -443,7 +443,7 @@ pub const RenderGui = struct {
                         idDesc,
                         self.descLayoutFrg,
                     );
-                    textData.backend_user_data = @ptrFromInt(@intFromEnum(descSet.descSet));
+                    textData.backend_user_data = @ptrFromInt(@backingInt(descSet.descSet));
                     const texture = try self.guiTextureCache.getTexture(textureInfo.id);
                     descSet.setImage(vkCtx.vkDevice, texture.vkImageView, self.textSampler, 0);
                 }
@@ -468,7 +468,7 @@ pub fn createTextureData(texId: u32, textureImage: *const zstbi.Image) zgui.Text
         .width = @intCast(textureImage.width),
         .height = @intCast(textureImage.height),
         .status = .want_create,
-        .tex_id = @enumFromInt(texId),
+        .tex_id = @fromBackingInt(@intCast(texId)),
         .used_rect = .{
             .x = 0,
             .y = 0,

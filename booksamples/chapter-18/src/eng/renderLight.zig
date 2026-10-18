@@ -99,8 +99,8 @@ pub const RenderLight = struct {
         defer vkCtx.vkDevice.deviceProxy.destroyShaderModule(frag, null);
 
         const modulesInfo = try allocator.alloc(vk.pipe.ShaderModuleInfo, 2);
-        modulesInfo[0] = .{ .module = vert, .stage = .{ .vertex_bit = true } };
-        modulesInfo[1] = .{ .module = frag, .stage = .{ .fragment_bit = true }, .specInfo = &specConstants };
+        modulesInfo[0] = .{ .module = vert, .stage = .{ .vertex = true } };
+        modulesInfo[1] = .{ .module = frag, .stage = .{ .fragment = true }, .specInfo = &specConstants };
         defer allocator.free(modulesInfo);
 
         // Textures
@@ -122,7 +122,7 @@ pub const RenderLight = struct {
                 .binding = @as(u32, @intCast(i)),
                 .descCount = 1,
                 .descType = vulkan.DescriptorType.combined_image_sampler,
-                .stageFlags = vulkan.ShaderStageFlags{ .fragment_bit = true },
+                .stageFlags = vulkan.ShaderStageFlags{ .fragment = true },
             };
             imageViews[i] = inputAttachments.ptr[i].vkImageView;
         }
@@ -146,7 +146,7 @@ pub const RenderLight = struct {
             .binding = 0,
             .descCount = 1,
             .descType = vulkan.DescriptorType.storage_buffer,
-            .stageFlags = vulkan.ShaderStageFlags{ .fragment_bit = true },
+            .stageFlags = vulkan.ShaderStageFlags{ .fragment = true },
         }});
         errdefer descLayoutArr.cleanup(vkCtx);
         const buffsLights = try vk.util.createHostVisibleBuffs(
@@ -155,7 +155,7 @@ pub const RenderLight = struct {
             DESC_ID_LIGHTS,
             com.common.FRAMES_IN_FLIGHT,
             @sizeOf(eng.scn.Light) * eng.scn.MAX_LIGHTS,
-            .{ .storage_buffer_bit = true },
+            .{ .storage_buffer = true },
             descLayoutArr,
         );
         errdefer {
@@ -172,7 +172,7 @@ pub const RenderLight = struct {
             DESC_ID_CASCADE_SHADOWS,
             com.common.FRAMES_IN_FLIGHT,
             CASCADE_INFO_BYTES_SIZE * eng.rsha.SHADOW_MAP_CASCADE_COUNT,
-            .{ .storage_buffer_bit = true },
+            .{ .storage_buffer = true },
             descLayoutArr,
         );
         errdefer {
@@ -187,7 +187,7 @@ pub const RenderLight = struct {
             .binding = 0,
             .descCount = 1,
             .descType = vulkan.DescriptorType.uniform_buffer,
-            .stageFlags = vulkan.ShaderStageFlags{ .fragment_bit = true },
+            .stageFlags = vulkan.ShaderStageFlags{ .fragment = true },
         }});
         errdefer descLayoutScene.cleanup(vkCtx);
         const buffsSceneInfo = try vk.util.createHostVisibleBuffs(
@@ -196,7 +196,7 @@ pub const RenderLight = struct {
             DESC_ID_SCENE_INFO,
             com.common.FRAMES_IN_FLIGHT,
             SCENE_INFO_BYTES_SIZE,
-            .{ .uniform_buffer_bit = true },
+            .{ .uniform_buffer = true },
             descLayoutScene,
         );
         errdefer {
@@ -245,8 +245,8 @@ pub const RenderLight = struct {
     fn createColorAttachment(vkCtx: *const vk.ctx.VkCtx) !eng.rend.Attachment {
         const extent = vkCtx.vkSwapChain.extent;
         const flags = vulkan.ImageUsageFlags{
-            .color_attachment_bit = true,
-            .sampled_bit = true,
+            .color_attachment = true,
+            .sampled = true,
         };
         const attColor = try eng.rend.Attachment.create(
             vkCtx,
@@ -381,20 +381,20 @@ pub const RenderLight = struct {
         const initBarriers = [_]vulkan.ImageMemoryBarrier2{.{
             .old_layout = vulkan.ImageLayout.color_attachment_optimal,
             .new_layout = vulkan.ImageLayout.shader_read_only_optimal,
-            .src_stage_mask = .{ .color_attachment_output_bit = true },
-            .dst_stage_mask = .{ .fragment_shader_bit = true },
-            .src_access_mask = .{ .color_attachment_write_bit = true },
-            .dst_access_mask = .{ .shader_read_bit = true },
+            .src_stage_mask = .{ .color_attachment_output = true },
+            .dst_stage_mask = .{ .fragment_shader = true },
+            .src_access_mask = .{ .color_attachment_write = true },
+            .dst_access_mask = .{ .shader_read = true },
             .src_queue_family_index = vulkan.QUEUE_FAMILY_IGNORED,
             .dst_queue_family_index = vulkan.QUEUE_FAMILY_IGNORED,
             .subresource_range = .{
-                .aspect_mask = .{ .color_bit = true },
+                .aspect_mask = .{ .color = true },
                 .base_mip_level = 0,
                 .level_count = vulkan.REMAINING_MIP_LEVELS,
                 .base_array_layer = 0,
                 .layer_count = vulkan.REMAINING_ARRAY_LAYERS,
             },
-            .image = @enumFromInt(@intFromPtr(self.outputAtt.vkImage.image)),
+            .image = @fromBackingInt(@intCast(@intFromPtr(self.outputAtt.vkImage.image))),
         }};
         const initDepInfo = vulkan.DependencyInfo{
             .image_memory_barrier_count = initBarriers.len,
@@ -411,20 +411,20 @@ pub const RenderLight = struct {
         const initBarriers = [_]vulkan.ImageMemoryBarrier2{.{
             .old_layout = vulkan.ImageLayout.undefined,
             .new_layout = vulkan.ImageLayout.color_attachment_optimal,
-            .src_stage_mask = .{ .color_attachment_output_bit = true },
-            .dst_stage_mask = .{ .color_attachment_output_bit = true },
+            .src_stage_mask = .{ .color_attachment_output = true },
+            .dst_stage_mask = .{ .color_attachment_output = true },
             .src_access_mask = .{},
-            .dst_access_mask = .{ .color_attachment_write_bit = true },
+            .dst_access_mask = .{ .color_attachment_write = true },
             .src_queue_family_index = vulkan.QUEUE_FAMILY_IGNORED,
             .dst_queue_family_index = vulkan.QUEUE_FAMILY_IGNORED,
             .subresource_range = .{
-                .aspect_mask = .{ .color_bit = true },
+                .aspect_mask = .{ .color = true },
                 .base_mip_level = 0,
                 .level_count = vulkan.REMAINING_MIP_LEVELS,
                 .base_array_layer = 0,
                 .layer_count = vulkan.REMAINING_ARRAY_LAYERS,
             },
-            .image = @enumFromInt(@intFromPtr(self.outputAtt.vkImage.image)),
+            .image = @fromBackingInt(@intCast(@intFromPtr(self.outputAtt.vkImage.image))),
         }};
         const initDepInfo = vulkan.DependencyInfo{
             .image_memory_barrier_count = initBarriers.len,

@@ -549,7 +549,7 @@ pub const RenderScn = struct {
             DESC_ID_CAM,
             com.common.FRAMES_IN_FLIGHT,
             @sizeOf(zm.Mat) * 2,
-            .{ .uniform_buffer_bit = true },
+            .{ .uniform_buffer = true },
             descLayoutVtx,
         );
         errdefer {
@@ -807,7 +807,7 @@ pub const RenderLight = struct {
                 .binding = @as(u32, @intCast(i)),
                 .descCount = 1,
                 .descType = vulkan.DescriptorType.combined_image_sampler,
-                .stageFlags = vulkan.ShaderStageFlags{ .fragment_bit = true },
+                .stageFlags = vulkan.ShaderStageFlags{ .fragment = true },
             };
             imageViews[i] = inputAttachments.ptr[i].vkImageView;
         }
@@ -831,7 +831,7 @@ pub const RenderLight = struct {
             .binding = 0,
             .descCount = 1,
             .descType = vulkan.DescriptorType.storage_buffer,
-            .stageFlags = vulkan.ShaderStageFlags{ .fragment_bit = true },
+            .stageFlags = vulkan.ShaderStageFlags{ .fragment = true },
         }});
         errdefer descLayoutArr.cleanup(vkCtx);
         const buffsLights = try vk.util.createHostVisibleBuffs(
@@ -840,7 +840,7 @@ pub const RenderLight = struct {
             DESC_ID_LIGHTS,
             com.common.FRAMES_IN_FLIGHT,
             @sizeOf(eng.scn.Light) * eng.scn.MAX_LIGHTS,
-            .{ .storage_buffer_bit = true },
+            .{ .storage_buffer = true },
             descLayoutArr,
         );
         errdefer {
@@ -855,7 +855,7 @@ pub const RenderLight = struct {
             .binding = 0,
             .descCount = 1,
             .descType = vulkan.DescriptorType.uniform_buffer,
-            .stageFlags = vulkan.ShaderStageFlags{ .fragment_bit = true },
+            .stageFlags = vulkan.ShaderStageFlags{ .fragment = true },
         }});
         errdefer descLayoutScene.cleanup(vkCtx);
         const buffsSceneInfo = try vk.util.createHostVisibleBuffs(
@@ -864,7 +864,7 @@ pub const RenderLight = struct {
             DESC_ID_SCENE_INFO,
             com.common.FRAMES_IN_FLIGHT,
             SCENE_INFO_BYTES_SIZE,
-            .{ .uniform_buffer_bit = true },
+            .{ .uniform_buffer = true },
             descLayoutScene,
         );
         errdefer {

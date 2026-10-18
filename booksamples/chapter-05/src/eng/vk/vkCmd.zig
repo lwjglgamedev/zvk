@@ -6,7 +6,7 @@ pub const VkCmdPool = struct {
     commandPool: vulkan.CommandPool,
 
     pub fn create(vkCtx: *const vk.ctx.VkCtx, queueFamilyIndex: u32, resetSupport: bool) !VkCmdPool {
-        const createInfo: vulkan.CommandPoolCreateInfo = .{ .queue_family_index = queueFamilyIndex, .flags = .{ .reset_command_buffer_bit = resetSupport } };
+        const createInfo: vulkan.CommandPoolCreateInfo = .{ .queue_family_index = queueFamilyIndex, .flags = .{ .reset_command_buffer = resetSupport } };
         const commandPool = try vkCtx.vkDevice.deviceProxy.createCommandPool(&createInfo, null);
         return .{ .commandPool = commandPool };
     }
@@ -43,7 +43,7 @@ pub const VkCmdBuff = struct {
     }
 
     pub fn begin(self: *const VkCmdBuff, vkCtx: *const vk.ctx.VkCtx) !void {
-        const beginInfo: vulkan.CommandBufferBeginInfo = .{ .flags = .{ .one_time_submit_bit = self.oneTime } };
+        const beginInfo: vulkan.CommandBufferBeginInfo = .{ .flags = .{ .one_time_submit = self.oneTime } };
         try vkCtx.vkDevice.deviceProxy.beginCommandBuffer(self.cmdBuffProxy.handle, &beginInfo);
     }
 

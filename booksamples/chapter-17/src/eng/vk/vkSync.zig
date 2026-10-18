@@ -6,7 +6,7 @@ pub const VkFence = struct {
     fence: vulkan.Fence,
 
     pub fn create(vkCtx: *const vk.ctx.VkCtx) !VkFence {
-        const fence = try vkCtx.*.vkDevice.deviceProxy.createFence(&.{ .flags = .{ .signaled_bit = true } }, null);
+        const fence = try vkCtx.*.vkDevice.deviceProxy.createFence(&.{ .flags = .{ .signaled = true } }, null);
         return .{ .fence = fence };
     }
 

@@ -27,11 +27,6 @@ pub fn build(b: *std.Build) void {
     const sdl3 = sdl3Dep.module("sdl3");
     exe.root_module.addImport("sdl3", sdl3);
 
-    // VMA
-    const vmaDep = b.dependency("vma", .{});
-    const vmaIncludePath = vmaDep.path("include");
-    exe.root_module.link_libcpp = true;
-
     // Vulkan
     const vkHeaders = b.dependency("vulkan_headers", .{});
     const vkIncludePath = vkHeaders.path("include");
@@ -40,6 +35,21 @@ pub fn build(b: *std.Build) void {
     });
     const vulkan = vulkanDep.module("vulkan-zig");
     exe.root_module.addImport("vulkan", vulkan);
+
+    // VMA
+    const vmaDep = b.dependency("vma", .{});
+    const vmaIncludePath = vmaDep.path("include");
+    exe.root_module.link_libcpp = true;
+
+    // VMA C bindings via translate-c
+    const vmaTranslateC = b.addTranslateC(.{
+        .root_source_file = vmaDep.path("include/vk_mem_alloc.h"),
+        .target = target,
+        .optimize = optimize,
+    });
+    vmaTranslateC.addIncludePath(vmaIncludePath);
+    vmaTranslateC.addIncludePath(vkIncludePath);
+    const vmaC = vmaTranslateC.createModule();
 
     // TOML
     const tomlDep = b.dependency("toml", .{
@@ -74,6 +84,8 @@ pub fn build(b: *std.Build) void {
     vk.addImport("vulkan", vulkan);
     vk.addImport("sdl3", sdl3);
     vk.addImport("com", com);
+    vk.addImport("vma_c", vmaC);
+    exe.root_module.addImport("vk", vk);
     vk.addIncludePath(vmaIncludePath);
     vk.addIncludePath(vkIncludePath);
     vk.addCSourceFile(.{ .file = b.path("src/eng/vk/vma.cpp"), .flags = &.{"-std=c++17"} });
@@ -127,9 +139,7 @@ pub fn build(b: *std.Build) void {
 
     run_cmd.step.dependOn(b.getInstallStep());
 
-    if (b.args) |args| {
-        run_cmd.addArgs(args);
-    }
+    run_cmd.addPassthruArgs();
 
     const modelGen = b.addExecutable(.{
         .name = "model-gen",

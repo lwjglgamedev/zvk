@@ -14,7 +14,7 @@ pub fn createHostVisibleBuff(
         vkCtx,
         size,
         bufferUsage,
-        .{ .host_visible_bit = true, .host_coherent_bit = true },
+        .{ .host_visible = true, .host_coherent = true },
     );
 
     const descSet = try vkCtx.vkDescAllocator.addDescSet(
