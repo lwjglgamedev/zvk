@@ -174,7 +174,7 @@ pub const Render = struct {
         const queueGraphics = vk.queue.VkQueue.create(&vkCtx, vkCtx.vkPhysDevice.queuesInfo.graphics_family);
         const queuePresent = vk.queue.VkQueue.create(&vkCtx, vkCtx.vkPhysDevice.queuesInfo.present_family);
 
-        const globalBuffs = try eng.mcach.GlobalBuffers.create(&vkCtx);
+        const globalBuffers = try eng.mcach.GlobalBuffers.create(&vkCtx);
 
         var renderAnim = try eng.ranm.RenderAnim.create(allocator, io, &vkCtx);
         errdefer renderAnim.cleanup(&vkCtx);
@@ -207,7 +207,7 @@ pub const Render = struct {
             .cmdBuffs = cmdBuffs,
             .currentFrame = 0,
             .fences = fences,
-            .globalBuffs = globalBuffs,
+            .globalBuffers = globalBuffers,
             .materialsCache = materialsCache,
             .modelsCache = modelsCache,
             .mustResize = false,

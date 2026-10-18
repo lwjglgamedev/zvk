@@ -28,6 +28,7 @@ pub const VkVmaAlloc = struct {
         };
 
         const createInfo = vma.VmaAllocatorCreateInfo{
+            .flags = vma.VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT,
             .physicalDevice = @ptrFromInt(@intFromPtr(vkPhysDevice.pdev)),
             .device = @ptrFromInt(@intFromPtr(vkDevice.deviceProxy.handle)),
             .instance = @ptrFromInt(@intFromPtr(vkInstance.instanceProxy.handle)),

@@ -16,7 +16,7 @@ pub const GlobalBuffers = struct {
     buffModelMatrices: [com.common.FRAMES_IN_FLIGHT]vk.buf.VkBuffer,
     drawCounts: [com.common.FRAMES_IN_FLIGHT]u32,
 
-    pub fn cleanup(self: *GlobalBuffers, vkCtx: *const vk.VkCtx) void {
+    pub fn cleanup(self: *GlobalBuffers, vkCtx: *const vk.ctx.VkCtx) void {
         for (&self.buffIndirectDrawCmds) |buff| {
             buff.cleanup(vkCtx);
         }
@@ -29,43 +29,43 @@ pub const GlobalBuffers = struct {
     }
 
     pub fn create(vkCtx: *vk.ctx.VkCtx) !GlobalBuffers {
-        const buffIndirectDrawCmds: [com.common.FRAMES_IN_FLIGHT]vk.buf.VkBuffer = undefined;
+        var buffIndirectDrawCmds: [com.common.FRAMES_IN_FLIGHT]vk.buf.VkBuffer = undefined;
         for (0..com.common.FRAMES_IN_FLIGHT) |i| {
             buffIndirectDrawCmds[i] = try vk.buf.VkBuffer.create(
                 vkCtx,
                 @as(u64, IND_COMMAND_STRIDE) * @as(u64, DEFAULT_NUM_COMMANDS),
-                .{ .indirect_buffer_bit = true, .storage_buffer = true },
-                @intFromEnum(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSequentialWriteBit),
+                .{ .indirect_buffer = true, .storage_buffer = true },
+                @backingInt(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSequentialWriteBit),
                 vk.vma.VmaUsage.VmaUsageAuto,
                 vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBitAndCoherent,
             );
         }
 
-        const buffInstanceData: [com.common.FRAMES_IN_FLIGHT]vk.buf.VkBuffer = undefined;
+        var buffInstanceData: [com.common.FRAMES_IN_FLIGHT]vk.buf.VkBuffer = undefined;
         for (0..com.common.FRAMES_IN_FLIGHT) |i| {
             buffInstanceData[i] = try vk.buf.VkBuffer.create(
                 vkCtx,
                 @as(u64, DEFAULT_NUM_COMMANDS) * @as(u64, INSTANCE_DATA_SIZE),
-                .{ .indirect_buffer_bit = true, .storage_buffer = true },
-                @intFromEnum(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSequentialWriteBit),
+                .{ .indirect_buffer = true, .storage_buffer = true },
+                @backingInt(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSequentialWriteBit),
                 vk.vma.VmaUsage.VmaUsageAuto,
                 vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBitAndCoherent,
             );
         }
 
-        const buffModelMatrices: [com.common.FRAMES_IN_FLIGHT]vk.buf.VkBuffer = undefined;
+        var buffModelMatrices: [com.common.FRAMES_IN_FLIGHT]vk.buf.VkBuffer = undefined;
         for (0..com.common.FRAMES_IN_FLIGHT) |i| {
             buffModelMatrices[i] = try vk.buf.VkBuffer.create(
                 vkCtx,
                 @as(u64, DEFAULT_NUM_COMMANDS) * @as(u64, @sizeOf(zm.Mat)),
-                .{ .indirect_buffer_bit = true, .storage_buffer = true },
-                @intFromEnum(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSequentialWriteBit),
+                .{ .indirect_buffer = true, .storage_buffer = true },
+                @backingInt(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSequentialWriteBit),
                 vk.vma.VmaUsage.VmaUsageAuto,
                 vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBitAndCoherent,
             );
         }
 
-        const drawCounts: [com.common.FRAMES_IN_FLIGHT]u32 = .{0} ** com.common.FRAMES_IN_FLIGHT;
+        const drawCounts: [com.common.FRAMES_IN_FLIGHT]u32 = @splat(0);
 
         return .{
             .buffIndirectDrawCmds = buffIndirectDrawCmds,
@@ -96,7 +96,7 @@ pub const GlobalBuffers = struct {
             self.buffIndirectDrawCmds[frame] = try vk.buf.VkBuffer.create(
                 vkCtx,
                 @as(u64, IND_COMMAND_STRIDE) * @as(u64, numIndCommands),
-                vulkan.BufferUsageFlags{ .indirect_buffer_bit = true, .storage_buffer = true },
+                vulkan.BufferUsageFlags{ .indirect_buffer = true, .storage_buffer = true },
                 vk.vma.VmaUsage.VmaUsageAuto,
                 vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBitAndCoherent,
             );
@@ -117,7 +117,7 @@ pub const GlobalBuffers = struct {
             self.buffInstanceData[frame] = try vk.buf.VkBuffer.create(
                 vkCtx,
                 bufferSize,
-                vulkan.BufferUsageFlags{ .indirect_buffer_bit = true, .storage_buffer = true },
+                vulkan.BufferUsageFlags{ .indirect_buffer = true, .storage_buffer = true },
                 vk.vma.VmaUsage.VmaUsageAuto,
                 vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBitAndCoherent,
             );
@@ -137,7 +137,7 @@ pub const GlobalBuffers = struct {
             self.buff_model_matrices[frame] = try vk.buf.VkBuffer.create(
                 vkCtx,
                 bufferSize,
-                vulkan.BufferUsageFlags{ .indirect_buffer_bit = true, .storage_buffer = true },
+                vulkan.BufferUsageFlags{ .indirect_buffer = true, .storage_buffer = true },
                 vk.vma.VmaUsage.VmaUsageAuto,
                 vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBitAndCoherent,
             );
@@ -457,7 +457,7 @@ pub const MaterialsCache = struct {
             vkCtx,
             buffSize,
             vulkan.BufferUsageFlags{ .transfer_src = true },
-            @intFromEnum(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSequentialWriteBit),
+            @backingInt(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSequentialWriteBit),
             vk.vma.VmaUsage.VmaUsageAuto,
             vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBitAndCoherent,
         );
@@ -466,7 +466,7 @@ pub const MaterialsCache = struct {
             vkCtx,
             buffSize,
             vulkan.BufferUsageFlags{ .storage_buffer = true, .transfer_dst = true },
-            @intFromEnum(vk.vma.VmaFlags.None),
+            @backingInt(vk.vma.VmaFlags.None),
             vk.vma.VmaUsage.VmaUsageAuto,
             vk.vma.VmaMemoryFlags.None,
         );
@@ -590,7 +590,7 @@ pub const ModelsCache = struct {
             vkCtx,
             bufferSize,
             vulkan.BufferUsageFlags{ .transfer_src = true },
-            @intFromEnum(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSequentialWriteBit),
+            @backingInt(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSequentialWriteBit),
             vk.vma.VmaUsage.VmaUsageAuto,
             vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBitAndCoherent,
         );
@@ -603,7 +603,7 @@ pub const ModelsCache = struct {
             vkCtx,
             bufferSize,
             vulkan.BufferUsageFlags{ .storage_buffer = true, .transfer_dst = true, .shader_device_address = true },
-            @intFromEnum(vk.vma.VmaFlags.DedicatedMemory),
+            @backingInt(vk.vma.VmaFlags.DedicatedMemory),
             vk.vma.VmaUsage.VmaUsageAuto,
             vk.vma.VmaMemoryFlags.None,
         );
@@ -644,7 +644,7 @@ pub const ModelsCache = struct {
             vkCtx,
             bufferSize,
             vulkan.BufferUsageFlags{ .transfer_src = true },
-            @intFromEnum(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSequentialWriteBit),
+            @backingInt(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSequentialWriteBit),
             vk.vma.VmaUsage.VmaUsageAuto,
             vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBitAndCoherent,
         );
@@ -657,7 +657,7 @@ pub const ModelsCache = struct {
             vkCtx,
             bufferSize,
             vulkan.BufferUsageFlags{ .vertex_buffer = true, .storage_buffer = true, .transfer_dst = true, .shader_device_address = true },
-            @intFromEnum(vk.vma.VmaFlags.DedicatedMemory),
+            @backingInt(vk.vma.VmaFlags.DedicatedMemory),
             vk.vma.VmaUsage.VmaUsageAuto,
             vk.vma.VmaMemoryFlags.None,
         );
@@ -741,7 +741,7 @@ pub const ModelsCache = struct {
                     vkCtx,
                     verticesSize,
                     vulkan.BufferUsageFlags{ .transfer_src = true },
-                    @intFromEnum(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSequentialWriteBit),
+                    @backingInt(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSequentialWriteBit),
                     vk.vma.VmaUsage.VmaUsageAuto,
                     vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBitAndCoherent,
                 );
@@ -753,7 +753,7 @@ pub const ModelsCache = struct {
                     vkCtx,
                     verticesSize,
                     vulkan.BufferUsageFlags{ .vertex_buffer = true, .storage_buffer = true, .transfer_dst = true, .shader_device_address = true },
-                    @intFromEnum(vk.vma.VmaFlags.DedicatedMemory),
+                    @backingInt(vk.vma.VmaFlags.DedicatedMemory),
                     vk.vma.VmaUsage.VmaUsageAuto,
                     vk.vma.VmaMemoryFlags.None,
                 );
@@ -770,7 +770,7 @@ pub const ModelsCache = struct {
                     vkCtx,
                     indicesSize,
                     vulkan.BufferUsageFlags{ .transfer_src = true },
-                    @intFromEnum(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSequentialWriteBit),
+                    @backingInt(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSequentialWriteBit),
                     vk.vma.VmaUsage.VmaUsageAuto,
                     vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBitAndCoherent,
                 );
@@ -782,7 +782,7 @@ pub const ModelsCache = struct {
                     vkCtx,
                     indicesSize,
                     vulkan.BufferUsageFlags{ .index_buffer = true, .transfer_dst = true, .shader_device_address = true },
-                    @intFromEnum(vk.vma.VmaFlags.DedicatedMemory),
+                    @backingInt(vk.vma.VmaFlags.DedicatedMemory),
                     vk.vma.VmaUsage.VmaUsageAuto,
                     vk.vma.VmaMemoryFlags.None,
                 );
