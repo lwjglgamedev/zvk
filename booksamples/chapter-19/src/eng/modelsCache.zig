@@ -46,7 +46,7 @@ pub const GlobalBuffers = struct {
             buffInstanceData[i] = try vk.buf.VkBuffer.create(
                 vkCtx,
                 @as(u64, DEFAULT_NUM_COMMANDS) * @as(u64, instanceData_SIZE),
-                .{ .indirect_buffer = true, .storage_buffer = true },
+                .{ .shader_device_address = true },
                 @backingInt(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSequentialWriteBit),
                 vk.vma.VmaUsage.VmaUsageAuto,
                 vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBitAndCoherent,
@@ -58,7 +58,7 @@ pub const GlobalBuffers = struct {
             buffModelMatrices[i] = try vk.buf.VkBuffer.create(
                 vkCtx,
                 @as(u64, DEFAULT_NUM_COMMANDS) * @as(u64, @sizeOf(zm.Mat)),
-                .{ .indirect_buffer = true, .storage_buffer = true },
+                .{ .shader_device_address = true },
                 @backingInt(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSequentialWriteBit),
                 vk.vma.VmaUsage.VmaUsageAuto,
                 vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBitAndCoherent,
