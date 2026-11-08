@@ -299,6 +299,16 @@ pub const Render = struct {
         }
         const imageIndex = res.ok;
 
+        try self.globalBuffers.update(
+            engCtx.allocator,
+            &self.vkCtx,
+            &engCtx.scene,
+            &self.modelsCache,
+            &self.animsCache,
+            &self.materialsCache,
+            @as(usize, self.currentFrame),
+        );
+
         try self.renderScn.render(
             &self.vkCtx,
             engCtx,

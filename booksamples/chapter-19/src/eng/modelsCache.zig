@@ -8,7 +8,7 @@ const zm = @import("zmath");
 
 pub const IND_COMMAND_STRIDE: u32 = @sizeOf(vulkan.DrawIndirectCommand);
 const DEFAULT_NUM_COMMANDS: u32 = 100;
-const INSTANCE_DATA_SIZE: u32 = @sizeOf(u32) * 2 + @sizeOf(u64) * 2;
+const instanceData_SIZE: u32 = @sizeOf(u32) * 2 + @sizeOf(u64) * 2;
 
 pub const GlobalBuffers = struct {
     buffIndirectDrawCmds: [com.common.FRAMES_IN_FLIGHT]vk.buf.VkBuffer,
@@ -45,7 +45,7 @@ pub const GlobalBuffers = struct {
         for (0..com.common.FRAMES_IN_FLIGHT) |i| {
             buffInstanceData[i] = try vk.buf.VkBuffer.create(
                 vkCtx,
-                @as(u64, DEFAULT_NUM_COMMANDS) * @as(u64, INSTANCE_DATA_SIZE),
+                @as(u64, DEFAULT_NUM_COMMANDS) * @as(u64, instanceData_SIZE),
                 .{ .indirect_buffer = true, .storage_buffer = true },
                 @backingInt(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSequentialWriteBit),
                 vk.vma.VmaUsage.VmaUsageAuto,
@@ -77,67 +77,53 @@ pub const GlobalBuffers = struct {
 
     fn createOrUpdateBuffers(
         self: *GlobalBuffers,
-        vkCtx: *eng.VkCtx,
+        vkCtx: *const vk.ctx.VkCtx,
         frame: usize,
         numIndCommands: u32,
         numInstanceData: u32,
         numEntities: u32,
     ) !void {
-        var createBuff = false;
-        if (self.buffIndirectDrawCmds[frame]) |*buf| {
-            if (self.drawCounts[frame] < numIndCommands) {
-                buf.cleanup(vkCtx);
-                createBuff = true;
-            }
-        } else {
-            createBuff = true;
-        }
-        if (createBuff) {
+        const indCommandsSize: u64 =
+            @as(u64, IND_COMMAND_STRIDE) * @as(u64, numIndCommands);
+
+        if (self.buffIndirectDrawCmds[frame].size < indCommandsSize) {
+            self.buffIndirectDrawCmds[frame].cleanup(vkCtx);
             self.buffIndirectDrawCmds[frame] = try vk.buf.VkBuffer.create(
                 vkCtx,
-                @as(u64, IND_COMMAND_STRIDE) * @as(u64, numIndCommands),
-                vulkan.BufferUsageFlags{ .indirect_buffer = true, .storage_buffer = true },
+                indCommandsSize,
+                .{ .indirect_buffer = true, .storage_buffer = true },
+                @backingInt(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSequentialWriteBit),
                 vk.vma.VmaUsage.VmaUsageAuto,
                 vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBitAndCoherent,
             );
         }
-        self.draw_counts[frame] = numIndCommands;
+        self.drawCounts[frame] = numIndCommands;
 
-        createBuff = false;
-        var bufferSize: u64 = @as(u64, numInstanceData) * @as(u64, INSTANCE_DATA_SIZE);
-        if (self.buff_instance_data[frame]) |*buf| {
-            if (buf.getRequestedSize() < bufferSize) {
-                buf.cleanup(vkCtx);
-                createBuff = true;
-            }
-        } else {
-            createBuff = true;
-        }
-        if (createBuff) {
+        const instanceDataSize: u64 =
+            @as(u64, numInstanceData) * @as(u64, instanceData_SIZE);
+
+        if (self.buffInstanceData[frame].size < instanceDataSize) {
+            self.buffInstanceData[frame].cleanup(vkCtx);
             self.buffInstanceData[frame] = try vk.buf.VkBuffer.create(
                 vkCtx,
-                bufferSize,
-                vulkan.BufferUsageFlags{ .indirect_buffer = true, .storage_buffer = true },
+                instanceDataSize,
+                .{ .storage_buffer = true, .shader_device_address = true },
+                @backingInt(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSequentialWriteBit),
                 vk.vma.VmaUsage.VmaUsageAuto,
                 vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBitAndCoherent,
             );
         }
 
-        createBuff = false;
-        bufferSize = @as(u64, numEntities) * @as(u64, @sizeOf(zm.Mat));
-        if (self.buffModelMatrices[frame]) |*buf| {
-            if (buf.getRequestedSize() < bufferSize) {
-                buf.cleanup(vkCtx);
-                createBuff = true;
-            }
-        } else {
-            createBuff = true;
-        }
-        if (createBuff) {
-            self.buff_model_matrices[frame] = try vk.buf.VkBuffer.create(
+        const modelMatricesSize: u64 =
+            @as(u64, numEntities) * @as(u64, @sizeOf(zm.Mat));
+
+        if (self.buffModelMatrices[frame].size < modelMatricesSize) {
+            self.buffModelMatrices[frame].cleanup(vkCtx);
+            self.buffModelMatrices[frame] = try vk.buf.VkBuffer.create(
                 vkCtx,
-                bufferSize,
-                vulkan.BufferUsageFlags{ .indirect_buffer = true, .storage_buffer = true },
+                modelMatricesSize,
+                .{ .storage_buffer = true, .shader_device_address = true },
+                @backingInt(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSequentialWriteBit),
                 vk.vma.VmaUsage.VmaUsageAuto,
                 vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBitAndCoherent,
             );
@@ -163,158 +149,171 @@ pub const GlobalBuffers = struct {
     pub fn update(
         self: *GlobalBuffers,
         allocator: std.mem.Allocator,
-        ctx: *eng.VkCtx,
-        scene: *eng.Scene,
-        models_cache: *ModelsCache,
-        animations_cache: *eng.AnimationsCache,
-        materials_cache: *MaterialsCache,
+        vkCtx: *const vk.ctx.VkCtx,
+        scene: *eng.scn.Scene,
+        modelsCache: *ModelsCache,
+        animsCache: *eng.acach.AnimsCache,
+        materialsCache: *MaterialsCache,
         frame: usize,
     ) !void {
-        var arena_state = std.heap.ArenaAllocator.init(allocator);
-        defer arena_state.deinit();
-        const arena = arena_state.allocator();
+        var arenaAlloc = std.heap.ArenaAllocator.init(allocator);
+        defer arenaAlloc.deinit();
+        const arena = arenaAlloc.allocator();
 
-        var ind_command_list = std.ArrayListUnmanaged(vk.DrawIndirectCommand){};
+        var indCommandList: std.ArrayListUnmanaged(vulkan.DrawIndirectCommand) = .empty;
 
-        var base_entity_idx: u32 = 0;
-        var num_instance_data: u32 = 0;
+        var baseEntityIdx: u32 = 0;
+        var numInstanceData: u32 = 0;
+        var totalEntities: u32 = 0;
 
-        var it = scene.entities.iterator();
+        var it = scene.entitiesMap.iterator();
         while (it.next()) |entry| {
             const key = entry.key_ptr.*;
             const entities = entry.value_ptr.*;
-            const num_entities: u32 = @intCast(entities.items.len);
+            const numEntities: u32 = @intCast(entities.items.len);
+            totalEntities += numEntities;
 
-            const vulkan_model = models_cache.getModel(key);
-            const vulkan_mesh_list = vulkan_model.vulkan_mesh_list;
-            const num_meshes: u32 = @intCast(vulkan_mesh_list.len);
+            const vulkanModel = modelsCache.modelsMap.get(key) orelse {
+                log.warn("Model not found: {s}", .{key});
+                continue;
+            };
+            const vulkanMeshList = vulkanModel.meshes.items;
+            const numMeshes: u32 = @intCast(vulkanMeshList.len);
 
-            if (vulkan_model.hasAnimations()) {
+            if (vulkanModel.hasAnimations()) {
                 var i: u32 = 0;
-                while (i < num_meshes) : (i += 1) {
+                while (i < numMeshes) : (i += 1) {
                     var j: u32 = 0;
-                    while (j < num_entities) : (j += 1) {
-                        const vulkan_mesh = vulkan_mesh_list[i];
-                        try ind_command_list.append(arena, .{
-                            .vertex_count = vulkan_mesh.num_indices,
+                    while (j < numEntities) : (j += 1) {
+                        const vulkanMesh = vulkanMeshList[i];
+                        try indCommandList.append(arena, .{
+                            .vertex_count = @intCast(vulkanMesh.numIndices),
                             .instance_count = 1,
                             .first_vertex = 0,
-                            .first_instance = base_entity_idx,
+                            .first_instance = baseEntityIdx,
                         });
-                        base_entity_idx += 1;
-                        num_instance_data += 1;
+                        baseEntityIdx += 1;
+                        numInstanceData += 1;
                     }
                 }
             } else {
                 var j: u32 = 0;
-                while (j < num_meshes) : (j += 1) {
-                    const vulkan_mesh = vulkan_mesh_list[j];
-                    try ind_command_list.append(arena, .{
-                        .vertex_count = vulkan_mesh.num_indices,
-                        .instance_count = num_entities,
+                while (j < numMeshes) : (j += 1) {
+                    const vulkanMesh = vulkanMeshList[j];
+                    try indCommandList.append(arena, .{
+                        .vertex_count = @intCast(vulkanMesh.numIndices),
+                        .instance_count = numEntities,
                         .first_vertex = 0,
-                        .first_instance = base_entity_idx,
+                        .first_instance = baseEntityIdx,
                     });
-                    base_entity_idx += num_entities;
-                    num_instance_data += num_entities;
+                    baseEntityIdx += numEntities;
+                    numInstanceData += numEntities;
                 }
             }
         }
 
-        const total_entities: u32 = @intCast(scene.getNumEntities());
         try self.createOrUpdateBuffers(
-            ctx,
+            vkCtx,
             frame,
-            @intCast(ind_command_list.items.len),
-            num_instance_data,
-            total_entities,
+            @intCast(indCommandList.items.len),
+            numInstanceData,
+            totalEntities,
         );
 
-        self.updateCmdIndirectCommands(ctx, ind_command_list.items, frame);
-        self.updateInstanceData(ctx, scene, models_cache, materials_cache, animations_cache, frame);
+        try self.updateCmdIndirectCommands(vkCtx, indCommandList.items, frame);
+        try self.updateInstanceData(vkCtx, scene, modelsCache, materialsCache, animsCache, frame);
     }
 
     fn updateCmdIndirectCommands(
         self: *GlobalBuffers,
-        ctx: *eng.VkCtx,
-        ind_command_list: []const vk.DrawIndirectCommand,
+        vkCtx: *const vk.ctx.VkCtx,
+        indCommandList: []const vulkan.DrawIndirectCommand,
         frame: usize,
-    ) void {
-        var buffer = &self.buff_indirect_draw_cmds[frame].?;
-        const mapped = buffer.map(ctx);
-        const dst: [*]vk.DrawIndirectCommand = @ptrCast(@alignCast(mapped));
-        for (ind_command_list, 0..) |cmd, i| {
+    ) !void {
+        const buffer = &self.buffIndirectDrawCmds[frame];
+        const mapped = (try buffer.map(vkCtx)).?;
+        const dst: [*]vulkan.DrawIndirectCommand = @ptrCast(@alignCast(mapped));
+
+        for (indCommandList, 0..) |cmd, i| {
             dst[i] = cmd;
         }
-        buffer.unMap(ctx);
+
+        buffer.unMap(vkCtx);
     }
 
     fn updateInstanceData(
         self: *GlobalBuffers,
-        ctx: *eng.VkCtx,
-        scene: *eng.Scene,
-        models_cache: *ModelsCache,
-        materials_cache: *MaterialsCache,
-        animations_cache: *eng.AnimationsCache,
+        vkCtx: *const vk.ctx.VkCtx,
+        scene: *eng.scn.Scene,
+        modelsCache: *ModelsCache,
+        materialsCache: *MaterialsCache,
+        animsCache: *eng.acach.AnimsCache,
         frame: usize,
-    ) void {
-        var buffer_instances = &self.buff_instance_data[frame].?;
-        const instance_data: [*]u8 = buffer_instances.map(ctx);
+    ) !void {
+        var bufferInstances = &self.buffInstanceData[frame];
+        const instanceData: [*]u8 = @ptrCast((try bufferInstances.map(vkCtx)).?);
 
-        var buffer_models = &self.buff_model_matrices[frame].?;
-        const matrices_data: [*]u8 = buffer_models.map(ctx);
+        var bufferModels = &self.buffModelMatrices[frame];
+        const matricesData: [*]u8 = @ptrCast((try bufferModels.map(vkCtx)).?);
 
-        var base_entities: u32 = 0;
+        var baseEntities: u32 = 0;
         var offset: usize = 0;
 
-        var it = scene.entities.iterator();
+        var it = scene.entitiesMap.iterator();
         while (it.next()) |entry| {
-            const model_id = entry.key_ptr.*;
+            const modelId = entry.key_ptr.*;
             const entities = entry.value_ptr.*;
-            const num_entities: u32 = @intCast(entities.items.len);
+            const numEntities: u32 = @intCast(entities.items.len);
 
-            const vulkan_model = models_cache.getModel(model_id);
-            const animated_model = vulkan_model.hasAnimations();
-            const vulkan_mesh_list = vulkan_model.vulkan_mesh_list;
-            const num_meshes: u32 = @intCast(vulkan_mesh_list.len);
+            const vulkanModel = modelsCache.modelsMap.get(modelId) orelse {
+                log.warn("Model not found: {s}", .{modelId});
+                continue;
+            };
+            const animatedModel = vulkanModel.hasAnimations();
+            const vulkanMeshList = vulkanModel.meshes.items;
+            const numMeshes: u32 = @intCast(vulkanMeshList.len);
 
             var i: u32 = 0;
-            while (i < num_meshes) : (i += 1) {
-                const mesh = vulkan_mesh_list[i];
-                var vtx_buffer_address: u64 = mesh.vertices_buffer.getAddress();
-                const idx_buffer_address: u64 = mesh.indices_buffer.getAddress();
+            while (i < numMeshes) : (i += 1) {
+                const mesh = vulkanMeshList[i];
+                var vtxBufferAddress: u64 = mesh.buffVtx.address.?;
+                const idxBufferAddress: u64 = mesh.buffIdx.address.?;
 
                 var j: u32 = 0;
-                while (j < num_entities) : (j += 1) {
+                while (j < numEntities) : (j += 1) {
                     const entity = entities.items[j];
-                    const entity_idx = base_entities + j;
+                    const entityIdx = baseEntities + j;
 
-                    entity.getModelMatrix().writeTo(
-                        matrices_data + @as(usize, entity_idx) * @sizeOf(zm.Mat),
+                    const modelMatrix = zm.matToArr(entity.modelMatrix);
+                    const matrixBytes: []const u8 = std.mem.asBytes(&modelMatrix);
+                    const matrixOffset = @as(usize, entityIdx) * @sizeOf(zm.Mat);
+                    const matrixDst = matricesData + matrixOffset;
+                    @memcpy(matrixDst[0..matrixBytes.len], matrixBytes);
+
+                    std.mem.writeInt(u32, instanceData[offset..][0..4], entityIdx, .little);
+                    offset += @sizeOf(u32);
+
+                    const materialIdx: u32 = @intCast(
+                        materialsCache.materialsMap.getIndex(mesh.materialId) orelse 0,
                     );
-
-                    std.mem.writeInt(u32, instance_data[offset..][0..4], entity_idx, .little);
+                    std.mem.writeInt(u32, instanceData[offset..][0..4], materialIdx, .little);
                     offset += @sizeOf(u32);
 
-                    const material_pos = materials_cache.getPosition(mesh.material_id);
-                    std.mem.writeInt(u32, instance_data[offset..][0..4], material_pos, .little);
-                    offset += @sizeOf(u32);
-
-                    if (animated_model) {
-                        vtx_buffer_address = animations_cache.getBuffer(entity.getId(), mesh.id).getAddress();
+                    if (animatedModel) {
+                        vtxBufferAddress = animsCache.getBuffer(entity.id, mesh.id).?.address.?;
                     }
-                    std.mem.writeInt(u64, instance_data[offset..][0..8], vtx_buffer_address, .little);
+                    std.mem.writeInt(u64, instanceData[offset..][0..8], vtxBufferAddress, .little);
                     offset += @sizeOf(u64);
 
-                    std.mem.writeInt(u64, instance_data[offset..][0..8], idx_buffer_address, .little);
+                    std.mem.writeInt(u64, instanceData[offset..][0..8], idxBufferAddress, .little);
                     offset += @sizeOf(u64);
                 }
             }
-            base_entities += num_entities;
+            baseEntities += numEntities;
         }
 
-        buffer_instances.unMap(ctx);
-        buffer_models.unMap(ctx);
+        bufferInstances.unMap(vkCtx);
+        bufferModels.unMap(vkCtx);
     }
 };
 
