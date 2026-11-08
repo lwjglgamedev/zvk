@@ -4,10 +4,10 @@
 const int MAX_TEXTURES = 100;
 
 layout(location = 0) in vec4 inPos;
-layout(location = 1) in vec3 inNormal;
-layout(location = 2) in vec3 inTangent;
-layout(location = 3) in vec3 inBitangent;
-layout(location = 4) in vec2 inTextCoords;
+layout(location = 1) in vec2 inTextCoords;
+layout(location = 2) in vec3 inNormal;
+layout(location = 3) in vec3 inTangent;
+layout(location = 4) in vec3 inBitangent;
 layout(location = 5) flat in uint inMaterialIdx;
 
 layout(location = 0) out vec4 outPos;
