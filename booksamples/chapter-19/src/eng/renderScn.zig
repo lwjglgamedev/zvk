@@ -16,13 +16,8 @@ pub const VtxBuffDesc = struct {
 };
 
 const PushConstantsVtx = extern struct {
-    modelMatrix: [16]f32,
-    vtxAddress: u64,
-    idxAddress: u64,
-};
-
-const PushConstantsFrg = extern struct {
-    materialIdx: u32,
+    instancesDataBuffer: u64,
+    modelMatricesDataBuffer: u64,
 };
 
 const DEPTH_FORMAT = vulkan.Format.d16_unorm;
@@ -162,11 +157,6 @@ pub const RenderScn = struct {
                 .offset = 0,
                 .size = @sizeOf(PushConstantsVtx),
             },
-            .{
-                .stage_flags = vulkan.ShaderStageFlags{ .fragment = true },
-                .offset = @sizeOf(PushConstantsVtx),
-                .size = @sizeOf(PushConstantsFrg),
-            },
         };
 
         // Pipeline
@@ -284,11 +274,14 @@ pub const RenderScn = struct {
         vkCtx: *const vk.ctx.VkCtx,
         engCtx: *const eng.engine.EngCtx,
         vkCmd: vk.cmd.VkCmdBuff,
-        modelsCache: *const eng.mcach.ModelsCache,
+        globalBuffers: *const eng.mcach.GlobalBuffers,
         materialsCache: *const eng.mcach.MaterialsCache,
         animsCache: *const eng.acach.AnimsCache,
         frameIdx: u8,
     ) !void {
+        _ = materialsCache;
+        _ = animsCache;
+
         const allocator = engCtx.allocator;
         const scene = &engCtx.scene;
         const cmdHandle = vkCmd.cmdBuffProxy.handle;
@@ -371,59 +364,24 @@ pub const RenderScn = struct {
             null,
         );
 
-        self.renderEntities(vkCtx, engCtx, modelsCache, materialsCache, animsCache, cmdHandle, false);
-        self.renderEntities(vkCtx, engCtx, modelsCache, materialsCache, animsCache, cmdHandle, true);
+        self.setPushConstants(
+            vkCtx,
+            cmdHandle,
+            globalBuffers,
+            frameIdx,
+        );
+
+        device.cmdDrawIndirect(
+            cmdHandle,
+            globalBuffers.getIndirectBuffer(frameIdx).buffer,
+            0,
+            globalBuffers.getDrawCount(frameIdx),
+            eng.mcach.IND_COMMAND_STRIDE,
+        );
 
         device.cmdEndRendering(cmdHandle);
 
         try self.renderFinish(allocator, vkCtx, cmdHandle);
-    }
-
-    fn renderEntities(
-        self: *RenderScn,
-        vkCtx: *const vk.ctx.VkCtx,
-        engCtx: *const eng.engine.EngCtx,
-        modelsCache: *const eng.mcach.ModelsCache,
-        materialsCache: *const eng.mcach.MaterialsCache,
-        animsCache: *const eng.acach.AnimsCache,
-        cmdHandle: vulkan.CommandBuffer,
-        transparent: bool,
-    ) void {
-        const device = vkCtx.vkDevice.deviceProxy;
-        var iter = engCtx.scene.entitiesMap.valueIterator();
-
-        while (iter.next()) |listRef| {
-            for (listRef.items) |entity| {
-                const vulkanModel = modelsCache.modelsMap.get(entity.modelId);
-                if (vulkanModel) |*vm| {
-                    for (vm.meshes.items) |mesh| {
-                        var materialIdx: u32 = 0;
-                        if (materialsCache.materialsMap.getIndex(mesh.materialId)) |idx| {
-                            materialIdx = @as(u32, @intCast(idx));
-                            const material = materialsCache.materialsMap.get(mesh.materialId).?;
-                            if (material.transparent != transparent) {
-                                continue;
-                            }
-                        }
-                        const vtxAddress: u64 = if (vm.hasAnimations())
-                            (animsCache.getBuffer(entity.id, mesh.id).?.address orelse mesh.buffVtx.address.?)
-                        else
-                            mesh.buffVtx.address.?;
-                        self.setPushConstants(
-                            vkCtx,
-                            cmdHandle,
-                            entity,
-                            vtxAddress,
-                            mesh.buffIdx.address.?,
-                            materialIdx,
-                        );
-                        device.cmdDraw(cmdHandle, @as(u32, @intCast(mesh.numIndices)), 1, 0, 0);
-                    }
-                } else {
-                    std.log.warn("Could not find model {s}", .{entity.modelId});
-                }
-            }
-        }
     }
 
     fn renderFinish(self: *RenderScn, allocator: std.mem.Allocator, vkCtx: *const vk.ctx.VkCtx, cmdHandle: vulkan.CommandBuffer) !void {
@@ -541,15 +499,12 @@ pub const RenderScn = struct {
         self: *RenderScn,
         vkCtx: *const vk.ctx.VkCtx,
         cmdHandle: vulkan.CommandBuffer,
-        entity: *eng.ent.Entity,
-        vtxAddress: u64,
-        idxAddress: u64,
-        materialIdx: u32,
+        globalBuffers: *const eng.mcach.GlobalBuffers,
+        frameIdx: u8,
     ) void {
         const pushConstantsVtx = PushConstantsVtx{
-            .modelMatrix = zm.matToArr(entity.modelMatrix),
-            .vtxAddress = vtxAddress,
-            .idxAddress = idxAddress,
+            .instancesDataBuffer = globalBuffers.getAddrBufInstanceData(frameIdx),
+            .modelMatricesDataBuffer = globalBuffers.getAddrBufModelMatrices(frameIdx),
         };
         vkCtx.vkDevice.deviceProxy.cmdPushConstants(
             cmdHandle,
@@ -558,17 +513,6 @@ pub const RenderScn = struct {
             0,
             @sizeOf(PushConstantsVtx),
             &pushConstantsVtx,
-        );
-        const pushConstantsFrg = PushConstantsFrg{
-            .materialIdx = materialIdx,
-        };
-        vkCtx.vkDevice.deviceProxy.cmdPushConstants(
-            cmdHandle,
-            self.vkPipeline.pipelineLayout,
-            vulkan.ShaderStageFlags{ .fragment = true },
-            @sizeOf(PushConstantsVtx),
-            @sizeOf(PushConstantsFrg),
-            &pushConstantsFrg,
         );
     }
 

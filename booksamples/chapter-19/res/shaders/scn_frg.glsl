@@ -4,10 +4,11 @@
 const int MAX_TEXTURES = 100;
 
 layout(location = 0) in vec4 inPos;
-layout(location = 1) in vec2 inTextCoords;
-layout(location = 2) in vec3 inNormal;
-layout(location = 3) in vec3 inTangent;
-layout(location = 4) in vec3 inBitangent;
+layout(location = 1) in vec3 inNormal;
+layout(location = 2) in vec3 inTangent;
+layout(location = 3) in vec3 inBitangent;
+layout(location = 4) in vec2 inTextCoords;
+layout(location = 5) flat in uint inMaterialIdx;
 
 layout(location = 0) out vec4 outPos;
 layout(location = 1) out vec4 outAlbedo;
@@ -32,10 +33,6 @@ layout(set = 1, binding = 0) readonly buffer MaterialUniform {
 
 layout(set = 2, binding = 0) uniform sampler2D textSampler[MAX_TEXTURES];
 
-layout(push_constant) uniform pc {
-    layout(offset = 80) uint materialIdx;
-} push_constants;
-
 vec3 calcNormal(Material material, vec3 normal, vec2 textCoords, mat3 TBN)
 {
     vec3 newNormal = normal;
@@ -52,7 +49,7 @@ void main()
 {
     outPos = inPos;
 
-    Material material = matUniform.materials[push_constants.materialIdx];
+    Material material = matUniform.materials[inMaterialIdx];
     if (material.hasTexture == 1) {
         outAlbedo = texture(textSampler[material.textureIdx], inTextCoords);
     } else {

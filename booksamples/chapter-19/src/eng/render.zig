@@ -303,7 +303,7 @@ pub const Render = struct {
             &self.vkCtx,
             engCtx,
             vkCmdBuff,
-            &self.modelsCache,
+            &self.globalBuffers,
             &self.materialsCache,
             &self.animsCache,
             self.currentFrame,

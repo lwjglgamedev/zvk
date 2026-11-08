@@ -144,20 +144,20 @@ pub const GlobalBuffers = struct {
         }
     }
 
-    pub fn getAddrBufInstanceData(self: *const GlobalBuffers, current_frame: usize) u64 {
-        return self.buff_instance_data[current_frame].?.getAddress();
+    pub fn getAddrBufInstanceData(self: *const GlobalBuffers, frameIdx: usize) u64 {
+        return self.buffInstanceData[frameIdx].address orelse 0;
     }
 
-    pub fn getAddrBufModelMatrices(self: *const GlobalBuffers, current_frame: usize) u64 {
-        return self.buff_model_matrices[current_frame].?.getAddress();
+    pub fn getAddrBufModelMatrices(self: *const GlobalBuffers, frameIdx: usize) u64 {
+        return self.buffModelMatrices[frameIdx].address orelse 0;
     }
 
-    pub fn getDrawCount(self: *const GlobalBuffers, current_frame: usize) u32 {
-        return self.draw_counts[current_frame];
+    pub fn getDrawCount(self: *const GlobalBuffers, frameIdx: usize) u32 {
+        return self.drawCounts[frameIdx];
     }
 
-    pub fn getIndirectBuffer(self: *GlobalBuffers, current_frame: usize) *vk.buf.VkBuffer {
-        return &self.buff_indirect_draw_cmds[current_frame].?;
+    pub fn getIndirectBuffer(self: *const GlobalBuffers, frameIdx: usize) *const vk.buf.VkBuffer {
+        return &self.buffIndirectDrawCmds[frameIdx];
     }
 
     pub fn update(

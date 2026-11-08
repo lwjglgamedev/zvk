@@ -10,12 +10,10 @@ layout(location = 3) out vec3 outBitangent;
 layout(location = 4) out vec2 outTextCoords;
 layout(location = 5) flat out uint outMaterialIdx;
 
-layout(set = 0, binding = 0) uniform ProjUniform {
-    mat4 matrix;
-} projUniform;
-layout(set = 1, binding = 0) uniform ViewUniform {
-    mat4 matrix;
-} viewUniform;
+layout(set = 0, binding = 0) uniform CamUniform {
+    mat4 projMatrix;
+    mat4 viewMatrix;
+} camUniform;
 
 struct Vertex {
     vec3 inPos;
@@ -74,11 +72,11 @@ void main()
     mat3 mNormal  = transpose(inverse(mat3(modelMatrix)));
 
     outPos         = worldPos;
-    outNormal      = mNormal * normalize(vertex.inNormal);
-    outTangent     = mNormal * normalize(vertex.inTangent);
-    outBitangent   = mNormal * normalize(vertex.inBitangent);
+    outNormal      = normalize(mNormal * vertex.inNormal);
+    outTangent     = normalize(mNormal * vertex.inTangent);
+    outBitangent   = normalize(mNormal * vertex.inBitangent);
     outTextCoords  = vertex.inTextCoords;
     outMaterialIdx = instanceData.materialIdx;
 
-    gl_Position   = projUniform.matrix * viewUniform.matrix * worldPos;
+    gl_Position    = camUniform.projMatrix * camUniform.viewMatrix * worldPos;
 }
