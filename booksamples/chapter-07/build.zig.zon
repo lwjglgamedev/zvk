@@ -13,7 +13,7 @@
             .hash = "vulkan-0.0.0-r7Ytx_uJAwBcp9ZoGQHwEQ0OWIfSErGulcgjKI8lZRPS",
         },
         .vulkan_headers = .{
-            .url = "https://github.com/KhronosGroup/Vulkan-Headers/archive/refs/tags/v1.4.365.tar.gz",
+            .url = "https://github.com/KhronosGroup/Vulkan-Headers/archive/refs/tags/v1.4.368.tar.gz",
             .hash = "N-V-__8AALu5iAL64sSFBjPrvXzTQ0ZMxT00hE0_7tezz3z4",
         },
         .toml = .{

@@ -32,7 +32,7 @@ In order to use VMA library you will need to add the following entry to the `bui
         ...
         .vma = .{
             .url = "https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator/archive/refs/tags/v3.5.0.tar.gz",
-            .hash = "N-V-__8AAG7MQQCXcvOh0VkmSXF9qW5CTbgporOoN7XDgeov",
+            .hash = "N-V-__8AAIwTQQCo2Vn2vnA6AyuuVuy1gDUXA4Hld0ROVTJe",
         },
         ...
     }

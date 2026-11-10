@@ -13,7 +13,7 @@
             .hash = "vulkan-0.0.0-r7Ytx_uJAwBcp9ZoGQHwEQ0OWIfSErGulcgjKI8lZRPS",
         },
         .vulkan_headers = .{
-            .url = "https://github.com/KhronosGroup/Vulkan-Headers/archive/refs/tags/v1.4.365.tar.gz",
+            .url = "https://github.com/KhronosGroup/Vulkan-Headers/archive/refs/tags/v1.4.368.tar.gz",
             .hash = "N-V-__8AALu5iAL64sSFBjPrvXzTQ0ZMxT00hE0_7tezz3z4",
         },
         .toml = .{
@@ -22,7 +22,7 @@
         },
         .vma = .{
             .url = "https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator/archive/refs/tags/v3.5.0.tar.gz",
-            .hash = "N-V-__8AAG7MQQCXcvOh0VkmSXF9qW5CTbgporOoN7XDgeov",
+            .hash = "N-V-__8AAIwTQQCo2Vn2vnA6AyuuVuy1gDUXA4Hld0ROVTJe",
         },
         .zmath = .{
             .url = "https://github.com/zig-gamedev/zmath/archive/43250209495cfb8a1a8d56c2977c563139c6eafe.tar.gz",
@@ -33,8 +33,8 @@
             .hash = "zstbi-0.11.0-dev-L0Ea_wGXBwCvXIzUWRNZe-6FpofI_nz4uAOQ4O0Fuxko",
         },
         .zig_assimp = .{
-            .url = "https://github.com/lwjglgamedev/assimp/archive/e43a33e5be214ef9253957518349e6ac03181307.tar.gz",
-            .hash = "zig_assimp-6.0.5-8EpyglvDAADBz_aekwkknv405pL_EB-Ki2yUiHAvovRy",
+            .url = "https://github.com/lwjglgamedev/assimp/archive/af9037424a4d93f39bba077e025ce5509002e2e9.tar.gz",
+            .hash = "zig_assimp-6.0.6-8EpyglvDAADMpeBcy8nLys0WJPSIZtBg9SbWjoasq5UQ",
         },
         .zgui = .{
             .url = "https://github.com/zig-gamedev/zgui/archive/6dad095852f36ac844d4cbc57ace9719b551946e.tar.gz",
