@@ -5,12 +5,12 @@
     .minimum_zig_version = "0.17.0",
     .dependencies = .{
         .sdl3 = .{
-            .url = "git+https://codeberg.org/7Games/zig-sdl3#82eab2e5a41a7b128f70afd7a6468fa736951cf1",
-            .hash = "sdl3-0.2.2-NmT1Q4pjKgBHqH1hP9CfOv14LwWjuEsjtdituu0hK1Xq",
+            .url = "git+https://codeberg.org/7Games/zig-sdl3?ref=v0.2.4#89dc02e78d93f791d547d3afca694cc9ad4a74be",
+            .hash = "sdl3-0.2.4-NmT1Q4EeKgAy2b_3kL04FrPamqVaJPMG5qNM1vbok7e_",
         },
         .vulkan = .{
-            .url = "https://github.com/Snektron/vulkan-zig/archive/1fa628fd49d89468241c2cab14bad41a312e79fc.tar.gz",
-            .hash = "vulkan-0.0.0-r7Ytxy2BAwCPqBJUCXp6XXMwWqFD3DNrMLWWQvRRSXOC",
+            .url = "https://github.com/Snektron/vulkan-zig/archive/5fdcec267c5fdfdb7d3618d5db0475372b17d3d1.tar.gz",
+            .hash = "vulkan-0.0.0-r7Ytx_uJAwBcp9ZoGQHwEQ0OWIfSErGulcgjKI8lZRPS",
         },
         .vulkan_headers = .{
             .url = "https://github.com/KhronosGroup/Vulkan-Headers/archive/refs/tags/v1.4.365.tar.gz",
@@ -21,12 +21,12 @@
             .hash = "toml-0.3.0-bV14BRmkAQDSILPPyXc31aAXPtJa1Uh8Frug3i6InAUc",
         },
         .zmath = .{
-            .url = "https://github.com/zig-gamedev/zmath/archive/df7890f154f87f5091b7d340f6e612678c537e63.tar.gz",
-            .hash = "zmath-0.11.0-dev-wjwivZItAwBb_70o-BWeF6Agc6MLu7qFTYboR9-2ha_C",
+            .url = "https://github.com/zig-gamedev/zmath/archive/43250209495cfb8a1a8d56c2977c563139c6eafe.tar.gz",
+            .hash = "zmath-0.11.0-dev-wjwivaAtAwA7W0_rRXAqdwjWGigw6_pxgsYtAdjUbqUj",
         },
         .zstbi = .{
-            .url = "https://github.com/zig-gamedev/zstbi/archive/bc96f28d341f9c7fb9cbc5dc65aa4c5cf0c8f007.tar.gz",
-            .hash = "zstbi-0.11.0-dev-L0Ea_3GWBwCpNHVwGU4MPR_oDd0FoQOYNrGodwvJ6Z45",
+            .url = "https://github.com/zig-gamedev/zstbi/archive/6b9bea1fd13eb7c8299f23605b4c6b04fccd9aa7.tar.gz",
+            .hash = "zstbi-0.11.0-dev-L0Ea_wGXBwCvXIzUWRNZe-6FpofI_nz4uAOQ4O0Fuxko",
         },
         .zig_assimp = .{
             .url = "https://github.com/lwjglgamedev/assimp/archive/e43a33e5be214ef9253957518349e6ac03181307.tar.gz",

@@ -59,7 +59,7 @@ pub fn Engine(comptime GameLogic: type) type {
                 .wnd = wnd,
             };
 
-            zstbi.init(io, allocator);
+            try zstbi.init(allocator);
             errdefer zstbi.deinit();
 
             const render = try eng.rend.Render.create(
