@@ -185,10 +185,8 @@ fn orthoVulkan(left: f32, right: f32, bottom: f32, top: f32, near: f32, far: f32
 }
 
 const PushConstantsVtx = extern struct {
-    modelMatrix: [16]f32,
-    materialIdx: u32,
-    vtxAddress: u64,
-    idxAddress: u64,
+    instancesDataBuffer: u64,
+    modelMatricesDataBuffer: u64,
 };
 
 const COLOR_ATTACHMENT_FORMAT = vulkan.Format.r32g32_sfloat;
@@ -413,9 +411,8 @@ pub const RenderShadow = struct {
         vkCtx: *const vk.ctx.VkCtx,
         engCtx: *eng.engine.EngCtx,
         vkCmd: vk.cmd.VkCmdBuff,
-        modelsCache: *const eng.mcach.ModelsCache,
-        materialsCache: *const eng.mcach.MaterialsCache,
-        animsCache: *const eng.acach.AnimsCache,
+        globalBuffers: *const eng.mcach.GlobalBuffers,
+        frameIdx: u8,
     ) !void {
         const allocator = engCtx.allocator;
         const scene = &engCtx.scene;
@@ -493,53 +490,24 @@ pub const RenderShadow = struct {
 
         try self.updateShadowUniforms(vkCtx);
 
-        self.renderEntities(vkCtx, engCtx, modelsCache, materialsCache, animsCache, cmdHandle);
+        self.setPushConstants(
+            vkCtx,
+            cmdHandle,
+            globalBuffers,
+            frameIdx,
+        );
+
+        device.cmdDrawIndirect(
+            cmdHandle,
+            globalBuffers.getIndirectBuffer(frameIdx).buffer,
+            0,
+            globalBuffers.getDrawCount(frameIdx),
+            eng.mcach.IND_COMMAND_STRIDE,
+        );
 
         device.cmdEndRendering(cmdHandle);
 
         self.renderFinish(vkCtx, cmdHandle);
-    }
-
-    fn renderEntities(
-        self: *RenderShadow,
-        vkCtx: *const vk.ctx.VkCtx,
-        engCtx: *const eng.engine.EngCtx,
-        modelsCache: *const eng.mcach.ModelsCache,
-        materialsCache: *const eng.mcach.MaterialsCache,
-        animsCache: *const eng.acach.AnimsCache,
-        cmdHandle: vulkan.CommandBuffer,
-    ) void {
-        const device = vkCtx.vkDevice.deviceProxy;
-        var iter = engCtx.scene.entitiesMap.valueIterator();
-
-        while (iter.next()) |listRef| {
-            for (listRef.items) |entity| {
-                const vulkanModel = modelsCache.modelsMap.get(entity.modelId);
-                if (vulkanModel) |*vm| {
-                    for (vm.meshes.items) |mesh| {
-                        var materialIdx: u32 = 0;
-                        if (materialsCache.materialsMap.getIndex(mesh.materialId)) |idx| {
-                            materialIdx = @as(u32, @intCast(idx));
-                        }
-                        const vtxAddress: u64 = if (vm.hasAnimations())
-                            (animsCache.getBuffer(entity.id, mesh.id).?.address orelse mesh.buffVtx.address.?)
-                        else
-                            mesh.buffVtx.address.?;
-                        self.setPushConstants(
-                            vkCtx,
-                            cmdHandle,
-                            entity,
-                            vtxAddress,
-                            mesh.buffIdx.address.?,
-                            materialIdx,
-                        );
-                        device.cmdDraw(cmdHandle, @as(u32, @intCast(mesh.numIndices)), 1, 0, 0);
-                    }
-                } else {
-                    std.log.warn("Could not find model {s}", .{entity.modelId});
-                }
-            }
-        }
     }
 
     fn renderInit(self: *RenderShadow, vkCtx: *const vk.ctx.VkCtx, cmdHandle: vulkan.CommandBuffer) void {
@@ -623,16 +591,12 @@ pub const RenderShadow = struct {
         self: *RenderShadow,
         vkCtx: *const vk.ctx.VkCtx,
         cmdHandle: vulkan.CommandBuffer,
-        entity: *eng.ent.Entity,
-        vtxAddress: u64,
-        idxAddress: u64,
-        materialIdx: u32,
+        globalBuffers: *const eng.mcach.GlobalBuffers,
+        frameIdx: u8,
     ) void {
         const pushConstantsVtx = PushConstantsVtx{
-            .modelMatrix = zm.matToArr(entity.modelMatrix),
-            .materialIdx = materialIdx,
-            .vtxAddress = vtxAddress,
-            .idxAddress = idxAddress,
+            .instancesDataBuffer = globalBuffers.getAddrBufInstanceData(frameIdx),
+            .modelMatricesDataBuffer = globalBuffers.getAddrBufModelMatrices(frameIdx),
         };
         vkCtx.vkDevice.deviceProxy.cmdPushConstants(
             cmdHandle,

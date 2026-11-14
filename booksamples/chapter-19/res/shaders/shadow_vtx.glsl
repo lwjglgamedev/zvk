@@ -9,7 +9,7 @@
 struct Vertex {
     vec3 inPos;
     vec2 inTextCoords;
-    vec3 inNoral ;
+    vec3 inNormal;
     vec3 inTangent;
     vec3 inBitangent;
 };
@@ -23,16 +23,23 @@ layout(std430, buffer_reference) buffer IndexBuffer {
 };
 
 struct InstanceData {
-    mat4 modelMatrix;
-    uint materialIdx;
-    uint padding[3];
-};
-
-layout(push_constant, scalar) uniform matrices {
-    mat4 modelMatrix;
+    uint modelMatrixIdx;
     uint materialIdx;
     VertexBuffer vertexBuffer;
     IndexBuffer indexBuffer;
+};
+
+layout(std430, buffer_reference, buffer_reference_align=16) buffer InstancesDataBuffer {
+    InstanceData[] instancesData;
+};
+
+layout(std430, buffer_reference, buffer_reference_align=8) buffer ModelMatricesDataBuffer {
+    mat4[] modelMatrices;
+};
+
+layout(push_constant) uniform pc {
+    InstancesDataBuffer instancesDataBuffer;
+    ModelMatricesDataBuffer modelsMatricesDataBuffer;
 } push_constants;
 
 layout (location = 0) out vec2 outTextCoord;
@@ -44,13 +51,23 @@ layout(set = 0, binding = 0) uniform ProjUniforms {
 
 void main()
 {
-    uint index = push_constants.indexBuffer.indices[gl_VertexIndex];
-    VertexBuffer vertexData = push_constants.vertexBuffer;
-    Vertex vertex = vertexData.vertices[index];
+    uint entityId = gl_InstanceIndex;
+
+    InstancesDataBuffer instancesDataBuffer = push_constants.instancesDataBuffer;
+    InstanceData instanceData = instancesDataBuffer.instancesData[entityId];
+
+    VertexBuffer vertexBuffer = instanceData.vertexBuffer;
+    IndexBuffer indexBuffer = instanceData.indexBuffer;
+
+    ModelMatricesDataBuffer modelMatricesDataBuffer = push_constants.modelsMatricesDataBuffer;
+    mat4 modelMatrix = modelMatricesDataBuffer.modelMatrices[instanceData.modelMatrixIdx];
+
+    uint index = indexBuffer.indices[gl_VertexIndex];
+    Vertex vertex = vertexBuffer.vertices[index];
 
     outTextCoord   = vertex.inTextCoords;
-    outMaterialIdx = push_constants.materialIdx;
+    outMaterialIdx = instanceData.materialIdx;
 
-    vec4 worldPos = push_constants.modelMatrix * vec4(vertex.inPos, 1.0f);
+    vec4 worldPos = modelMatrix * vec4(vertex.inPos, 1.0f);
     gl_Position = projUniforms.projViewMatrices[gl_ViewIndex] * worldPos;
 }

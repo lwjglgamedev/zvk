@@ -314,17 +314,14 @@ pub const Render = struct {
             engCtx,
             vkCmdBuff,
             &self.globalBuffers,
-            &self.materialsCache,
-            &self.animsCache,
             self.currentFrame,
         );
         try self.renderShadow.render(
             &self.vkCtx,
             engCtx,
             vkCmdBuff,
-            &self.modelsCache,
-            &self.materialsCache,
-            &self.animsCache,
+            &self.globalBuffers,
+            self.currentFrame,
         );
         try self.renderLight.render(
             &self.vkCtx,

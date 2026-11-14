@@ -275,13 +275,8 @@ pub const RenderScn = struct {
         engCtx: *const eng.engine.EngCtx,
         vkCmd: vk.cmd.VkCmdBuff,
         globalBuffers: *const eng.mcach.GlobalBuffers,
-        materialsCache: *const eng.mcach.MaterialsCache,
-        animsCache: *const eng.acach.AnimsCache,
         frameIdx: u8,
     ) !void {
-        _ = materialsCache;
-        _ = animsCache;
-
         const allocator = engCtx.allocator;
         const scene = &engCtx.scene;
         const cmdHandle = vkCmd.cmdBuffProxy.handle;
