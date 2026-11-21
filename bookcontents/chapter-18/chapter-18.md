@@ -1,4 +1,4 @@
-# Buffer Device Address (BDA)
+# Chapter 18 - Buffer Device Address (BDA)
 
 In this chapter we will use Buffer device address, which will allow us to refer to buffer virtual addresses in shaders instead of using
 descriptor sets. This is very convenient to use a bind-less approach where we will access data as pointers to the associated buffer, and,

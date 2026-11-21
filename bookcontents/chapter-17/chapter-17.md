@@ -1,4 +1,4 @@
-# Animations
+# Chapter 17 - Animations
 
 In this chapter we will add support for skeletal animations using compute shaders to perform the required transformations to animate a
 model. By doing so, we will handle static and animated models in the scene render stage exactly the same way. The compute shader will
