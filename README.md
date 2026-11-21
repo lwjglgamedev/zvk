@@ -29,11 +29,11 @@ GPU-driven rendering and Buffer Device Address.
 
 ## Book Code
 
-The book itself is also hosted in [GitHub](https://github.com/lwjglgamedev/zvk/bookcontents).
+The book itself is also hosted in [GitHub](https://github.com/lwjglgamedev/zvk/tree/main/bookcontents).
 
 ## Source Code
 
-The source code of the samples of this book is in [GitHub](https://github.com/lwjglgamedev/zvk/booksamples).
+The source code of the samples of this book is in [GitHub](https://github.com/lwjglgamedev/zvk/tree/main/booksamples).
 
 ## Support
 
