@@ -27,10 +27,10 @@ pub const Wnd = struct {
         log.debug("Creating window", .{});
 
         const initFlags = sdl3.InitFlags{ .video = true };
-        try sdl3.init(initFlags);
         if (!sdl3.c.SDL_SetHint("SDL_VIDEO_PREFER_WAYLAND", "1")) {
             // Handle error
         }
+        try sdl3.init(initFlags);
 
         sdl3.vulkan.loadLibrary(null) catch |err| {
             std.log.err("Failed to load Vulkan library: {s}", .{@errorName(err)});
@@ -82,7 +82,7 @@ pub const Wnd = struct {
     pub fn isKeyPressed(self: *Wnd, keyCode: sdl3.Scancode) bool {
         _ = self;
         const keyState = sdl3.keyboard.getState();
-        return keyState[@intFromEnum(keyCode)];
+        return keyState[@backingInt(keyCode)];
     }
 
     pub fn pollEvents(self: *Wnd) !void {

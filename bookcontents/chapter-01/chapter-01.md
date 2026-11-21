@@ -8,20 +8,20 @@ by step every detail).
 
 You can find the complete source code for this chapter [here](../../booksamples/chapter-01).
 
-When posting source code, we will use `...` to state that there is code above or below the fragment code in a struct or in a function.
+When posting source code, we will use `...` to state that there is code above or below the code fragment in a struct or in a function.
 
 ## Build
 
 The build file (`build.zig`) is quite standard. It just builds an executable adding the required dependencies and modules.
 We will use the following dependencies:
 
-- [SDL3](https://github.com/Gota7/zig-sdl3) Zig bindings. We will use SDL3 to create windows and handle user input. In order to add the
+- [SDL3](https://codeberg.org/7Games/zig-sdl3) Zig bindings. We will use SDL3 to create windows and handle user input. In order to add the
 dependency to the `build.zig.zon` file just execute: `zig fetch --save "git+https://codeberg.org/7Games/zig-sdl3#82eab2e5a41a7b128f70afd7a6468fa736951cf1"`
 - [TOML](https://github.com/sam701/zig-toml) to be able to parse configuration files. In order to add the dependency to the `build.zig.zon`
 file just execute: `zig fetch --save https://github.com/sam701/zig-toml/archive/c661327bd9f02f774426c4fe78f60621411b7173.tar.gz`
 - [Vulkan](https://github.com/Snektron/vulkan-zig) Zig bindings. In order to add the dependency to the `build.zig.zon` file just execute:
 `zig fetch --save https://github.com/Snektron/vulkan-zig/archive/1fa628fd49d89468241c2cab14bad41a312e79fc.tar.gz`
-- [Vulkan Headers](https://github.com/KhronosGroup/Vulkan-Headers) we will need to add to the `build.zig.zon` file the following entry
+- [Vulkan Headers](https://github.com/KhronosGroup/Vulkan-Headers) we will need to add to the `build.zig.zon` file the following entry:
 
 **File: build.zig.zon**
 ```zig
@@ -40,10 +40,10 @@ file just execute: `zig fetch --save https://github.com/sam701/zig-toml/archive/
 ```
 
 > [!WARNING]  
-> If you want to enable Vulkan validation layers, will need the [Vulkan SDK](https://vulkan.lunarg.com/sdk/home). Just download the proper
-> package for your operating system. Once installed, you will need to set up an environment variable named `VULKAN_SDK` which points to the
-> root folder of the Vulkan SDK. We will be dynamically downloading Vulkan headers, so if you are not using validation you may skip
-> Vulkan SDK installation.
+> If you want to enable Vulkan validation layers, you will need the [Vulkan SDK](https://vulkan.lunarg.com/sdk/home). Just download the
+> proper package for your operating system. Once installed, you will need to set up an environment variable named `VULKAN_SDK` which points
+> to the root folder of the Vulkan SDK. We will be dynamically downloading Vulkan headers, so if you are not using validation you may skip
+> Vulkan SDK installation. If you skip this, keep in mind that you will need to install glslc later when using shaders.
 
 The `build.zig` file is defined like this:
 
@@ -160,10 +160,10 @@ As you can see, in the `main` function, we just start our render/game engine, mo
 `create` function, the name of the window and a reference to the `Game` struct which will implement the application logic. This is
 controlled by the following functions:
 
-- `cleanup`: Which is invoked when the application finishes to properly release the acquired resources.
+- `cleanup`: Invoked when the application finishes to properly release the acquired resources.
 - `init`: Invoked upon application startup to create the required resources (meshes, textures, etc.).
-- `input`: called periodically so that the application can update its stated reacting to user input.
-- `update`: called periodically so that the application can update its state.
+- `input`: Called periodically so that the application can update its state, reacting to user input.
+- `update`: Called periodically so that the application can update its state.
 
 ## Engine
 
@@ -270,12 +270,12 @@ pub fn Engine(comptime GameLogic: type) type {
 ```
 
 The `EngCtx` serves as a context holder for the main elements of the engine, the allocator, the engine constants (we will come back to this
-later on), and the main window. The `Engine` type needs to be instantiated through the `create` function which just loads the constants and
-creates the window. It provides a `cleanup` function which just frees the allocated resources. The `run` function is where the game loop is
-implemented. We basically control the elapsed time since the last loop block to check if enough seconds have passed to update the state. If
-so, we've calculated the elapsed time since the last update and invoke the `update` function from the `GameLogic` reference. We invoke the
-`input` from the `GameLogic` instance and the `render` function in each turn of the loop. Later on, we will be able to limit the frame rate
-using vsync, or leave it uncapped. By now it will just run at full speed.
+later on), the I/O interface and the main window. The `Engine` type needs to be instantiated through the `create`
+function which just loads the constants and creates the window. It provides a `cleanup` function which just frees the allocated resources.
+The `run` function is where the game loop is implemented. We basically control the elapsed time since the last loop block to check if enough
+seconds have passed to update the state. If so, we calculate the elapsed time since the last update and invoke the `update` function from
+the `GameLogic` reference. We invoke the `input` from the `GameLogic` instance and the `render` function in each turn of the loop. Later
+on, we will be able to limit the frame rate using vsync, or leave it uncapped. For now it will just run at full speed.
 
 You may have noticed that we use a struct named `Constants`, which in this case establishes the updates per second (UPS). This is a struct
 which reads a property file that will allow us to configure several parameters of the engine at runtime. It is defined in the `com` module
@@ -354,9 +354,8 @@ pub const Render = struct {
 
 ## Window
 
-Now it's the turn for our `Wnd` structure which mainly deals with window creation and input management. Alongside that, this struct is the
-first one which shows the first tiny bits of Vulkan. Let's start by examining its main attributes and `create` function used to instantiate
-it.
+Now it's the turn of our `Wnd` structure which mainly deals with window creation and input management. This struct is also the first to
+touch Vulkan, in a small way. Let's start by examining its main attributes and `create` function used to instantiate it.
 
 **File: src/eng/wnd.zig**
 ```zig
@@ -388,10 +387,10 @@ pub const Wnd = struct {
         log.debug("Creating window", .{});
 
         const initFlags = sdl3.InitFlags{ .video = true };
-        try sdl3.init(initFlags);
         if (!sdl3.c.SDL_SetHint("SDL_VIDEO_PREFER_WAYLAND", "1")) {
             // Handle error
         }
+        try sdl3.init(initFlags);
 
         sdl3.vulkan.loadLibrary(null) catch |err| {
             std.log.err("Failed to load Vulkan library: {s}", .{@errorName(err)});
@@ -430,7 +429,7 @@ pub const Wnd = struct {
 };
 ```
 
-The code is self-explanatory, we basically initialize SDL, and when in Linux set `SDL_VIDEO_PREFER_WAYLAND` to prioritize Wayland backend.
+The code is self-explanatory. We basically initialize SDL, and when in Linux set `SDL_VIDEO_PREFER_WAYLAND` to prioritize Wayland backend.
 After that, we get the usable bounds for the new window on the primary monitor. We set the window to be resizable and a flag stating that it
 will be used for Vulkan. The `MouseState` struct will be used later on to store mouse state (state of the buttons, position of the mouse and
 the displacement from previous position modeled by `deltaX` and `deltaY` attributes).
@@ -485,13 +484,13 @@ pub const Wnd = struct {
 };
 ```
 The `cleanup` function shall be called to free allocated resources. The `getSize` function will return current size in pixels and 
-`isKeyPressed` returns `true` if the key code passed as a parameter is currently pressed. The `pollEvents` will be called before input
-processing and basically checks if the window should be closed, if the mouse has moved (to compute relative displacement) and if the
+`isKeyPressed` returns `true` if the key code passed as a parameter is currently pressed. The `pollEvents` function will be called before
+input processing and basically checks if the window should be closed, if the mouse has moved (to compute relative displacement) and if the
 window has been resized. It also retrieves mouse state.
 
 
 If you run the sample, you will get a nice black window that you can resize, move and close. With that, this chapter comes to its end. In
-the next chapter, we will start viewing the first basic Vulkan concepts.
+the next chapter, we will start looking at the first basic Vulkan concepts.
 
 
 [Back to Table of Contents](../README.md)
