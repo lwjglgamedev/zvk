@@ -30,7 +30,7 @@ pub const VkPhysDevice = struct {
             const props = instance.getPhysicalDeviceProperties(pdev);
             const memProps = instance.getPhysicalDeviceMemoryProperties(pdev);
             const features = instance.getPhysicalDeviceFeatures(pdev);
-            log.debug("Checking [{s}] physical device", .{props.device_name});
+            log.debug("Checking [{s}] physical device", .{std.mem.sliceTo(&props.device_name, 0)});
 
             if (!try checkExtensionSupport(instance, pdev, allocator)) {
                 continue;
@@ -60,7 +60,7 @@ pub const VkPhysDevice = struct {
         }
         const result = list.items[0];
 
-        log.debug("Selected [{s}] physical device", .{result.props.device_name});
+        log.debug("Selected [{s}] physical device", .{std.mem.sliceTo(&result.props.device_name, 0)});
         return result;
     }
 

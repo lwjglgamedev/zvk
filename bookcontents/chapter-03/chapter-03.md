@@ -10,16 +10,16 @@ You can find the complete source code for this chapter [here](../../booksamples/
 A physical device represents any piece of hardware that provides a complete implementation of the Vulkan interface (usually a physical GPU).
 You can have several Vulkan capable physical devices (you may have more than one GPU), but you will usually just use one (we will not be
 dealing with multi-GPU rendering here). A side note, as we progress through this book, we will define many concepts. In order to help you in
-understanding the relationship between all of them, we will be filling up a diagram. Here you can find the ones that show the elements
+understanding the relationship between all of them, we will be filling up a diagram. Here you can find the diagram that shows the elements
 described so far.
 
 ![UML Diagram](rc03-yuml-01.svg)
 
 So let's go back to coding and start by encapsulating all the code for selecting and creating a physical device in a new struct named
-`VkPhysDevice` (in the file `src/eng/vk/vkDevice.zig`, remember to update the `mod.zig` file to include it:
+`VkPhysDevice` (in the file `src/eng/vk/vkPhysDevice.zig`, remember to update the `mod.zig` file to include it:
 `pub const phys = @import("vkPhysDevice.zig");`). It starts like this:
 
-**File: src/eng/vk/vkDevice.zig**
+**File: src/eng/vk/vkPhysDevice.zig**
 ```zig
 const std = @import("std");
 const vulkan = @import("vulkan");
@@ -49,7 +49,7 @@ The `QueuesInfo` struct will hold the family indices of the queues used to submi
 properties (`props`), the queues information and the device memory properties (`memProps`). It provides a `create` function which
 instantiates this struct and that starts like this:
 
-**File: src/eng/vk/vkDevice.zig**
+**File: src/eng/vk/vkPhysDevice.zig**
 ```zig
 pub const VkPhysDevice = struct {
     ...
@@ -69,7 +69,7 @@ As it has been said before, we may have more than one Vulkan physical device in 
 to retrieve the list of supported vulkan devices (by calling the `enumeratePhysicalDevicesAlloc` function). After that we iterate over that
 list trying to get the most suitable one:
 
-**File: src/eng/vk/vkDevice.zig**
+**File: src/eng/vk/vkPhysDevice.zig**
 ```zig
 pub const VkPhysDevice = struct {
     ...
@@ -79,7 +79,7 @@ pub const VkPhysDevice = struct {
             const props = instance.getPhysicalDeviceProperties(pdev);
             const memProps = instance.getPhysicalDeviceMemoryProperties(pdev);
             const features = instance.getPhysicalDeviceFeatures(pdev);
-            log.debug("Checking [{s}] physical device", .{props.device_name});
+            log.debug("Checking [{s}] physical device", .{std.mem.sliceTo(&props.device_name, 0)});
 
             if (!try checkExtensionSupport(instance, pdev, allocator)) {
                 continue;
@@ -109,7 +109,7 @@ pub const VkPhysDevice = struct {
         }
         const result = list.items[0];
 
-        log.debug("Selected [{s}] physical device", .{result.props.device_name});
+        log.debug("Selected [{s}] physical device", .{std.mem.sliceTo(&result.props.device_name, 0)});
         return result;
     }
     ...
@@ -119,12 +119,15 @@ pub const VkPhysDevice = struct {
 For each physical device we will retrieve all the properties and features we need to use it and to support the device selection. We need to
 check for two things:
 
-- That the device is capable of presenting images to a screen. This is done by calling the `checkExtensionSupport` function.
-- That the device supports the graphics queue family. This is done by calling the `hasGraphicsQueueFamily` function.
+- That the device supports the swapchain extension (`VK_KHR_swapchain`), which is required to present images to a screen. This is done by
+calling the `checkExtensionSupport` function.
+- That the device has queue families able to submit graphics commands and to present to our surface. This is done by calling the
+`hasRequiredQueues` function.
 
 You may be surprised that this is not part of the core API, but think that you may have GPUs that are used just for computing or that are
-not even attached to any display (they may do off-screen rendering). So being this capability optional, we need to be sure that the selected
-device supports it. We will show later on the implementation of those two functions.
+not even attached to any display (they may do off-screen rendering). Since presentation is optional, we need to be sure that the selected
+device supports it, both through the extension and through a queue family that can present to our surface. We will show later on the
+implementation of those two functions.
 
 If the device fulfills both conditions, we then check if its name matches the preferred device name (if this has been specified). If so, we
 already have our candidate and there's no need to continue so we break the loop. If not, we just add that device to the list of potential
@@ -137,7 +140,7 @@ device has been selected we return an error.
 
 The `checkExtensionSupport` function is defined like this:
 
-**File: src/eng/vk/vkDevice.zig**
+**File: src/eng/vk/vkPhysDevice.zig**
 ```zig
 pub const VkPhysDevice = struct {
     ...
@@ -164,9 +167,8 @@ pub const VkPhysDevice = struct {
 };
 ```
 
-It just enumerates the available extensions and checks if it supports the extensions stored in the `reqExtensions` constants, which, by now,
-stores the name of the KHHR Swapchain extension.
-
+It enumerates the extensions supported by the device and checks that all the ones stored in `reqExtensions` are present. For now, that
+constant only contains the name of the `VK_KHR_swapchain` extension.
 
 ## Queue families
 
@@ -174,11 +176,12 @@ Since the only pending function to present now is the one named `hasRequiredQueu
 queues. In Vulkan, any work is performed by submitting commands buffers through specific queues. We do not command the GPU to immediately
 draw a specific shape, we submit a command to a queue which contains the instructions to perform a operation like render the vertices that
 are part of that shape. Commands in those queues are consumed and executed asynchronously. Devices have different types of queues, which are
- organized in families. Each queue family only accepts a specific set of command types. For example, we may have graphic commands used to
- render and compute commands, each of these command types may require to be submitted to different types of queue. In our case, we want to
- be sure that the selected device is capable of handling graphics commands, which is what we check within the `hasRequiredQueues` function: 
+organized in families. Each queue family only accepts a specific set of command types. For example, we may have graphic commands used to
+render and compute commands, each of these command types may require to be submitted to different types of queue.
+In our case, we want to be sure that the selected device has a queue family capable of handling graphics commands and a queue family capable
+of presenting to our surface (they may be the same family). This is what we check within the `hasRequiredQueues` function:
 
-**File: src/eng/vk/vkDevice.zig**
+**File: src/eng/vk/vkPhysDevice.zig**
 ```zig
 pub const VkPhysDevice = struct {
     ...
@@ -223,8 +226,10 @@ pub const VkPhysDevice = struct {
 };
 ```
 
-We iterate over the supported queue families, in order to check if they have a flag that shows that this queue family is capable of
-supporting graphics commands. We will explain in more detail the concepts related to queues and commands as we progress through the book.
+We iterate over the supported queue families. For each one we check whether it has the graphics flag and, separately, whether it can present
+to our surface (by calling `getPhysicalDeviceSurfaceSupportKHR` function). We keep the first family found for each purpose and return null
+if either is missing. They are often the same family, but Vulkan does not guarantee it, so we store them separately.
+We will explain in more detail the concepts related to queues and commands as we progress through the book.
 
 ## Logical Device
 
@@ -257,12 +262,11 @@ pub const VkDevice = struct {
     pub fn create(allocator: std.mem.Allocator, vkInstance: vk.inst.VkInstance, vkPhysDevice: vk.phys.VkPhysDevice) !VkDevice {
         const priority = [_]f32{0};
 
-        var uniqueFamilies: [3]u32 = undefined;
+        var uniqueFamilies: [2]u32 = undefined;
         var uniqueCount: u32 = 0;
         for ([_]u32{
             vkPhysDevice.queuesInfo.graphics_family,
             vkPhysDevice.queuesInfo.present_family,
-            vkPhysDevice.queuesInfo.compute_family,
         }) |family| {
             var alreadyPresent = false;
             for (uniqueFamilies[0..uniqueCount]) |existing| {
@@ -320,10 +324,10 @@ pub const VkDevice = struct {
 
 The struct `VkDevice` is the one that will hold our Vulkan logical device. We will use that structure for the creation of the resources we
 will need later on. We start by defining the queues families that this logical device will use. Later on, when we create queues, but now we
-will need to specify the queue family which it belongs to. If that queue family has been not be enabled for the logical device we will get
+will need to specify the queue family which it belongs to. If that queue family has not been enabled for the logical device we will get
 an error. In this case we will opt for enabling all the queues families. The family represents the purpose of that queue, there will be
-queue families for submitting graphics commands, presentating results to screen, etc. Differenr queues purpose can share the same 
-gamiliy index. For exampple we can have a queue gamily which allows queues that can be used for graphics and compute commands. This is
+queue families for submitting graphics commands, presenting results to screen, etc. Different queues purpose can share the same 
+familiy index. For example we can have a queue family which allows queues that can be used for graphics and compute commands. This is
 why we filter those cases to just create the families we need for the purposes we are interested in.
 
 After that, we basically create an array of `DeviceQueueCreateInfo` structs which will hold the index of each queue family and its priority.
@@ -333,7 +337,7 @@ consider in order to balance the work. Therefore, in our case we will just set p
 value  for the lowest priority, we simply don't care). Those families can be the same, so if this the case we will just use the first one
 by setting the `queueCount` to 1.
 
-We need to enable some features that are present in the `PhysicalDeviceVulkan13Features` struct to enable dynamic render and new
+We need to enable some features that are present in the `PhysicalDeviceVulkan13Features` struct to enable dynamic rendering and new
 synchronization functions (also called sync2) which we will use in next chapters. We will also enable sampler anisotropy (we will use it
 later on for textures) if available by setting the proper flag in the `PhysicalDeviceFeatures` struct.
 
@@ -371,7 +375,7 @@ we will create a new struct named `VkSurface` (Remember to update the `mod.zig` 
 
 The `VkSurface` struct starts like this:
 
-**File: src/eng/vk/vkCtx.zig**
+**File: src/eng/vk/vkSurface.zig**
 ```zig
 const std = @import("std");
 const sdl3 = @import("sdl3");
@@ -408,7 +412,7 @@ used later on to be able to construct the artifacts required to render something
 
 We also provide a function to retrieve surface capabilities:
 
-**File: src/eng/vk/vkCtx.zig**
+**File: src/eng/vk/vkSurface.zig**
 ```zig
 pub const VkSurface = struct {
     ...
@@ -421,7 +425,7 @@ pub const VkSurface = struct {
 
 We will also provide a function to retrieve a supported surface format:
 
-**File: src/eng/vk/vkCtx.zig**
+**File: src/eng/vk/vkSurface.zig**
 ```zig
 pub const VkSurface = struct {
     ...
@@ -459,19 +463,6 @@ After that, we first call the `getPhysicalDeviceSurfaceFormatsAllocKHR` function
 over them trying to find the preferred one, returning an error if no formats have been found or the first one in case the preferred
 one is not supported.
 
-To complete the `VkSurface` struct source code we just add a `cleanup` function:
-
-**File: src/eng/vk/vkCtx.zig**
-```zig
-pub const VkSurface = struct {
-    ...
-    pub fn cleanup(self: *VkSurface, vkInstance: vk.inst.VkInstance) void {
-        vkInstance.instanceProxy.destroySurfaceKHR(self.surface, null);
-    }
-    ...
-};
-```
-
 ## Queues
 
 As it was introduced before, the way to submit work to our GPU is by submitting command buffers to queues. These command buffers contain the
@@ -485,7 +476,7 @@ and which synchronization mechanisms are available.
 We will create a new struct which models queue retrieval, named `VkQueue` (Remember to update the `mod.zig` file to include it:
 `pub const queue = @import("vkQueue.zig");`). The `VkQueue` struct itself is very simple:
 
-**File: src/eng/vk/vkCtx.zig**
+**File: src/eng/vk/vkQueue.zig**
 ```zig
 const vulkan = @import("vulkan");
 const vk = @import("mod.zig");
@@ -508,7 +499,7 @@ In the `VkQueue` `create` function we just invoke the `getDeviceQueue` function 
 - The index of the queue family that this queue belongs to. If you remember, when we created the device, we specified the queue families
 allowed, this index should match one of the indices assigned to those queue families.
 - The index of this queue within the queue family itself. When we created the logical device, we defined the queues that were being
-pre-created. With this parameter which one of those queues we want to get its handle.
+pre-created. With this parameter we choose which of those queues to retrieve a handle for.
 
 After calling this function we will get a handle to our queue.
 
@@ -531,13 +522,11 @@ pub const VkCtx = struct {
     vkSurface: vk.surf.VkSurface,
 
     pub fn create(allocator: std.mem.Allocator, constants: com.common.Constants, window: sdl3.video.Window) !VkCtx {
-        var vkInstance = try vk.inst.VkInstance.create(allocator, constants.validation);
+        var vkInstance = try vk.inst.VkInstance.create(allocator, constants.validation, constants.syncValidation);
         errdefer vkInstance.cleanup(allocator);
-
 
         var vkSurface = try vk.surf.VkSurface.create(window, vkInstance);
         errdefer vkSurface.cleanup(vkInstance);
-
 
         const vkPhysDevice = try vk.phys.VkPhysDevice.create(
             allocator,
@@ -545,10 +534,9 @@ pub const VkCtx = struct {
             vkInstance.instanceProxy,
             vkSurface,
         );
-        var vkInstance = try vk.inst.VkInstance.create(allocator, constants.validation);
-        errdefer vkInstance.cleanup(allocator);
 
-
+        var vkDevice = try vk.dev.VkDevice.create(allocator, vkInstance, vkPhysDevice);
+        errdefer vkDevice.cleanup(allocator);
 
         return .{
             .constants = constants,
@@ -569,7 +557,7 @@ pub const VkCtx = struct {
 
 We added a new configuration variable in the `Constants` struct that allows us to select a specific GPU by name:
 
-**File: src/eng/vk/vkCtx.zig**
+**File: src/eng/com/common.zig**
 ```zig
 pub const Constants = struct {
     gpu: []const u8,    
@@ -626,7 +614,7 @@ pub const Render = struct {
 
 Finally, we need to update the `Engine` struct to also pass a reference to the window when creating a `Render` instance:
 
-**File: src/eng/render.zig**
+**File: src/eng/eng.zig**
 ```zig
 pub fn Engine(comptime GameLogic: type) type {
     ...

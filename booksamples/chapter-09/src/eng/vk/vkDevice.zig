@@ -11,7 +11,7 @@ pub const VkDevice = struct {
     pub fn create(allocator: std.mem.Allocator, vkInstance: vk.inst.VkInstance, vkPhysDevice: vk.phys.VkPhysDevice) !VkDevice {
         const priority = [_]f32{0};
 
-        var uniqueFamilies: [3]u32 = undefined;
+        var uniqueFamilies: [2]u32 = undefined;
         var uniqueCount: u32 = 0;
         for ([_]u32{
             vkPhysDevice.queuesInfo.graphics_family,
