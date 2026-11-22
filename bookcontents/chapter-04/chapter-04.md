@@ -1,7 +1,7 @@
 # Chapter 04 - Swap chain
 
-In this chapter we will continue our road to render on the screen. We will describe in detail a concept that has been mentioned in previous
-chapters, the swap chain.
+In this chapter we will continue our road to rendering on the screen. We will describe in detail a concept that has been mentioned in
+previous chapters, the swap chain.
 
 You can find the complete source code for this chapter [here](../../booksamples/chapter-04).
 
@@ -112,22 +112,23 @@ pub const VkSwapChain = struct {
 ```
 
 We will be identifying the purpose of the different arguments of the `create` function while we go through the code. The first thing we do
-to calculate the number of images that our swap chain will have by calling the `calcNumImages` function. You may be wondering why do we need
-more than one image? The answer is to increase performance, while an image is being presented, we may be using another one to render the
-results of the next frame. We need to have several in order to parallelize the tasks and use both the CPU and GPU at their maximum capacity.
+is calculate the number of images that our swap chain will have by calling the `calcNumImages` function. You may be wondering why do we need
+more than one image? The answer is to increase performance: while an image is being presented, we may be using another one to render the
+results of the next frame. We need to have several in order to parallelize the tasks and allow presentation and rendering to overlap.
 The most common use cases employ two images (double buffering) or three (triple buffering), as in the figure below.
 
 ![Swap chain images](rc04-swapchain.svg)
 
-The figure above represents the triple buffer case. While image #1 is used for presentation we have ready another one, image #2, ready to be
+The figure above represents the triple buffer case. While image #1 is used for presentation we have another one, image #2, ready to be
 presented. In parallel, we are using image #3 for rendering. Triple buffering is commonly used to avoid frame rate dropout, when we cannot
-guarantee that a frame will be ready between v-syncs (You can read more about this [here](https://github.com/KhronosGroup/Vulkan-Samples/blob/master/samples/performance/swapchain_images/swapchain_images_tutorial.md)).
+guarantee that a frame will be ready between v-syncs (You can read more about this
+[here](https://github.com/KhronosGroup/Vulkan-Samples/blob/master/samples/performance/swapchain_images/swapchain_images_tutorial.md)).
 
-Our `SwapChain` `create` function has a parameter named `reqImages` which is used to express the desired number of images our swap chain
+Our `VkSwapChain` `create` function has a parameter named `reqImages` which is used to express the desired number of images our swap chain
 should have. The `calcNumImages` function tries to accommodate that request to the surface limits defined by the surface capabilities that
 we obtained at the beginning of the `create` function. We will see the definition later on.
 
-The next thing to do in the `create` function is to calculate the swap chain extent, width and size of the images that compose it, by
+The next thing to do in the `create` function is to calculate the swap chain extent, width and height of the images that compose it, by
 calling the `calcExtent` function (we will see it later). After that we calculate the presentation mode by calling the `calcPresentMode`
 function (again, we will see the implementation later on). We are now ready to create the swap chain by filling up the
 `SwapchainCreateInfoKHR` structure. Let's review the attributes of that structure:
@@ -135,51 +136,52 @@ function (again, we will see the implementation later on). We are now ready to c
 - `surface`: A reference to our surface.
 - `min_image_count`: The minimum number of images that this swap chain should use. This is the value that we have got calling the
 `calcNumImages` function.
-- `image_format`: The format of the images of this swap chain (for example RGB with 8 bits per channel). 
+- `image_format`: The format of the images of this swap chain (for example RGB with 8 bits per channel).
 - `image_color_space`: The color space of the images of this swap chain (for example sRGB).
-- `image_extent`: The size (width and height in pixels)  of the images of this swap chain.
+- `image_extent`: The size (width and height in pixels) of the images of this swap chain.
 - `image_array_layers`: The number of views in a multi-view / stereo surface. In our case, since we are not creating a stereoscopic-3D
-application, this will set to `1`.
+application, this will be set to `1`.
 - `image_usage`: It will define the intended usage of the (acquired) swap chain images. That is, what operations we will be doing with them.
-In our case we will be rendering these images to the surface, so we will use the `color_attachment_bit` flag (equivalent to `VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT` ). That is,
-we will be outputting colors. There are other usages such as the ones used for depth buffers or for transferring operations.
+In our case we will be rendering these images to the surface, so we will use the `color_attachment` flag (equivalent to
+`VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT`). That is, we will be outputting colors. There are other usages such as the ones used for depth
+buffers or for transferring operations.
 - `image_sharing_mode`: This controls how the images can be accessed from queues. Remember that in Vulkan we will record the render
-operations to be executed in `CommandBuffer`s  that will be queued. Those commands will be de-queued for being executed asynchronously.
+operations to be executed in command buffers that will be queued. Those commands will be de-queued for being executed asynchronously.
 There are two possible modes:
-  - Concurrent: Multiple queue families can access the images concurrently.  
+  - Concurrent: Multiple queue families can access the images concurrently.
   - Exclusive: Only one queue family can access the images at a time. This is the most performant mode.
-In our case we will check if present and queue families are the same. If they are, we will use exclusive mode.
+In our case we will check if present and queue families are the same. If they are, we will use exclusive mode, otherwise concurrent mode.
 - `queue_family_index_count`: The number of queue families that will access the swap chain. When in exclusive mode there is no need to
-specify the different que families supported.
+specify the different queue families supported.
 - `p_queue_family_indices`: The queue families to be used when in concurrent mode.
 - `pre_transform`: Describes the transform, relative to the presentation engine’s natural orientation, applied to the image content prior to
 presentation (such as rotation of certain angles). In our case, we will use the current transformation mode.
 - `composite_alpha`: Indicates the alpha compositing mode to use when this surface is composited together with other surfaces on certain
-window systems. In our case we will use the `opaque_bit_khr` flag (equivalent to `VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR`).  This basically
+window systems. In our case we will use the `opaque_khr` flag (equivalent to `VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR`). This basically
 ignores the alpha component when compositing (no transparencies to be used for the surface).
-- `presentMode`: Specifies the presentation mode the Swap chain will use.
+- `present_mode`: Specifies the presentation mode the swap chain will use.
 - `clipped`: Specifies whether the Vulkan implementation is allowed to discard rendering operations that affect regions of the surface that
-are not visible. It is recommended to set this to parameter to `true`.
+are not visible. It is recommended to set this parameter to `true`.
 - `old_swapchain`: We will not use this, it can be used to reuse existing assets from another swap chain which is still associated to the
-surface.
+surface. We will show how to handle window resize in a later chapter.
 
 Presentation modes need to be explained in detail. Vulkan defines the following presentation modes:
 
-- `VK_PRESENT_MODE_IMMEDIATE_KHR`: The generated images are transferred immediate to the screen without waiting for a vertical blanking
+- `VK_PRESENT_MODE_IMMEDIATE_KHR`: The generated images are transferred immediately to the screen without waiting for a vertical blanking
 period. This may produce tearing in some cases.
 - `VK_PRESENT_MODE_FIFO_KHR`: Images are presented when a vertical blanking occurs. Images ready to be presented are internally queued using
 a FIFO schema (First In First Out), which means that new images are appended to the end of the queue. This is the only mode that is
 guaranteed to be supported. If the queue is full, the application blocks. Tearing is not observed in this case.
-- `VK_PRESENT_MODE_FIFO_RELAXED_KHR`: Similar to the previous mode. In the case that the queue fills up, the application waits, but the
-queued images during this waiting period are presented without waiting for the vertical blanking. This may produce tearing in some cases.
-- `VK_PRESENT_MODE_MAILBOX_KHR`: Similar to the `VK_PRESENT_MODE_IMMEDIATE_KHR` mode, but in the case that the queue is full, the last image
-queued is overwritten by the new one.
+- `VK_PRESENT_MODE_FIFO_RELAXED_KHR`: Similar to the previous mode. The difference is that if the application is late (the queue was empty
+at the last vertical blanking), the next image is presented as soon as it arrives instead of waiting for the next vertical blanking. This
+may produce tearing in some cases.
+- `VK_PRESENT_MODE_MAILBOX_KHR`: Images are presented during the vertical blanking and there is no tearing. When the queue is full, the
+application does not block: the queued image is replaced by the new one.
 
-In our case, the `Swapchain` `create` function receives a parameter, named `vsync` which we will use to specify if we want to wait for the
-vertical blanking or not. If `vsync` is true we will use the `VK_PRESENT_MODE_FIFO_KHR`. In this case our frame rate will be, as a maximum,
-the maximum refresh rate of our screen. If `vsync` is false we will try to first use `VK_PRESENT_MODE_MAILBOX_KHR` then,
-`VK_PRESENT_MODE_IMMEDIATE_KHR` and finally, if none of them are supported, we will use `VK_PRESENT_MODE_FIFO_KHR`. This is done in the
-`calcPresentMode` function:
+In our case, the `VkSwapChain` `create` function receives a parameter named `vsync` which we will use to specify if we want to wait for the
+vertical blanking or not. If `vsync` is true we will use the `VK_PRESENT_MODE_FIFO_KHR`. In this case our frame rate will be at most the
+refresh rate of our screen. If `vsync` is false we will first try `VK_PRESENT_MODE_MAILBOX_KHR`, then `VK_PRESENT_MODE_IMMEDIATE_KHR`
+and, finally, if none of them is supported, we will fall back to `VK_PRESENT_MODE_FIFO_KHR`. This is done in the `calcPresentMode` function:
 
 **File: src/eng/vk/vkSwapChain.zig**
 ```zig
@@ -214,9 +216,9 @@ pub const VkSwapChain = struct {
 };
 ```
 
-Back, to the `create` function we can finally create swap chain by invoking the `createSwapchainKHR` function. The last step is to create
-swap chain image views. Prior to analyze that we will start by showing pending functions already used in the `create` function. Let's start
-with the definition of `calcNumImages`:
+Back in the `create` function we can finally create the swap chain by invoking the `createSwapchainKHR` function. The last step is to create
+swap chain image views. Before analyzing that, let's show the pending functions already used in the `create` function. This is the
+definition of `calcNumImages`:
 
 **File: src/eng/vk/vkSwapChain.zig**
 ```zig
@@ -239,8 +241,9 @@ pub const VkSwapChain = struct {
 };
 ```
 
-The first thing we do is retrieve the minimum and maximum number of images that our surface supports. The rest of the code is basically to
-try to stick with the requested value if it's within the maximum-minimum range.
+
+The function receives the surface capabilities, which define the minimum and maximum number of images the surface supports. The rest of the
+code tries to stick with the requested value as long as it is inside that range
 
 Now it is the turn to show the definition of the `calcExtent` function:
 
@@ -279,19 +282,19 @@ within the ranges of minimum  and maximum supported sizes.
 
 We have seen that the last step in `VkSwapChain` `create` function is to create image views. What are image views? We would need images to
 render to, but in the specific case of the swap chain these images have already been created when we created the swap chain. Therefore, why
-not just retrieve them? Why we need image views? In Vulkan we cannot just use the images, we need an indirect element to access them. This
-element is called Image View and basically it states how the image will be accessed. Before going on, it is important to precisely define
-the concepts involved in handling images in Vulkan. In order to have an image that can be accessed by shaders in Vulkan we need:
+not just retrieve them? Why do we need image views? In Vulkan we cannot just use the images, we need an indirect element to access them.
+This element is called Image View and basically it states how the image will be accessed. Before going on, it is important to precisely
+define the concepts involved in handling images in Vulkan. In order to have an image that can be accessed by shaders in Vulkan we need:
 
-- A `VkBuffer` which contains the raw data of the image, its contents. A `VkBuffer` is just a linear array of data.
-- A `VkImage` which basically defines the metadata associated to the `VkBuffer`, to the raw data. That is, the image format, its dimensions,
-etc.
+- A `VkImage`, which is the object that represents the image itself: its format, dimensions, number of mip levels and layers, etc.
+  Its contents are stored in device memory that is bound to it. In the specific case of the swap chain, that memory is owned by the
+  presentation engine.
 - A `VkImageView`, which specifies how we are going to use an image, which parts of that image can be accessed, which format are we going to
-use, etc. We could have several views over the same `VkImage` instance to restrict the range or event to use different formats while using
-it, making automatic conversions to the `VkImage` format. As its name says, it is just a view over the image.
+use, etc. We could have several views over the same `VkImage` instance to restrict the range or even use different formats while using
+it, reinterpreting it with a compatible format. As its name says, it is just a view over the image.
 
 As it has been said before, the images for our swap chain have already been created, we just need to create the associated image views. In
-the next chapters we will need to create images for textures and, their associated buffers, but right now, we just need image views. 
+the next chapters we will need to create images for textures and their associated memory, but right now, we just need image views.
 
 ![UML Diagram](rc04-yuml-02.svg)
 
@@ -333,9 +336,8 @@ pub const VkSwapChain = struct {
 ```
 
 The first thing we do is retrieve the **actual** number of images that our swap chain has. But wait, we had already specified this when we
-created the swap chain, why we do need to retrieve that again? The answer is that we created the swap chain with a desired number of images,
-but the Vulkan driver may have returned a different number. This is why we need to call the `getSwapchainImagesAllocKHR` function to
-retrieve the images.
+created the swap chain, why do we need to retrieve that again? The answer is that we created the swap chain with a minimum number of images,
+but the Vulkan driver may have created more. This is why we need to call the `getSwapchainImagesAllocKHR` function to retrieve the images.
 
 Now we iterate over the images to create new `VkImageView` instances. The `VkImageView` struct encapsulates the creation and disposal of
 Vulkan image views (Remember to update the `mod.zig` file to include it: `pub const imv = @import("vkImageView.zig");`). Since the
@@ -348,7 +350,7 @@ const vk = @import("mod.zig");
 const vulkan = @import("vulkan");
 
 pub const VkImageViewData = struct {
-    aspectmask: vulkan.ImageAspectFlags = vulkan.ImageAspectFlags{ .color = true },
+    aspectMask: vulkan.ImageAspectFlags = vulkan.ImageAspectFlags{ .color = true },
     baseArrayLayer: u32 = 0,
     baseMipLevel: u32 = 0,
     format: vulkan.Format,
@@ -359,7 +361,8 @@ pub const VkImageViewData = struct {
 ...
 ```
 
-You will see how all these parameters in the `create` function of the `VkImageView` struct.
+You will see how all these parameters are used in the `create` function of the `VkImageView` struct.
+
 **File: src/eng/vk/vkImageView.zig**
 ```zig
 ...
@@ -375,7 +378,7 @@ pub const VkImageView = struct {
             .format = imageViewData.format,
             .components = .{ .r = .identity, .g = .identity, .b = .identity, .a = .identity },
             .subresource_range = .{
-                .aspect_mask = imageViewData.aspectmask,
+                .aspect_mask = imageViewData.aspectMask,
                 .base_mip_level = imageViewData.baseMipLevel,
                 .level_count = imageViewData.levelCount,
                 .base_array_layer = imageViewData.baseArrayLayer,
@@ -399,21 +402,23 @@ pub const VkImageView = struct {
 };
 ```
 
-In order to create a Image View we need to fill up a `ImageViewCreateInfo` structure. This structure is defined by the following attributes:
+In order to create an image view we need to fill up an `ImageViewCreateInfo` structure. This structure is defined by the following
+attributes:
 
 - `image`: A reference to the image handle that this view refers to. In our case it will be one of the swap chain images.
 - `view_type`: The type of image view. In our case they will be 2D images.
 - `format`: The format of the image. In this case we just use the format of the underlying swap chain images.
 - `components`: It allows the remapping of color components. We will just map them to identity since we will not be doing remapping.
-- `subresource_range`: This parameter allow us to select a specific range of the underlying image. We can select a specific set of mipmap
-levels or layers (in the case of array of layers). In this case, we can control the maximum mipmap level (through the `level_count`
-argument), and we stick to 1 layer. Regarding the aspects, for this specific case, we will get the color aspect (for example there are some
-other aspect for depth images).
+- `subresource_range`: This parameter allows us to select a specific range of the underlying image. We can select a specific set of mipmap
+levels or layers (in the case of array of layers). In this case, we can control the range of mipmap levels (through `base_mip_level` and
+`level_count`), and we stick to 1 layer. Regarding the aspects, for this specific case, we will get the color aspect (for example there are
+some other aspects for depth images).
 
 With the `ImageViewCreateInfo` structure filled up, we just need to call the `createImageView` to get a handle to the image view. The rest
 of the struct is completed with the `cleanup` function to free the resources.
 
 Going back to the `VkSwapChain` struct we need also to create a `cleanup` function to free the resources:
+
 **File: src/eng/vk/vkSwapChain.zig**
 ```zig
 pub const VkSwapChain = struct {
@@ -451,8 +456,6 @@ pub const VkCtx = struct {
         );
         errdefer vkSwapChain.cleanup(allocator, vkDevice);
 
-
-
         return .{
             .constants = constants,
             .vkDevice = vkDevice,
@@ -468,7 +471,7 @@ pub const VkCtx = struct {
         ...
     }
     ...
-}
+};
 ```
 
 We also have modified the `Constants` struct to read a new property to configure the usage of `vsync` and to define the requested number
@@ -494,7 +497,7 @@ pub const Constants = struct {
         ...
     }
     ...
-}        
+};
 ```
 
 Don't forget to add the changes in the `res/cfg/cfg.toml` file:

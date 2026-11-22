@@ -1080,7 +1080,7 @@ pub const Attachment = struct {
         ...
         const imageViewData = vk.imv.VkImageViewData{
             .format = format,
-            .aspectmask = aspectMask,
+            .aspectMask = aspectMask,
             .viewType = if (layers > 1) vulkan.ImageViewType.@"2d_array" else vulkan.ImageViewType.@"2d",
             .layerCount = layers,
         };

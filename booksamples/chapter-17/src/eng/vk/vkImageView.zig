@@ -2,7 +2,7 @@ const vk = @import("mod.zig");
 const vulkan = @import("vulkan");
 
 pub const VkImageViewData = struct {
-    aspectmask: vulkan.ImageAspectFlags = vulkan.ImageAspectFlags{ .color = true },
+    aspectMask: vulkan.ImageAspectFlags = vulkan.ImageAspectFlags{ .color = true },
     baseArrayLayer: u32 = 0,
     baseMipLevel: u32 = 0,
     format: vulkan.Format,
@@ -23,7 +23,7 @@ pub const VkImageView = struct {
             .format = imageViewData.format,
             .components = .{ .r = .identity, .g = .identity, .b = .identity, .a = .identity },
             .subresource_range = .{
-                .aspect_mask = imageViewData.aspectmask,
+                .aspect_mask = imageViewData.aspectMask,
                 .base_mip_level = imageViewData.baseMipLevel,
                 .level_count = imageViewData.levelCount,
                 .base_array_layer = imageViewData.baseArrayLayer,

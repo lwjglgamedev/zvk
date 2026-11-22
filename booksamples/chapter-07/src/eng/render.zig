@@ -28,7 +28,7 @@ pub const Attachment = struct {
         }
         const imageViewData = vk.imv.VkImageViewData{
             .format = format,
-            .aspectmask = aspectMask,
+            .aspectMask = aspectMask,
         };
         const vkImageView = try vk.imv.VkImageView.create(vkCtx.vkDevice, vkImage.image, imageViewData);
 

@@ -29,7 +29,7 @@ pub const Attachment = struct {
         }
         const imageViewData = vk.imv.VkImageViewData{
             .format = format,
-            .aspectmask = aspectMask,
+            .aspectMask = aspectMask,
         };
         const image: vulkan.Image = @fromBackingInt(@intCast(@intFromPtr(vkImage.image)));
         var vkImageView = try vk.imv.VkImageView.create(vkCtx.vkDevice, image, imageViewData);
