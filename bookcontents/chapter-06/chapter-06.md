@@ -14,6 +14,7 @@ that can be used for whatever we want, from storing vertices to storing data use
 named `VkBuffer` to manage them. (Remember to add a new file named `vkBuffer.zig` to the `mod.zig`:
 `pub const buf = @import("vkBuffer.zig");`). Let's examine its attributes and the `create` function used to instantiate it:
 
+**File: src/eng/vk/vkBuffer.zig**
 ```zig
 const vulkan = @import("vulkan");
 const vk = @import("mod.zig");
@@ -30,6 +31,7 @@ pub const VkBuffer = struct {
             .sharing_mode = vulkan.SharingMode.exclusive,
         };
         const buffer = try vkCtx.vkDevice.deviceProxy.createBuffer(&createInfo, null);
+        errdefer vkCtx.vkDevice.deviceProxy.destroyBuffer(buffer, null);
 
         const memReqs = vkCtx.vkDevice.deviceProxy.getBufferMemoryRequirements(buffer);
 
@@ -38,6 +40,7 @@ pub const VkBuffer = struct {
             .memory_type_index = try vkCtx.findMemoryTypeIndex(memReqs.memory_type_bits, memFlags),
         };
         const memory = try vkCtx.vkDevice.deviceProxy.allocateMemory(&allocInfo, null);
+        errdefer vkCtx.vkDevice.deviceProxy.freeMemory(memory, null);
 
         try vkCtx.vkDevice.deviceProxy.bindBufferMemory(buffer, memory, 0);
 
@@ -49,17 +52,16 @@ pub const VkBuffer = struct {
     }
     ...
 };
-**File: src/eng/vk/vkBuffer.zig**
 ```
 
 The `create` function just receives the `VkCtx` that will be used to create this buffer, its size, a parameter named `bufferUsage` which
-will state what this buffer should be used for and a the memory flags. This last parameter is use to set the requested memory properties
+will state what this buffer should be used for and the memory flags. This last parameter is used to set the requested memory properties
 that the data associated to this buffer should use. In order to create a Vulkan buffer we need to setup a structure named
 `BufferCreateInfo`, which defines the following attributes:
 
 - `size`: The number of bytes that the buffer will hold.
 - `usage`: It specifies the allowed usages of the buffer. We can specify that this buffer can be used for transfer commands
-(for example to uses as source in buffer copy operations), as a destination transfer, for uniforms. etc. This will be received in the
+(for example to use as source in buffer copy operations), as a destination transfer, for uniforms, etc. This will be received in the
 `create` function of the `VulkanBuffer` struct through an argument with the same name.
 - `sharing_mode`: If set to `vulkan.SharingMode.exclusive` (`VK_SHARING_MODE_EXCLUSIVE`), it can only be accessed by a queue family at
 a time. Setting to `vulkan.SharingMode.concurrent` (`VK_SHARING_MODE_CONCURRENT`) allows the buffer contents to be accessed by more
@@ -77,6 +79,7 @@ which defines the following attributes:
 
 In order to fill the `memory_type_index` we call the `findMemoryTypeIndex` function from the `VkCtx` struct, which is defined like this:
 
+**File: src/eng/vk/vkCtx.zig**
 ```zig
 pub const VkCtx = struct {
     ...
@@ -91,7 +94,6 @@ pub const VkCtx = struct {
         return error.NoSuitableMemoryType;
     }
 };
-**File: src/eng/vk/vkCtx.zig**
 ```
 
 The `memTypeBits` attribute is a bit mask which defines the supported memory types of the physical device. A bit set to `1` means
@@ -107,6 +109,7 @@ Now we need to link the allocated memory with the buffer handle, this is done by
 
 The `create` function is now finished. The next function are the usual `cleanup` one:
 
+**File: src/eng/vk/vkBuffer.zig**
 ```zig
 pub const VkBuffer = struct {
     ...
@@ -116,14 +119,14 @@ pub const VkBuffer = struct {
     }
     ...
 };
-**File: src/eng/vk/vkBuffer.zig**
 ```
 
 To complete the struct, we define two functions to map and unmap the memory associated to the buffer so it can be accessed from our
-application (if they have been created with the flag `host_visible_bit` (`VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT`), more on this later on). The
+application (if they have been created with the flag `host_visible` (`VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT`), more on this later on). The
 `map` function just calls the `mapMemory` function which returns a handle that can be used to get a buffer to read / write its contents. The
 `unMap` function just calls the `unmapMemory` to unmap the previously mapped buffer memory:
 
+**File: src/eng/vk/vkBuffer.zig**
 ```zig
 pub const VkBuffer = struct {
     ...
@@ -135,7 +138,6 @@ pub const VkBuffer = struct {
         vkCtx.vkDevice.deviceProxy.unmapMemory(self.memory);
     }
 };
-**File: src/eng/vk/vkBuffer.zig**
 ```
 
 ## Vertex description
@@ -145,6 +147,7 @@ you can guess, depending on the specific case, the structure of that data may ch
 with texture coordinates and normals, etc. Some of the vulkan elements that we will define later on, will need a handle to that structure.
 In order to support this, we will create a struct named `VtxBuffDesc` which is defined like this (inside the `renderScn.zig` file):
 
+**File: src/eng/renderScn.zig**
 ```zig
 pub const VtxBuffDesc = struct {
     pub const binding_description = vulkan.VertexInputBindingDescription{
@@ -164,7 +167,6 @@ pub const VtxBuffDesc = struct {
 
     pos: [3]f32,
 };
-**File: src/eng/renderScn.zig**
 ```
 
 We define several structures required for Vulkan to understand how our vertices will be used:
@@ -190,7 +192,7 @@ After that, we will fill up the binding description. The attributes of `VertexIn
 - `binding`: The same meaning as in the vertices attributes description.
 - `stride`: The distance in bytes from two consecutive elements in the buffer. In our case, we are using 32 bit floats for the positions
 (4 bytes each) and three position components (x, y, z).
-- `inputRate`: It specifies the rate at which vertex attributes are pulled from the underlying buffer. It can have two possible values:
+- `input_rate`: It specifies the rate at which vertex attributes are pulled from the underlying buffer. It can have two possible values:
 `vertex` (`VK_VERTEX_INPUT_RATE_VERTEX`): Values will be extracted for each vertex index. That is, when consuming an index we will get
 one element from the buffer. This is the regular case when drawing a mesh, the vertex data is associated to a specific index and will be
 consumed accordingly.
@@ -202,13 +204,14 @@ The buffer will hold common data for all the models and per-instance data, there
 
 We have created the structures that will hold the data for our models (`VkBuffer`) and the ones that define their format (`VtxBuffDesc`).
 We are now ready to load the data into the GPU. In essence, we need to load the data into two buffers, one for the positions of the vertices
-and another one for the indices of the triangle coordinates that wll be used to actually form the triangles. We will define a new struct
+and another one for the indices of the triangle coordinates that will be used to actually form the triangles. We will define a new struct
 named `VulkanModel` which will hold the information for 3D models. For now, it will hold the buffers for the different meshes that compose
 a 3D model. In next chapters it will be extended to support richer structures. At this moment a model is just a collection of meshes which
 will hold the references to buffers that contain positions data and their indices. This struct will also define the functions to populate
 those structures. This will be defined in a new file named `modelsCache.zig` which you should add to the `mod.zig` file like this:
 `pub const mcach = @import("modelsCache.zig");` under the `src/eng` folder. The `VtxBuffDesc` struct is quite simple:
 
+**File: src/eng/modelsCache.zig**
 ```zig
 const eng = @import("mod.zig");
 const std = @import("std");
@@ -228,7 +231,6 @@ pub const VulkanModel = struct {
         self.meshes.deinit(allocator);
     }
 };
-**File: src/eng/modelsCache.zig**
 ```
 
 This struct just stores a list of meshes, defined by the `VulkanMesh` struct, which contains the buffers associated to the vertices
@@ -236,6 +238,7 @@ positions and the indices.
 
 The `VulkanMesh` struct (defined also inside the `modelsCache.zig` file) is quite simple:
 
+**File: src/eng/modelsCache.zig**
 ```zig
 pub const VulkanMesh = struct {
     buffIdx: vk.buf.VkBuffer,
@@ -248,7 +251,6 @@ pub const VulkanMesh = struct {
         self.buffIdx.cleanup(vkCtx);
     }
 };
-**File: src/eng/modelsCache.zig**
 ```
 
 It is just a record which contains an identifier, the vertices and indices buffers and the number of indices.
@@ -257,6 +259,7 @@ We will see later on how we can load that data into the GPU from raw data. That 
 and `MeshData` which are defined like this (They will be defined in the file `modelData.zig` which you should add to the `mod.zig` file like
 this: `pub const mdata = @import("modelData.zig");` under the `src/eng` folder):
 
+**File: src/eng/modelData.zig**
 ```zig
 pub const MeshData = struct {
     id: []const u8,
@@ -268,7 +271,6 @@ pub const ModelData = struct {
     id: []const u8,
     meshes: []const MeshData,
 };
-**File: src/eng/modelData.zig**
 ```
 
 As you can see the `ModelData` and `MeshData` are quite simple just structs which hold list of meshes which are arrays of floats and
@@ -278,6 +280,7 @@ Now it is the turn to see how we can pass from raw data to populate the buffers 
 `ModelsCache` struct, which will store references to `VulkanModel`s instances by id and will encapsulate all the transformation operations.
 It starts like this:
 
+**File: src/eng/modelsCache.zig**
 ```zig
 pub const ModelsCache = struct {
     modelsMap: std.StringHashMap(VulkanModel),
@@ -299,7 +302,6 @@ pub const ModelsCache = struct {
     }
     ...
 };
-**File: src/eng/modelsCache.zig**
 ```
 
 As you can see all the `VulkanModel`s instances will be stored in a `StringHashMap` indexed by its identifier. As it has been shown before,
@@ -323,6 +325,7 @@ time.
 
 The `init` function starts like this:
 
+**File: src/eng/modelsCache.zig**
 ```zig
 pub const ModelsCache = struct {
     ...
@@ -352,14 +355,13 @@ pub const ModelsCache = struct {
     }
     ...
 };
-**File: src/eng/modelsCache.zig**
 ```
 
 The function starts by creating a list, named `srcBuffers`, that will contain the CPU accessible buffers (the staging buffers), so we can
 destroy them after the copy operations have finished. It also creates a new `VkCmdBuff` which will be used to record the copy operations
-that involve the different buffers used and start the recording. After that, we start the recording. The next step is to iterate over the
-models and their associated meshes:
+that involve the different buffers used and start the recording. The next step is to iterate over the models and their associated meshes:
 
+**File: src/eng/modelsCache.zig**
 ```zig
 pub const ModelsCache = struct {
     ...
@@ -446,23 +448,22 @@ pub const ModelsCache = struct {
 
     ...
 };
-**File: src/eng/modelsCache.zig**
 ```
 
 For each of these meshes, we get the vertices and the indices and record the commands that will copy from the staging buffer to the
-destination buffer. The  stating buffer for vertices is named `srcVtxBuffer`.
+destination buffer. The staging buffer for vertices is named `srcVtxBuffer`.
 
-This buffer is created with the `transfer_src_bit` flag (`VK_BUFFER_USAGE_TRANSFER_SRC_BIT`) as its usage parameter. With this flag we state
+This buffer is created with the `transfer_src` flag (`VK_BUFFER_USAGE_TRANSFER_SRC_BIT`) as its usage parameter. With this flag we state
 that this buffer can be used as the source of a transfer command. For the `memFlags` attribute we use the combination of two flags:
-- `host_visible_bit` (`VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT`): This means that the memory allocated by this buffer can be mapped and accessed
+- `host_visible` (`VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT`): This means that the memory allocated by this buffer can be mapped and accessed
 by the CPU. This is what we need in order to populate with the mesh data.
-- `host_coherent_bit` (`VK_MEMORY_PROPERTY_HOST_COHERENT_BIT`): This means that we do not need to execute flushing commands when the CPU
+- `host_coherent` (`VK_MEMORY_PROPERTY_HOST_COHERENT_BIT`): This means that we do not need to execute flushing commands when the CPU
 writes to this buffer or vice versa.
 
-The GPU-only accessible buffer for vertices is named `dstVtxBuffer`. It is created with the `transfer_dst_bit` flag
+The GPU-only accessible buffer for vertices is named `dstVtxBuffer`. It is created with the `transfer_dst` flag
 (`VK_BUFFER_USAGE_TRANSFER_DST_BIT`) as its usage parameter. With this flag we state that this buffer can used as the destination of a
-transfer command. We also set the flag `vertex_buffer_bit` (`VK_BUFFER_USAGE_VERTEX_BUFFER_BIT`) since it will be used for handling vertices
-data. For the `memFlags` attribute we use the `device_local_bit` (`VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT`) flag which states that the memory
+transfer command. We also set the flag `vertex_buffer` (`VK_BUFFER_USAGE_VERTEX_BUFFER_BIT`) since it will be used for handling vertices
+data. For the `memFlags` attribute we use the `device_local` (`VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT`) flag which states that the memory
 allocated by this buffer will be used by the GPU.
 
 Once the buffers have been created we need to populate the source buffer. In order to do that, we need to map that memory in order to get a
@@ -475,6 +476,7 @@ be processed.
 
 The `recordTransfer` function is defined like this:
 
+**File: src/eng/modelsCache.zig**
 ```zig
 fn recordTransfer(
     vkCtx: *const vk.ctx.VkCtx,
@@ -489,7 +491,6 @@ fn recordTransfer(
     }};
     vkCtx.vkDevice.deviceProxy.cmdCopyBuffer(cmdHandle, srcBuff.buffer, dstBuff.buffer, &copyRegion);
 }
-**File: src/eng/modelsCache.zig**
 ```
 
 It first defines a copy region, by filling up a `BufferCopy` array, which will have the whole size of the staging buffer. Then we record the
@@ -505,12 +506,12 @@ time. Programmable steps are defined by programs called shaders. The following p
 ![Graphics pipeline](rc06-yuml-01.svg)
 
 Description of the stages (NOTE: graphics pipeline in Vulkan can also work in mesh shading mode, in this case we are referring to primitive
-shading mode. More information in the Vulkan [specification]((https://www.khronos.org/registry/vulkan/specs/1.1-extensions/html/vkspec.html#pipelines):
+shading mode. More information in the Vulkan [specification](https://registry.khronos.org/vulkan/specs/latest/html/vkspec.html#pipelines)):
 
-- Input Assembler: It is the responsible of assembling vertices to form graphics primitives such as triangles.
+- Input Assembler: It is responsible for assembling vertices to form graphics primitives such as triangles.
 - Vertex shader: In this stage we transform the vertices received as inputs (positions, normals, texture coordinates, etc.). It is a
 programmable stage.
-- Tesselation and geometry shader stages can generate  multiple primitives from a single input primitive or modify them received from
+- Tessellation and geometry shader stages can generate multiple primitives from a single input primitive or modify them received from
 previous stages.  These stages are also programmable through shaders.
 - Rasterization: This stage transforms primitives into fragments (pixels) that can be displayed on a 2D image.
 - Fragment shader: Processes the fragments from the rasterization stage determining the values that will be written into the frame buffer
@@ -536,6 +537,7 @@ different interpretations. Vulkan, by using a binary format, reduces the complex
 them. As a bonus, you can still develop your shaders in your favorite language (GLSL or HLSL) and transform them to SPIR-V using an external
 compiler. In this book, we will use GLSL and will compile the shaders when building the code in the `build.zig` file:
 
+**File: build.zig**
 ```zig
 const Shader = struct {
     path: []const u8,
@@ -568,7 +570,6 @@ pub fn build(b: *std.Build) void {
     b.installArtifact(exe);    
     ...
 }
-**File: build.zig**
 ```
 
 In this chapter we will use two shaders (`scn_vtx.glsl` and `scn_frg.glsl`). We will compile them using `glslc` command.
@@ -584,6 +585,7 @@ almost immutable, so any variant on the setup of the different stages requires a
 We will encapsulate pipeline creation code in the `vkPipeline.zig` (Remember to include it in the `src/eng/vk/mod.zig` file:
 `pub const pipe = @import("vkPipeline.zig");`). It starts like this:
 
+**File: src/eng/vk/vkPipeline.zig**
 ```zig
 const std = @import("std");
 const vulkan = @import("vulkan");
@@ -625,15 +627,14 @@ pub const VkPipeline = struct {
     }
     ...
 };
-**File: src/eng/vk/vkPipeline.zig**
 ```
 
-The `ShaderModuleInfo` struct will hold shader modules that need to be used by the pipeline (we will se later on how to create them). The
+The `ShaderModuleInfo` struct will hold shader modules that need to be used by the pipeline (we will see later on how to create them). The
 `VkPipelineCreateInfo` will be used to parametrize pipeline creation. It is composed by the following attributes:
 
 - `colorFormat`: The color format to be used when rendering in this pipeline.
 - `modulesInfo`: The list of shader modules.
-- `useBlend`: When the pipeline will be configured to support alpha blending.
+- `useBlend`: Whether the pipeline will be configured to support alpha blending.
 - `vtxBuffDesc`: It will contain the vertex attribute description.
 
 The first thing we do is to create as many `PipelineShaderStageCreateInfo` structures as shader modules we have. For each of them we set the
@@ -642,6 +643,7 @@ stage that it should be applied to, the handle to the module itself and the name
 
 After that, we set-up the input assembly stage:
 
+**File: src/eng/vk/vkPipeline.zig**
 ```zig
 pub const VkPipeline = struct {
     ...
@@ -655,7 +657,6 @@ pub const VkPipeline = struct {
     }
     ...
 };
-**File: src/eng/vk/vkPipeline.zig**
 ```
 
 The input assembly stage takes a set of vertices and produces a set of primitives. The primitives to be produced are defined in the
@@ -671,6 +672,7 @@ enlarged to fit the dimensions of the view port. The scissor defines a rectangle
 that region will be discarded. Scissors are not transformations, they simply cut out regions that do not fit their dimensions. In our case,
 we will be using just one view port and one scissor (we need at least one). 
 
+**File: src/eng/vk/vkPipeline.zig**
 ```zig
 pub const VkPipeline = struct {
     ...
@@ -686,16 +688,15 @@ pub const VkPipeline = struct {
     }
     ...
 };
-**File: src/eng/vk/vkPipeline.zig**
 ```
 
 We will be using dynamic viewports and scissors, therefore, although we have set the count values to `1` we set the `p_viewports` and
 `p_scissors` to null. This will allow to set the dimensions for viewport and scissor when recording graphic commands. If we were not using
 dynamic viewports and scissors, any time the viewport size would change we would need to recreate the pipeline.
 
-
 After that we configure the rasterization stage:
 
+**File: src/eng/vk/vkPipeline.zig**
 ```zig
 pub const VkPipeline = struct {
     ...
@@ -717,14 +718,13 @@ pub const VkPipeline = struct {
     }
     ...
 };
-**File: src/eng/vk/vkPipeline.zig**
 ```
 
 Description of the parameters:
 
 - `depth_clamp_enable`: It controls if depth values should be clamped or not.
 - `rasterizer_discard_enable`: When set to true it will stop after vertex processing and will not perform rasterization or fragment
-processing. It can be used when processing vertices for geometry calculations. We will not use this feature so we will set up to false. 
+processing. It can be used when processing vertices for geometry calculations. We will not use this feature so we will set up to false.
 - `polygon_mode`: It specifies how triangles should be rendered: In our case we want the triangles to be filled up with the color assigned
 in the fragments. For example, if we want to draw it as lines (as in OpenGL, the equivalent would be to use this line: `glPolygonMode`
 (`GL_FRONT_AND_BACK, GL_LINE )`) we should use `line` (`VK_POLYGON_MODE_LINE`)).
@@ -742,6 +742,7 @@ fact that pixels are discrete elements which cannot perfectly model continuous s
 setting the color of a pixel, borders are smoothed and the quality of the images is often better. This is done by creating a `PipelineMultisampleStateCreateInfo` structure. In this case we are not using multiple samples so we just set the number of samples to one
 bit and disable all the flags:
 
+**File: src/eng/vk/vkPipeline.zig**
 ```zig
 pub const VkPipeline = struct {
     ...
@@ -758,7 +759,6 @@ pub const VkPipeline = struct {
     }
     ...
 };
-**File: src/eng/vk/vkPipeline.zig**
 ```
 
 Pipelines are almost immutable, there are only a few things that we can modify once the pipeline has been created. We can change a fixed
@@ -768,6 +768,7 @@ changed dynamically. In our case, we do not want to recreate the pipeline if the
 and `scissor` (`VK_DYNAMIC_STATE_SCISSOR`). By setting this, the view port and scissor dimensions are not set in the pipeline creation and
 we can change them dynamically.
 
+**File: src/eng/vk/vkPipeline.zig**
 ```zig
 pub const VkPipeline = struct {
     ...
@@ -783,12 +784,12 @@ pub const VkPipeline = struct {
     }
     ...
 };
-**File: src/eng/vk/vkPipeline.zig**
 ```
 
 The next step is to configure color blending. This stage allows combining the color of a fragment with the contents that already exists in
 that buffer. This allows to apply effects like transparencies:
 
+**File: src/eng/vk/vkPipeline.zig**
 ```zig
 pub const VkPipeline = struct {
     ...
@@ -825,7 +826,6 @@ pub const VkPipeline = struct {
     }
     ...
 };
-**File: src/eng/vk/vkPipeline.zig**
 ```
 
 We need first to configure the blending options for the output attachment through a buffer of `PipelineColorBlendAttachmentState`
@@ -837,6 +837,7 @@ blending settings).
 After this we need to define how to read your vertex buffers and transform them into vertex shader inputs. We use the format defined in
 `createInfo`:
 
+**File: src/eng/vk/vkPipeline.zig**
 ```zig
 pub const VkPipeline = struct {
     ...
@@ -852,12 +853,13 @@ pub const VkPipeline = struct {
     }
     ...
 };
-**File: src/eng/vk/vkPipeline.zig**
 ```
 
-While rendering we may to pass additional parameters to the shaders (for example by using uniforms), those parameters need to be associated
-to a binding point. Even though we are still not using those features, we need to create the structure that will hold these definitions:
+While rendering we may need to pass additional parameters to the shaders (for example by using uniforms), those parameters need to be
+associated to a binding point. Even though we are still not using those features, we need to create the structure that will hold these
+definitions:
 
+**File: src/eng/vk/vkPipeline.zig**
 ```zig
 pub const VkPipeline = struct {
     ...
@@ -875,11 +877,11 @@ pub const VkPipeline = struct {
     }
     ...
 };
-**File: src/eng/vk/vkPipeline.zig**
 ```
 
 Now we have all the information required to create the pipeline. We just need to set a `GraphicsPipelineCreateInfo` structure:
 
+**File: src/eng/vk/vkPipeline.zig**
 ```zig
 pub const VkPipeline = struct {
     ...
@@ -917,12 +919,12 @@ pub const VkPipeline = struct {
     }
     ...
 };
-**File: src/eng/vk/vkPipeline.zig**
 ```
 
 The `create` function is now finished. To complete the `VkPipeline` struct we just need to define a `cleanup` function for destroying the
 resources:
 
+**File: src/eng/vk/vkPipeline.zig**
 ```zig
 pub const VkPipeline = struct {
     ...
@@ -931,7 +933,6 @@ pub const VkPipeline = struct {
         vkCtx.vkDevice.deviceProxy.destroyPipelineLayout(self.pipelineLayout, null);
     }
 };
-**File: src/eng/vk/vkPipeline.zig**
 ```
 
 ## Using the pipeline
@@ -939,6 +940,7 @@ pub const VkPipeline = struct {
 We are now ready to put all the pieces together and render something to the screen. We will start from our `Game` struct. We will create a
 sample model in the `init` function which was previously empty:
 
+**File: src/main.zig**
 ```zig
 const Game = struct {
     ...
@@ -961,7 +963,6 @@ const Game = struct {
     }
     ...
 };
-**File: src/main.zig**
 ```
 
 We create a new instance of the `MeshData` struct that define the vertices and the indices of a triangle. We also create a model with a
@@ -969,15 +970,16 @@ unique identifier, which will be used later on to link entities with the associa
 by returning `eng.engine.InitData` which basically just contains the list of models that we want to load (it is defined inside the
 `src/eng/eng.zig` file):
 
+**File: src/eng/eng.zig**
 ```zig
 pub const InitData = struct {
     models: []const eng.mdata.ModelData,
 };
-**File: src/eng/eng.zig**
 ```
 
 We will modify the `Engine` struct to retrieve the `InitData` instance and pass it to the `Render` struct in the `init` function:
 
+**File: src/eng/eng.zig**
 ```zig
 pub fn Engine(comptime GameLogic: type) type {
     ...
@@ -996,11 +998,11 @@ pub fn Engine(comptime GameLogic: type) type {
         }
     ...
 };
-**File: src/eng/eng.zig**
 ```
 
 We need now to update the `Render` struct to instantiate `ModelsCache` struct and define the `init` function:
 
+**File: src/eng/render.zig**
 ```zig
 pub const Render = struct {
     ...
@@ -1034,7 +1036,6 @@ pub const Render = struct {
         ...
     }
 }
-**File: src/eng/render.zig**
 ```
 
 The `render` function has been changed also, we will pass the `ModelsCache` instance to the `RenderScn` instance so they can be used to
@@ -1045,6 +1046,7 @@ render them. we need also to update the `cleanup` function to properly free the 
 In order to render a triangle we need to put everything in place in `RenderScn` struct. Let's start with the attributes, the `cleanup` and
 `create` functions:
 
+**File: src/eng/renderScn.zig**
 ```zig
 pub const RenderScn = struct {
     vkPipeline: vk.pipe.VkPipeline,
@@ -1096,7 +1098,6 @@ pub const RenderScn = struct {
     }
     ...
 };
-**File: src/eng/renderScn.zig**
 ```
 
 We will store the reference to the pipeline used by this render as an attribute and free it in the `cleanup` function. In the `create`
@@ -1107,6 +1108,7 @@ description defined in the `VtxBuffDesc` struct and create the pipeline.
 We have created a function named `loadFile` in the `src/eng/com/utils.zig` file which needs to be included in `mod.zig`:
 `pub const utils = @import("utils.zig");`. The function just loads the binary contents of a compiled shader:
 
+**File: src/eng/com/utils.zig**
 ```zig
 const com = @import("mod.zig");
 const std = @import("std");
@@ -1117,11 +1119,11 @@ pub fn loadFile(allocator: std.mem.Allocator, io: std.Io, filePath: []const u8) 
     const buf = try std.Io.Dir.cwd().readFileAlloc(io, filePath, allocator, .unlimited);
     return buf;
 }
-**File: src/eng/com/utils.zig**
 ```
 
 Now we need to update the `RenderScn` `render` function:
 
+**File: src/eng/renderScn.zig**
 ```zig
 pub const RenderScn = struct {
     ...
@@ -1180,10 +1182,9 @@ pub const RenderScn = struct {
         device.cmdEndRendering(cmdHandle);
     }
 };
-**File: src/eng/renderScn.zig**
 ```
 
-Once we have started recording, we call to the `cmdBindPipeline` function. Once bound, the next commands that are recorded will be affected
+Once we have started recording, we call the `cmdBindPipeline` function. Once bound, the next commands that are recorded will be affected
 by this pipeline. The `vulkan.PipelineBindPoint.graphics` parameter (`VK_PIPELINE_BIND_POINT_GRAPHICS`) specifies that this refers to
 graphics binding point. Graphic commands will be affected by this binding, but compute commands are only affected by pipelines bound using
 the `vulkan.PipelineBindPoint.compute` (`VK_PIPELINE_BIND_POINT_COMPUTE`) binding point. Then we define the view port. The `x` and `y`
@@ -1192,7 +1193,7 @@ values define the screen coordinates of upper left corner of the view port, whic
 range will be discarded). You may have noted something weird about the view port definition. The upper left corner uses a negative value for
  the y-axis and the height value is also negative. This is because in Vulkan the origin of coordinates is at the top left and the y axis
  points downwards (the opposite of OpenGL). Personally, I'm used to the OpenGL coordinates system, the shaders, the models that I use are
- "adapted" to that coordinate system. This is why I prefer to flip the view port to keep on using models that assume that the y -axis point
+ "adapted" to that coordinate system. This is why I prefer to flip the view port to keep on using models that assume that the y axis point
  upwards. You can find more details [here](https://www.saschawillems.de/blog/2019/03/29/flipping-the-vulkan-viewport/).
 
 ![Coordinates](rc06-coordinates.svg)
@@ -1211,8 +1212,9 @@ and the recording.
 ## Shaders code
 
 There's still a very important task to do to render anything, we need to code the shaders themselves. We will create a vertex and a fragment
-shaders. The source code of the vertex shader is:
+shader. The source code of the vertex shader is:
 
+**File: res/shaders/scn_vtx.glsl**
 ```glsl
 #version 450
 
@@ -1222,13 +1224,13 @@ void main()
 {
     gl_Position = vec4(inPos, 1);
 }
-**File: res/shaders/scn_vtx.glsl**
 ```
 
 Our vertices just define a single attribute, at location `0`, for the positions, and we just return that.
 
 The source code of the fragment shader is:
 
+**File: res/shaders/scn_frg.glsl**
 ```glsl
 #version 450
 
@@ -1238,7 +1240,6 @@ void main()
 {
     outFragColor = vec4(1, 0, 0, 1);
 }
-**File: res/shaders/scn_frg.glsl**
 ```
 
 By now, we just return a red color.

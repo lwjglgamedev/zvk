@@ -13,6 +13,7 @@ pub const VkBuffer = struct {
             .sharing_mode = vulkan.SharingMode.exclusive,
         };
         const buffer = try vkCtx.vkDevice.deviceProxy.createBuffer(&createInfo, null);
+        errdefer vkCtx.vkDevice.deviceProxy.destroyBuffer(buffer, null);
 
         const memReqs = vkCtx.vkDevice.deviceProxy.getBufferMemoryRequirements(buffer);
 
@@ -21,6 +22,7 @@ pub const VkBuffer = struct {
             .memory_type_index = try vkCtx.findMemoryTypeIndex(memReqs.memory_type_bits, memFlags),
         };
         const memory = try vkCtx.vkDevice.deviceProxy.allocateMemory(&allocInfo, null);
+        errdefer vkCtx.vkDevice.deviceProxy.freeMemory(memory, null);
 
         try vkCtx.vkDevice.deviceProxy.bindBufferMemory(buffer, memory, 0);
 
