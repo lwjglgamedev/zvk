@@ -29,7 +29,7 @@
             .hash = "zstbi-0.11.0-dev-L0Ea_wGXBwCvXIzUWRNZe-6FpofI_nz4uAOQ4O0Fuxko",
         },
         .zig_assimp = .{
-            .url = "https://github.com/lwjglgamedev/assimp/archive/af9037424a4d93f39bba077e025ce5509002e2e9.tar.gz",
+            .url = "https://github.com/lwjglgamedev/assimp/archive/231c1a2f209fd36bdcd43188b1ff75da45e58c67.tar.gz",
             .hash = "zig_assimp-6.0.6-8EpyglvDAADMpeBcy8nLys0WJPSIZtBg9SbWjoasq5UQ",
         },
     },
