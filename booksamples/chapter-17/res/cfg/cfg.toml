@@ -1,6 +1,6 @@
 fov=60
 fxaa=true
-gpu="NVIDIA GeForce RTX 4060 Laptop GPU"
+gpu=""
 pcfEnabled=true
 shadowDebug=false
 shadowMapSize=4096

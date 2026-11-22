@@ -4,7 +4,7 @@ const com = @import("com");
 const vk = @import("mod.zig");
 
 const log = std.log.scoped(.vk);
-const reqExtensions = [_][*:0]const u8{vulkan.device_extensions.khr_swapchain.name};
+pub const reqExtensions = [_][*:0]const u8{vulkan.device_extensions.khr_swapchain.name};
 
 const QueuesInfo = struct {
     compute_family: u32,

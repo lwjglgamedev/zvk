@@ -3,7 +3,6 @@ const vulkan = @import("vulkan");
 const vk = @import("mod.zig");
 
 const log = std.log.scoped(.vk);
-const reqExtensions = [_][*:0]const u8{vulkan.device_extensions.khr_swapchain.name};
 
 pub const VkDevice = struct {
     deviceProxy: vulkan.DeviceProxy,
@@ -11,7 +10,8 @@ pub const VkDevice = struct {
     pub fn create(allocator: std.mem.Allocator, vkInstance: vk.inst.VkInstance, vkPhysDevice: vk.phys.VkPhysDevice) !VkDevice {
         const priority = [_]f32{0};
 
-        var uniqueFamilies: [3]u32 = undefined;
+        const maxFamilies = 3;
+        var uniqueFamilies: [maxFamilies]u32 = undefined;
         var uniqueCount: u32 = 0;
         for ([_]u32{
             vkPhysDevice.queuesInfo.graphics_family,
@@ -31,7 +31,7 @@ pub const VkDevice = struct {
             }
         }
 
-        var qciBuf: [3]vulkan.DeviceQueueCreateInfo = undefined;
+        var qciBuf: [maxFamilies]vulkan.DeviceQueueCreateInfo = undefined;
         for (uniqueFamilies[0..uniqueCount], 0..) |family, i| {
             qciBuf[i] = .{
                 .queue_family_index = family,
@@ -44,14 +44,14 @@ pub const VkDevice = struct {
         const featuresMultiview = vulkan.PhysicalDeviceMultiviewFeatures{
             .multiview = vulkan.Bool32.true,
         };
-        const features3 = vulkan.PhysicalDeviceVulkan13Features{
+        const features13 = vulkan.PhysicalDeviceVulkan13Features{
             .p_next = @constCast(&featuresMultiview),
             .dynamic_rendering = vulkan.Bool32.true,
             .shader_demote_to_helper_invocation = vulkan.Bool32.true,
             .synchronization_2 = vulkan.Bool32.true,
         };
-        const features2 = vulkan.PhysicalDeviceVulkan12Features{
-            .p_next = @constCast(&features3),
+        const features12 = vulkan.PhysicalDeviceVulkan12Features{
+            .p_next = @constCast(&features13),
             .scalar_block_layout = vulkan.Bool32.true,
         };
         const features = vulkan.PhysicalDeviceFeatures{
@@ -60,10 +60,10 @@ pub const VkDevice = struct {
 
         const devCreateInfo: vulkan.DeviceCreateInfo = .{
             .queue_create_info_count = @intCast(qci.len),
-            .p_next = @ptrCast(&features2),
+            .p_next = @ptrCast(&features12),
             .p_queue_create_infos = qci.ptr,
-            .enabled_extension_count = reqExtensions.len,
-            .pp_enabled_extension_names = reqExtensions[0..].ptr,
+            .enabled_extension_count = vk.phys.reqExtensions.len,
+            .pp_enabled_extension_names = vk.phys.reqExtensions[0..].ptr,
             .p_enabled_features = @ptrCast(&features),
         };
         const device = try vkInstance.instanceProxy.createDevice(vkPhysDevice.pdev, &devCreateInfo, null);

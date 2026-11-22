@@ -40,7 +40,12 @@ pub fn Engine(comptime GameLogic: type) type {
                 .wnd = wnd,
             };
 
-            const render = try eng.rend.Render.create(allocator, engCtx.constants, engCtx.wnd.window);
+            var render = try eng.rend.Render.create(
+                allocator,
+                engCtx.constants,
+                engCtx.wnd.window,
+            );
+            errdefer render.cleanup(allocator);
 
             return .{
                 .engCtx = engCtx,

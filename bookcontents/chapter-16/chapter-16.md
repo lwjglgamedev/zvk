@@ -1719,7 +1719,7 @@ pub const VkDevice = struct {
         const featuresMultiview = vulkan.PhysicalDeviceMultiviewFeatures{
             .multiview = vulkan.Bool32.true,
         };
-        const features3 = vulkan.PhysicalDeviceVulkan13Features{
+        const features13 = vulkan.PhysicalDeviceVulkan13Features{
             .p_next = @constCast(&featuresMultiview),
             ...
         };

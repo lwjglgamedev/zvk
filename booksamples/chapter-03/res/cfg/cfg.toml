@@ -1,4 +1,4 @@
-gpu="NVIDIA GeForce RTX 4060 Laptop GPU"
+gpu=""
 ups=40
 validation=true
 syncValidation=false

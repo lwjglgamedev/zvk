@@ -222,7 +222,7 @@ pub fn Engine(comptime GameLogic: type) type {
                 .wnd = wnd,
             };
 
-            const render = try eng.rend.Render.create();
+            var render = try eng.rend.Render.create();
 
             return .{
                 .engCtx = engCtx,

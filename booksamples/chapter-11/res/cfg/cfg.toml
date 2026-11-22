@@ -1,6 +1,6 @@
 fov=60
 fxaa=true
-gpu="NVIDIA GeForce RTX 4060 Laptop GPU"
+gpu=""
 swapChainImages=3
 ups=40
 validation=true
