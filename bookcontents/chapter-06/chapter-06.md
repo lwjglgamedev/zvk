@@ -62,7 +62,7 @@ that the data associated to this buffer should use. In order to create a Vulkan 
 - `size`: The number of bytes that the buffer will hold.
 - `usage`: It specifies the allowed usages of the buffer. We can specify that this buffer can be used for transfer commands
 (for example to use as source in buffer copy operations), as a destination transfer, for uniforms, etc. This will be received in the
-`create` function of the `VulkanBuffer` struct through an argument with the same name.
+`create` function of the `VkBuffer` struct through an argument with the same name.
 - `sharing_mode`: If set to `vulkan.SharingMode.exclusive` (`VK_SHARING_MODE_EXCLUSIVE`), it can only be accessed by a queue family at
 a time. Setting to `vulkan.SharingMode.concurrent` (`VK_SHARING_MODE_CONCURRENT`) allows the buffer contents to be accessed by more
 than one queue family at a time. Concurrent mode incurs performance penalties, so we will just use exclusive mode.
@@ -103,7 +103,7 @@ checking if that memory index (first condition) is supported by the device and i
 This function basically returns the memory type index most suitable for the requested conditions.
 
 Now we can go back to the `VkBuffer` `create` function and invoke the `allocateMemory` function to allocate the memory. After that we can
-get the finally allocated size and get a handle to that chunk of memory. 
+get the finally allocated size and get a handle to that chunk of memory.
 
 Now we need to link the allocated memory with the buffer handle, this is done by calling the `bindBufferMemory` function.
 
@@ -180,7 +180,7 @@ we will just use one attribute for the position, so we only include one descript
 are:
 
 - `binding`: The binding number associated to this vertex description. This will be used later on the shaders so we can use several vertices
-descriptions independently associated to different binding points. 
+descriptions independently associated to different binding points.
 - `location`: The input location used in the shader for this attribute.
 - `format`: The format of this attribute, in this case we are saying that we will be using three 32 bit signed floats.
 - `offset`: The relative offset in bytes for this attribute when processing one vertex element. The buffer will contain many vertices. Each
@@ -193,12 +193,13 @@ After that, we will fill up the binding description. The attributes of `VertexIn
 - `stride`: The distance in bytes from two consecutive elements in the buffer. In our case, we are using 32 bit floats for the positions
 (4 bytes each) and three position components (x, y, z).
 - `input_rate`: It specifies the rate at which vertex attributes are pulled from the underlying buffer. It can have two possible values:
-`vertex` (`VK_VERTEX_INPUT_RATE_VERTEX`): Values will be extracted for each vertex index. That is, when consuming an index we will get
-one element from the buffer. This is the regular case when drawing a mesh, the vertex data is associated to a specific index and will be
-consumed accordingly.
-- `instance` (`VK_VERTEX_INPUT_RATE_INSTANCE`): Values will be extracted for each instance index. This will be the case used for instanced
-rendering, where with a single buffer defining the common attributes (mesh definition) we can draw many models with a single draw call.
-The buffer will hold common data for all the models and per-instance data, therefore we will need to combine the two types of input rate.
+   - `vertex` (`VK_VERTEX_INPUT_RATE_VERTEX`): Values will be extracted for each vertex index. That is, when consuming an index we will get
+   one element from the buffer. This is the regular case when drawing a mesh, the vertex data is associated to a specific index and will be
+   consumed accordingly.
+   - `instance` (`VK_VERTEX_INPUT_RATE_INSTANCE`): Values will be extracted for each instance index. This will be the case used for
+   instanced rendering, where with a single buffer defining the common attributes (mesh definition) we can draw many models with a single
+   draw call. The buffer will hold common data for all the models and per-instance data, therefore we will need to combine the two types of
+   input rate.
 
 ## Loading the data
 
@@ -209,7 +210,7 @@ named `VulkanModel` which will hold the information for 3D models. For now, it w
 a 3D model. In next chapters it will be extended to support richer structures. At this moment a model is just a collection of meshes which
 will hold the references to buffers that contain positions data and their indices. This struct will also define the functions to populate
 those structures. This will be defined in a new file named `modelsCache.zig` which you should add to the `mod.zig` file like this:
-`pub const mcach = @import("modelsCache.zig");` under the `src/eng` folder. The `VtxBuffDesc` struct is quite simple:
+`pub const mcach = @import("modelsCache.zig");` under the `src/eng` folder. The `VulkanModel` struct is quite simple:
 
 **File: src/eng/modelsCache.zig**
 ```zig
@@ -512,8 +513,8 @@ shading mode. More information in the Vulkan [specification](https://registry.kh
 - Vertex shader: In this stage we transform the vertices received as inputs (positions, normals, texture coordinates, etc.). It is a
 programmable stage.
 - Tessellation and geometry shader stages can generate multiple primitives from a single input primitive or modify them received from
-previous stages.  These stages are also programmable through shaders.
-- Rasterization: This stage transforms primitives into fragments (pixels) that can be displayed on a 2D image.
+previous stages. These stages are also programmable through shaders.
+- Rasterization: This stage transforms primitives into fragments (candidate pixels) that can be displayed on a 2D image.
 - Fragment shader: Processes the fragments from the rasterization stage determining the values that will be written into the frame buffer
 output attachments. This is also a programmable stage which usually outputs the color for each pixel.
 - Blending: Controls how different fragments can be mixed over the same pixel handling aspects such as transparencies and color mixing.
@@ -523,7 +524,7 @@ run time the properties of a graphics pipeline. Almost any change that we want t
 in OpenGL it is common to modify at runtime certain parameters that control how transparencies are handled (blending) or if the
 depth-testing is enabled. In OpenGL we can modify those parameters at run time with no restrictions. (The reality is that under the hood,
 our driver is switching between pipelines definitions that meet those settings). In Vulkan, however, we will need to define multiple
-pipelines if we want to change those settings while rendering and switch between them manually. 
+pipelines if we want to change those settings while rendering and switch between them manually.
 
 ## Shaders
 
@@ -578,12 +579,9 @@ For example in Linux (Debian based distribution), just execute `sudo apt install
 
 ## Pipeline
 
-The next step is to write the code that supports graphic pipelines creation. Prior to talking about pipelines specifically, we will talk
-about the pipeline cache. As mentioned before, while working with Vulkan, it is very common to have multiple pipelines. Pipelines are
-almost immutable, so any variant on the setup of the different stages requires a new pipeline instance. 
-
-We will encapsulate pipeline creation code in the `vkPipeline.zig` (Remember to include it in the `src/eng/vk/mod.zig` file:
-`pub const pipe = @import("vkPipeline.zig");`). It starts like this:
+The next step is to write the code that supports graphic pipelines creation. We will encapsulate pipeline creation code in the
+`vkPipeline.zig` (Remember to include it in the `src/eng/vk/mod.zig` file: `pub const pipe = @import("vkPipeline.zig");`). It starts like
+this:
 
 **File: src/eng/vk/vkPipeline.zig**
 ```zig
@@ -670,7 +668,7 @@ attachments that we will be using for rendering (normally we will use the whole 
 transformation from normalized coordinates to screen coordinates. Since it is a transformation, the rendered image will be stretched or
 enlarged to fit the dimensions of the view port. The scissor defines a rectangle where outputs can be made, any pixel that lies outside
 that region will be discarded. Scissors are not transformations, they simply cut out regions that do not fit their dimensions. In our case,
-we will be using just one view port and one scissor (we need at least one). 
+we will be using just one view port and one scissor (we need at least one).
 
 **File: src/eng/vk/vkPipeline.zig**
 ```zig
@@ -727,12 +725,12 @@ Description of the parameters:
 processing. It can be used when processing vertices for geometry calculations. We will not use this feature so we will set up to false.
 - `polygon_mode`: It specifies how triangles should be rendered: In our case we want the triangles to be filled up with the color assigned
 in the fragments. For example, if we want to draw it as lines (as in OpenGL, the equivalent would be to use this line: `glPolygonMode`
-(`GL_FRONT_AND_BACK, GL_LINE )`) we should use `line` (`VK_POLYGON_MODE_LINE`)).
-- `cull_mode`: This is used if we want to apply culling (for example, not drawing triangles that are in the inner parts of models). By now
-we are not applying culling, but we can activate it according to the orientation of the vertices of the triangles.
-- `front_face`: It specifies how front face for culling is determined. In our case, we set to `clockwise` (`VK_FRONT_FACE_CLOCKWISE`), that
-is, if the vertices are drawn in clockwise order they are considered as clock wise.
-- `line_width`: It specifies the width of the rasterized fragments.
+(`GL_FRONT_AND_BACK, GL_LINE`) we should use `line` (`VK_POLYGON_MODE_LINE`)).
+- `cull_mode`: This is used if we want to apply culling (discarding triangles that face away from the camera). By now we are not applying
+culling, but we can activate it according to the orientation of the vertices of the triangles.
+- `front_face`: It specifies the winding order that defines the front face of a triangle. In our case, `clockwise`
+(`VK_FRONT_FACE_CLOCKWISE`) means that triangles whose vertices are in clockwise order are considered front facing.
+- `line_width`: It specifies the width of rasterized lines. Values other than `1.0` require the `wideLines` feature.
 - `depth_bias_enable`, `depth_bias_constant_factor`, `depth_bias_clamp`, `depth_bias_slope_factor`: These parameters control how to add a
 bias to depth values. We will not use this feature, but sometimes is used when using shadow maps to add a little displacement to depth
 values to adjust light occlusion calculations.
@@ -1039,7 +1037,7 @@ pub const Render = struct {
 ```
 
 The `render` function has been changed also, we will pass the `ModelsCache` instance to the `RenderScn` instance so they can be used to
-render them. we need also to update the `cleanup` function to properly free the `ModelsCache` instance.
+render them. We need also to update the `cleanup` function to properly free the `ModelsCache` instance.
 
 ## Rendering the triangle
 
@@ -1167,7 +1165,7 @@ pub const RenderScn = struct {
             .offset = vulkan.Offset2D{ .x = 0, .y = 0 },
             .extent = vulkan.Extent2D{ .width = extent.width, .height = extent.height },
         }};
-        device.cmdSetScissor(cmdHandle, 0,  &scissor);
+        device.cmdSetScissor(cmdHandle, 0, &scissor);
 
         const offset = [_]vulkan.DeviceSize{0};
         var iter = modelsCache.modelsMap.valueIterator();
@@ -1206,7 +1204,7 @@ the coordinates and dimensions are relative to the view port. After that we can 
 
 We iterate over all the models, then over their meshes and start by binding their vertices buffer by calling the `cmdBindVertexBuffers`.
 The next draw calls will use that data as an input. We also bind the buffer that holds the indices by calling the `cmdBindIndexBuffer` and
-finally we record the drawing of the vertices using those indices by calling the `cmdDrawIndexed`. After that, we finalize the render pass
+finally we record the drawing of the vertices using those indices by calling the `cmdDrawIndexed`. After that, we finish the rendering
 and the recording.
 
 ## Shaders code
