@@ -16,7 +16,7 @@ The build file (`build.zig`) is quite standard. It just builds an executable add
 We will use the following dependencies:
 
 - [SDL3](https://codeberg.org/7Games/zig-sdl3) Zig bindings. We will use SDL3 to create windows and handle user input. In order to add the
-dependency to the `build.zig.zon` file just execute: `zig fetch --save "git+https://codeberg.org/7Games/zig-sdl3#82eab2e5a41a7b128f70afd7a6468fa736951cf1"`
+dependency to the `build.zig.zon` file just execute: `zig fetch --save git+https://codeberg.org/7Games/zig-sdl3?ref=v0.2.7`
 - [TOML](https://github.com/sam701/zig-toml) to be able to parse configuration files. In order to add the dependency to the `build.zig.zon`
 file just execute: `zig fetch --save https://github.com/sam701/zig-toml/archive/c661327bd9f02f774426c4fe78f60621411b7173.tar.gz`
 - [Vulkan](https://github.com/Snektron/vulkan-zig) Zig bindings. In order to add the dependency to the `build.zig.zon` file just execute:
