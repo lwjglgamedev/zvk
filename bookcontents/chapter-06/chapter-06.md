@@ -102,8 +102,7 @@ if that memory will be accessed only by the GPU or also by the application). Thi
 checking if that memory index (first condition) is supported by the device and if that it meets the requested type (second condition).
 This function basically returns the memory type index most suitable for the requested conditions.
 
-Now we can go back to the `VkBuffer` `create` function and invoke the `allocateMemory` function to allocate the memory. After that we can
-get the finally allocated size and get a handle to that chunk of memory.
+Now we can go back to the `VkBuffer` `create` function and invoke the `allocateMemory` function to allocate the memory.
 
 Now we need to link the allocated memory with the buffer handle, this is done by calling the `bindBufferMemory` function.
 
@@ -172,8 +171,8 @@ pub const VtxBuffDesc = struct {
 We define several structures required for Vulkan to understand how our vertices will be used:
 
 - `VertexInputAttributeDescription`: It is used to describe each vertex attribute.
-- `VertexInputBindingDescription`: It is used to specify if the boundaries of each vertex "package" and how it will consumed (per instance
-or per vertex).
+- `VertexInputBindingDescription`: It is used to specify the stride of each vertex 'package' and how it will be consumed (per vertex or
+per instance).
 
 We need to fill up as many attribute descriptors as input variables describing the input we will have in our shaders. In our case, by now,
 we will just use one attribute for the position, so we only include one description. The attributes of `VertexInputAttributeDescription`
@@ -396,6 +395,7 @@ pub const ModelsCache = struct {
                     vulkan.BufferUsageFlags{ .vertex_buffer = true, .transfer_dst = true },
                     vulkan.MemoryPropertyFlags{ .device_local = true },
                 );
+                errdefer dstVtxBuffer.cleanup(vkCtx);
 
                 const dataVertices = try srcVtxBuffer.map(vkCtx);
                 const gpuVertices: [*]f32 = @ptrCast(@alignCast(dataVertices));
@@ -419,6 +419,8 @@ pub const ModelsCache = struct {
                     vulkan.BufferUsageFlags{ .index_buffer = true, .transfer_dst = true },
                     vulkan.MemoryPropertyFlags{ .device_local = true },
                 );
+                errdefer dstIdxBuffer.cleanup(vkCtx);
+
 
                 const dataIndices = try srcIdxBuffer.map(vkCtx);
                 const gpuIndices: [*]u32 = @ptrCast(@alignCast(dataIndices));
@@ -556,7 +558,7 @@ pub fn build(b: *std.Build) void {
         std.log.debug("Compiling [{s}]", .{shader.path});
         const outputPath = b.fmt("{s}.spv", .{shader.path});
         const stage = b.fmt("-fshader-stage={s}", .{shader.stage});
-        const compFragment = b.addSystemCommand(&[_][]const u8{
+        const compShader = b.addSystemCommand(&[_][]const u8{
             "glslc",
             "--target-env=vulkan1.3",
             stage,
@@ -565,10 +567,10 @@ pub fn build(b: *std.Build) void {
             outputPath,
             shader.path,
         });
-        b.getInstallStep().dependOn(&compFragment.step);
+        b.getInstallStep().dependOn(&compShader.step);
     }
 
-    b.installArtifact(exe);    
+    b.installArtifact(exe);
     ...
 }
 ```
@@ -596,7 +598,7 @@ pub const ShaderModuleInfo = struct {
 
 pub const VkPipelineCreateInfo = struct {
     colorFormat: vulkan.Format,
-    modulesInfo: []ShaderModuleInfo,
+    modulesInfo: []const ShaderModuleInfo,
     useBlend: bool,
     vtxBuffDesc: VtxBuffDesc,
 };
@@ -723,9 +725,9 @@ Description of the parameters:
 - `depth_clamp_enable`: It controls if depth values should be clamped or not.
 - `rasterizer_discard_enable`: When set to true it will stop after vertex processing and will not perform rasterization or fragment
 processing. It can be used when processing vertices for geometry calculations. We will not use this feature so we will set up to false.
-- `polygon_mode`: It specifies how triangles should be rendered: In our case we want the triangles to be filled up with the color assigned
-in the fragments. For example, if we want to draw it as lines (as in OpenGL, the equivalent would be to use this line: `glPolygonMode`
-(`GL_FRONT_AND_BACK, GL_LINE`) we should use `line` (`VK_POLYGON_MODE_LINE`)).
+- `polygon_mode`: It specifies how triangles should be rendered. In our case we want the triangles to be filled with the color assigned in
+the fragments (fill). If we wanted to draw them as lines (the OpenGL equivalent would be `glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)`), we
+would use line (`VK_POLYGON_MODE_LINE`).
 - `cull_mode`: This is used if we want to apply culling (discarding triangles that face away from the camera). By now we are not applying
 culling, but we can activate it according to the orientation of the vertices of the triangles.
 - `front_face`: It specifies the winding order that defines the front face of a triangle. In our case, `clockwise`
@@ -1037,7 +1039,7 @@ pub const Render = struct {
 ```
 
 The `render` function has been changed also, we will pass the `ModelsCache` instance to the `RenderScn` instance so they can be used to
-render them. We need also to update the `cleanup` function to properly free the `ModelsCache` instance.
+render them. We also need to update the `cleanup` function to properly free the `ModelsCache` instance.
 
 ## Rendering the triangle
 
@@ -1056,7 +1058,7 @@ pub const RenderScn = struct {
 
     pub fn create(allocator: std.mem.Allocator, io: std.Io, vkCtx: *const vk.ctx.VkCtx) !RenderScn {
         // Shader modules
-        var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+        var arena = std.heap.ArenaAllocator.init(allocator);
         defer arena.deinit();
         const vertCode align(@alignOf(u32)) = try com.utils.loadFile(arena.allocator(), io, "res/shaders/scn_vtx.glsl.spv");
         const vert = try vkCtx.vkDevice.deviceProxy.createShaderModule(&.{
@@ -1072,15 +1074,15 @@ pub const RenderScn = struct {
         }, null);
         defer vkCtx.vkDevice.deviceProxy.destroyShaderModule(frag, null);
 
-        const modulesInfo = try allocator.alloc(vk.pipe.ShaderModuleInfo, 2);
-        modulesInfo[0] = .{ .module = vert, .stage = .{ .vertex = true } };
-        modulesInfo[1] = .{ .module = frag, .stage = .{ .fragment = true } };
-        defer allocator.free(modulesInfo);
+        const modulesInfo = [_]vk.pipe.ShaderModuleInfo{
+            .{ .module = vert, .stage = .{ .vertex = true } },
+            .{ .module = frag, .stage = .{ .fragment = true } },
+        };
 
         // Pipeline
         const vkPipelineCreateInfo = vk.pipe.VkPipelineCreateInfo{
             .colorFormat = vkCtx.vkSwapChain.surfaceFormat.format,
-            .modulesInfo = modulesInfo,
+            .modulesInfo = &modulesInfo,
             .useBlend = false,
             .vtxBuffDesc = .{
                 .attribute_description = @constCast(&VtxBuffDesc.attribute_description)[0..],
@@ -1186,13 +1188,13 @@ Once we have started recording, we call the `cmdBindPipeline` function. Once bou
 by this pipeline. The `vulkan.PipelineBindPoint.graphics` parameter (`VK_PIPELINE_BIND_POINT_GRAPHICS`) specifies that this refers to
 graphics binding point. Graphic commands will be affected by this binding, but compute commands are only affected by pipelines bound using
 the `vulkan.PipelineBindPoint.compute` (`VK_PIPELINE_BIND_POINT_COMPUTE`) binding point. Then we define the view port. The `x` and `y`
-values define the screen coordinates of upper left corner of the view port, which dimensions are completed by specifying its `width` and
+values define the screen coordinates of origin of the view port, which dimensions are completed by specifying its `width` and
 `height`. The `min_depth` and `max_depth` values define the range of valid depth values for the view port (any depth value outside that
-range will be discarded). You may have noted something weird about the view port definition. The upper left corner uses a negative value for
- the y-axis and the height value is also negative. This is because in Vulkan the origin of coordinates is at the top left and the y axis
- points downwards (the opposite of OpenGL). Personally, I'm used to the OpenGL coordinates system, the shaders, the models that I use are
- "adapted" to that coordinate system. This is why I prefer to flip the view port to keep on using models that assume that the y axis point
- upwards. You can find more details [here](https://www.saschawillems.de/blog/2019/03/29/flipping-the-vulkan-viewport/).
+range will be discarded). You may have noticed something weird about the view port definition. The `y` value is set to the height of the
+screen and the `height` value is negative. This is because in Vulkan the origin of coordinates is at the top left and the y axis points
+downwards (the opposite of OpenGL). Personally, I'm used to the OpenGL coordinates system, and the shaders and models that I use are
+"adapted" to it. This is why I prefer to flip the view port, so I can keep on using models that assume that the y axis points upwards.
+You can find more details [here](https://www.saschawillems.de/blog/2019/03/29/flipping-the-vulkan-viewport/).
 
 ![Coordinates](rc06-coordinates.svg)
 
@@ -1200,11 +1202,12 @@ Another important thing to keep in mind is that the `min_depth` and `max_depth` 
 extension `VK_EXT_depth_range_unrestricted` is enabled. (This should be addressed when dealing with projection matrices).
 
 After that, we define the scissor, which dimensions are set to the size of the full screen. In this case we do not need to flip anything,
-the coordinates and dimensions are relative to the view port. After that we can record the rendering of the models.
+the scissor is expressed in framebuffer coordinates and is not affected by the view port transformation. After that we can record the
+rendering of the models.
 
-We iterate over all the models, then over their meshes and start by binding their vertices buffer by calling the `cmdBindVertexBuffers`.
-The next draw calls will use that data as an input. We also bind the buffer that holds the indices by calling the `cmdBindIndexBuffer` and
-finally we record the drawing of the vertices using those indices by calling the `cmdDrawIndexed`. After that, we finish the rendering
+We iterate over all the models, then over their meshes and start by binding their indices buffer by calling the `cmdBindIndexBuffer`.
+The next draw calls will use that data as an input. We also bind the buffer that holds the vertices by calling the `cmdBindVertexBuffers`
+and finally we record the drawing of the vertices using those indices by calling the `cmdDrawIndexed`. After that, we finish the rendering
 and the recording.
 
 ## Shaders code

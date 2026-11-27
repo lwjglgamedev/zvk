@@ -33,7 +33,7 @@ pub const RenderScn = struct {
 
     pub fn create(allocator: std.mem.Allocator, io: std.Io, vkCtx: *const vk.ctx.VkCtx) !RenderScn {
         // Shader modules
-        var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+        var arena = std.heap.ArenaAllocator.init(allocator);
         defer arena.deinit();
         const vertCode align(@alignOf(u32)) = try com.utils.loadFile(arena.allocator(), io, "res/shaders/scn_vtx.glsl.spv");
         const vert = try vkCtx.vkDevice.deviceProxy.createShaderModule(&.{
@@ -49,15 +49,15 @@ pub const RenderScn = struct {
         }, null);
         defer vkCtx.vkDevice.deviceProxy.destroyShaderModule(frag, null);
 
-        const modulesInfo = try allocator.alloc(vk.pipe.ShaderModuleInfo, 2);
-        modulesInfo[0] = .{ .module = vert, .stage = .{ .vertex = true } };
-        modulesInfo[1] = .{ .module = frag, .stage = .{ .fragment = true } };
-        defer allocator.free(modulesInfo);
+        const modulesInfo = [_]vk.pipe.ShaderModuleInfo{
+            .{ .module = vert, .stage = .{ .vertex = true } },
+            .{ .module = frag, .stage = .{ .fragment = true } },
+        };
 
         // Pipeline
         const vkPipelineCreateInfo = vk.pipe.VkPipelineCreateInfo{
             .colorFormat = vkCtx.vkSwapChain.surfaceFormat.format,
-            .modulesInfo = modulesInfo,
+            .modulesInfo = &modulesInfo,
             .useBlend = false,
             .vtxBuffDesc = .{
                 .attribute_description = @constCast(&VtxBuffDesc.attribute_description)[0..],

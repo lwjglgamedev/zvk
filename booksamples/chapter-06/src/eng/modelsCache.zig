@@ -92,6 +92,7 @@ pub const ModelsCache = struct {
                     vulkan.BufferUsageFlags{ .vertex_buffer = true, .transfer_dst = true },
                     vulkan.MemoryPropertyFlags{ .device_local = true },
                 );
+                errdefer dstVtxBuffer.cleanup(vkCtx);
 
                 const dataVertices = try srcVtxBuffer.map(vkCtx);
                 const gpuVertices: [*]f32 = @ptrCast(@alignCast(dataVertices));
@@ -115,6 +116,7 @@ pub const ModelsCache = struct {
                     vulkan.BufferUsageFlags{ .index_buffer = true, .transfer_dst = true },
                     vulkan.MemoryPropertyFlags{ .device_local = true },
                 );
+                errdefer dstIdxBuffer.cleanup(vkCtx);
 
                 const dataIndices = try srcIdxBuffer.map(vkCtx);
                 const gpuIndices: [*]u32 = @ptrCast(@alignCast(dataIndices));

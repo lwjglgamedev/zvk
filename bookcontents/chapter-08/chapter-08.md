@@ -1091,6 +1091,7 @@ pub const ModelsCache = struct {
                     vulkan.MemoryPropertyFlags{ .device_local = true },
                 );
                 errdefer dstVtxBuffer.cleanup(vkCtx);
+                errdefer dstVtxBuffer.cleanup(vkCtx);
 
                 const dataVertices = try srcVtxBuffer.map(vkCtx);
                 const gpuVertices: [*]u8 = @ptrCast(@alignCast(dataVertices));
@@ -1115,6 +1116,8 @@ pub const ModelsCache = struct {
                     vulkan.BufferUsageFlags{ .index_buffer = true, .transfer_dst = true },
                     vulkan.MemoryPropertyFlags{ .device_local = true },
                 );
+                errdefer dstIdxBuffer.cleanup(vkCtx);
+
                 errdefer dstIdxBuffer.cleanup(vkCtx);
 
                 const dataIndices = try srcIdxBuffer.map(vkCtx);
@@ -2207,7 +2210,7 @@ pub const RenderScn = struct {
             .colorFormat = vkCtx.vkSwapChain.surfaceFormat.format,
             .depthFormat = DEPTH_FORMAT,
             .descSetLayouts = descSetLayouts[0..],
-            .modulesInfo = modulesInfo,
+            .modulesInfo = &modulesInfo,
             .pushConstants = pushConstants[0..],
             .useBlend = false,
             .vtxBuffDesc = .{

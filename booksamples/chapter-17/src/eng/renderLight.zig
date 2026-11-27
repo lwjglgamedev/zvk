@@ -74,7 +74,7 @@ pub const RenderLight = struct {
         errdefer outputAtt.cleanup(vkCtx);
 
         // Shader modules
-        var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+        var arena = std.heap.ArenaAllocator.init(allocator);
         defer arena.deinit();
         const lightSpecConsts = LightSpecConstants{
             .cascadeCount = eng.rsha.SHADOW_MAP_CASCADE_COUNT,
@@ -98,10 +98,10 @@ pub const RenderLight = struct {
         }, null);
         defer vkCtx.vkDevice.deviceProxy.destroyShaderModule(frag, null);
 
-        const modulesInfo = try allocator.alloc(vk.pipe.ShaderModuleInfo, 2);
-        modulesInfo[0] = .{ .module = vert, .stage = .{ .vertex = true } };
-        modulesInfo[1] = .{ .module = frag, .stage = .{ .fragment = true }, .specInfo = &specConstants };
-        defer allocator.free(modulesInfo);
+        const modulesInfo = [_]vk.pipe.ShaderModuleInfo{
+            .{ .module = vert, .stage = .{ .vertex = true } },
+            .{ .module = frag, .stage = .{ .fragment = true }, .specInfo = &specConstants },
+        };
 
         // Textures
         const samplerInfo = vk.text.VkTextSamplerInfo{
@@ -218,7 +218,7 @@ pub const RenderLight = struct {
         const vkPipelineCreateInfo = vk.pipe.VkPipelineCreateInfo{
             .colorFormats = colorFormats[0..],
             .descSetLayouts = descSetLayouts[0..],
-            .modulesInfo = modulesInfo,
+            .modulesInfo = &modulesInfo,
             .useBlend = true,
             .pushConstants = null,
             .vtxBuffDesc = .{

@@ -47,7 +47,7 @@ pub const RenderAnim = struct {
         errdefer descLayout.cleanup(vkCtx);
 
         // Shader modules
-        var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+        var arena = std.heap.ArenaAllocator.init(allocator);
         defer arena.deinit();
         const compCode align(@alignOf(u32)) = try com.utils.loadFile(arena.allocator(), io, "res/shaders/anim_comp.glsl.spv");
         const comp = try vkCtx.vkDevice.deviceProxy.createShaderModule(&.{

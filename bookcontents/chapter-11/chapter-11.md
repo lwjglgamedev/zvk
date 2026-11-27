@@ -203,7 +203,7 @@ pub const RenderPost = struct {
         }};
 
         // Shader modules
-        var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+        var arena = std.heap.ArenaAllocator.init(allocator);
         defer arena.deinit();
         const fxaa: u32 = if (constants.fxaa) 1 else 0;
         const specConstants = try createSpecConsts(arena.allocator(), &fxaa);
@@ -222,16 +222,16 @@ pub const RenderPost = struct {
         }, null);
         defer vkCtx.vkDevice.deviceProxy.destroyShaderModule(frag, null);
 
-        const modulesInfo = try allocator.alloc(vk.pipe.ShaderModuleInfo, 2);
-        modulesInfo[0] = .{ .module = vert, .stage = .{ .vertex = true } };
-        modulesInfo[1] = .{ .module = frag, .stage = .{ .fragment = true }, .specInfo = &specConstants };
-        defer allocator.free(modulesInfo);
+        const modulesInfo = [_]vk.pipe.ShaderModuleInfo{
+            .{ .module = vert, .stage = .{ .vertex = true } },
+            .{ .module = frag, .stage = .{ .fragment = true }, .specInfo = &specConstants },
+        };
 
         // Pipeline
         const vkPipelineCreateInfo = vk.pipe.VkPipelineCreateInfo{
             .colorFormat = vkCtx.vkSwapChain.surfaceFormat.format,
             .descSetLayouts = descSetLayouts[0..],
-            .modulesInfo = modulesInfo,
+            .modulesInfo = &modulesInfo,
             .pushConstants = pushConstants[0..],
             .vtxBuffDesc = .{
                 .attribute_description = @constCast(&EmptyVtxBuffDesc.attribute_description)[0..],

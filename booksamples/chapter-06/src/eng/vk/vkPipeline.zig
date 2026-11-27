@@ -9,7 +9,7 @@ pub const ShaderModuleInfo = struct {
 
 pub const VkPipelineCreateInfo = struct {
     colorFormat: vulkan.Format,
-    modulesInfo: []ShaderModuleInfo,
+    modulesInfo: []const ShaderModuleInfo,
     useBlend: bool,
     vtxBuffDesc: VtxBuffDesc,
 };

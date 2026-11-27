@@ -95,7 +95,7 @@ pub const RenderGui = struct {
         const descSetLayouts = [_]vulkan.DescriptorSetLayout{descLayoutFrg.descSetLayout};
 
         // Shader modules
-        var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+        var arena = std.heap.ArenaAllocator.init(allocator);
         defer arena.deinit();
         const vertCode align(@alignOf(u32)) = try com.utils.loadFile(arena.allocator(), io, "res/shaders/gui_vtx.glsl.spv");
         const vert = try vkCtx.vkDevice.deviceProxy.createShaderModule(&.{
@@ -111,10 +111,10 @@ pub const RenderGui = struct {
         }, null);
         defer vkCtx.vkDevice.deviceProxy.destroyShaderModule(frag, null);
 
-        const modulesInfo = try allocator.alloc(vk.pipe.ShaderModuleInfo, 2);
-        modulesInfo[0] = .{ .module = vert, .stage = .{ .vertex = true } };
-        modulesInfo[1] = .{ .module = frag, .stage = .{ .fragment = true } };
-        defer allocator.free(modulesInfo);
+        const modulesInfo = [_]vk.pipe.ShaderModuleInfo{
+            .{ .module = vert, .stage = .{ .vertex = true } },
+            .{ .module = frag, .stage = .{ .fragment = true } },
+        };
 
         // Pipeline
         const colorFormats = [_]vulkan.Format{vkCtx.vkSwapChain.surfaceFormat.format};
@@ -122,7 +122,7 @@ pub const RenderGui = struct {
             .colorFormats = colorFormats[0..],
             .descSetLayouts = descSetLayouts[0..],
             .pushConstants = pushConstants[0..],
-            .modulesInfo = modulesInfo,
+            .modulesInfo = &modulesInfo,
             .vtxBuffDesc = .{
                 .attribute_description = @constCast(&GuiVtxBuffDesc.attribute_description)[0..],
                 .binding_description = GuiVtxBuffDesc.binding_description,

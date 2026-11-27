@@ -127,7 +127,7 @@ pub fn build(b: *std.Build) void {
         std.log.debug("Compiling [{s}]", .{shader.path});
         const outputPath = b.fmt("{s}.spv", .{shader.path});
         const stage = b.fmt("-fshader-stage={s}", .{shader.stage});
-        const compFragment = b.addSystemCommand(&[_][]const u8{
+        const compShader = b.addSystemCommand(&[_][]const u8{
             "glslc",
             "--target-env=vulkan1.3",
             stage,
@@ -136,7 +136,7 @@ pub fn build(b: *std.Build) void {
             outputPath,
             shader.path,
         });
-        b.getInstallStep().dependOn(&compFragment.step);
+        b.getInstallStep().dependOn(&compShader.step);
     }
 
     b.installArtifact(exe);
