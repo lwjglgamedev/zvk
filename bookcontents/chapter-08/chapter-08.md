@@ -57,11 +57,11 @@ pub fn build(b: *std.Build) void {
 }
 ```
 
-In order to load complex 3D models, we will develop a pre-processing stage to transform models using zmesh into an intermediate format which
-will be ready to be loaded into the GPU. We will create a new struct that loads these models, process them using zmesh and dump the results
-to a JSON file. It is a little bit overkill for a tutorial like this, but it will prevent you from processing models again and again and will
-simplify the loading process at the end. The `main` function defined in the `modelGen.zig` file starts like this (you can skip this part if
-you are not interested in preprocessing the models):
+In order to load complex 3D models, we will develop a pre-processing stage to transform models using assimp to load the models into an
+intermediate format which will be ready to be loaded into the GPU. We will create a new struct that loads these models, process them using
+assimp and dump the results to a JSON file. It is a little bit overkill for a tutorial like this, but it will prevent you from processing
+models again and again and will simplify the loading process at the end. The `main` function defined in the `modelGen.zig` file starts like
+this (you can skip this part if you are not interested in preprocessing the models):
 
 **File: src/eng/modelGen.zig**
 ```zig
@@ -83,8 +83,8 @@ pub fn main(init: std.process.Init) !void {
 ```
 
 The function expects to receive as a command line argument the path to the model preceded by the "-m" flag. After that we will get the base
-directory of the model (used to construct other paths later on) and assign the model identifier using the file name. Then we initialize the
-zmesh library and load the model file by calling the function `aiImportFile`.
+directory of the model (used to construct other paths later on) and assign the model identifier using the file name. Then load the model
+file by calling the Assimp function `aiImportFile`.
 
 **File: src/eng/modelGen.zig**
 ```zig
