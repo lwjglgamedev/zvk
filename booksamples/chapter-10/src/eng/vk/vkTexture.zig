@@ -267,7 +267,6 @@ pub const VkTexture = struct {
         if (self.recorded) {
             return;
         }
-        // Record transition to dst optimal
         const device = vkCtx.vkDevice.deviceProxy;
         const image: vulkan.Image = @fromBackingInt(@intCast(@intFromPtr(self.vkImage.image)));
         const initBarriers = [_]vulkan.ImageMemoryBarrier2{.{
@@ -294,7 +293,6 @@ pub const VkTexture = struct {
         };
         device.cmdPipelineBarrier2(cmdHandle, &initDepInfo);
 
-        // Record copy
         const region = [_]vulkan.BufferImageCopy{.{
             .buffer_offset = 0,
             .buffer_row_length = 0,
