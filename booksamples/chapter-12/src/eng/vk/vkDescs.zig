@@ -50,7 +50,7 @@ const PoolInfo = struct {
 
 pub const VkDescAllocator = struct {
     poolInfoList: std.ArrayList(*PoolInfo),
-    descSetMap: std.StringHashMap(VkDesSet),
+    descSetMap: std.StringHashMap(VkDescSet),
 
     pub fn addDescSet(
         self: *VkDescAllocator,
@@ -59,7 +59,7 @@ pub const VkDescAllocator = struct {
         vkDevice: vk.dev.VkDevice,
         id: []const u8,
         vkDescSetLayout: VkDescSetLayout,
-    ) !VkDesSet {
+    ) !VkDescSet {
         const count = 1;
         var vkDescPoolOpt: ?VkDescPool = null;
         var poolInfoOpt: ?*PoolInfo = null;
@@ -104,7 +104,7 @@ pub const VkDescAllocator = struct {
         }
 
         if (vkDescPoolOpt) |vkDescPool| {
-            const vkDescSet = try VkDesSet.create(vkDevice, vkDescPool, vkDescSetLayout);
+            const vkDescSet = try VkDescSet.create(vkDevice, vkDescPool, vkDescSetLayout);
             const poolInfo = poolInfoOpt.?;
 
             for (vkDescSetLayout.layoutInfos) |layoutInfo| {
@@ -141,7 +141,7 @@ pub const VkDescAllocator = struct {
     }
 
     pub fn create(allocator: std.mem.Allocator, vkPhysDevice: vk.phys.VkPhysDevice, vkDevice: vk.dev.VkDevice) !VkDescAllocator {
-        var descSetMap = std.StringHashMap(VkDesSet).init(
+        var descSetMap = std.StringHashMap(VkDescSet).init(
             allocator,
         );
         errdefer descSetMap.deinit();
@@ -160,7 +160,7 @@ pub const VkDescAllocator = struct {
         };
     }
 
-    pub fn getDescSet(self: *const VkDescAllocator, id: []const u8) ?VkDesSet {
+    pub fn getDescSet(self: *const VkDescAllocator, id: []const u8) ?VkDescSet {
         return self.descSetMap.get(id);
     }
 };
@@ -229,10 +229,10 @@ pub const VkDescSetLayout = struct {
     }
 };
 
-pub const VkDesSet = struct {
+pub const VkDescSet = struct {
     descSet: vulkan.DescriptorSet,
 
-    pub fn create(vkDevice: vk.dev.VkDevice, vkDescPool: vk.desc.VkDescPool, vkDescSetLayout: VkDescSetLayout) !VkDesSet {
+    pub fn create(vkDevice: vk.dev.VkDevice, vkDescPool: vk.desc.VkDescPool, vkDescSetLayout: VkDescSetLayout) !VkDescSet {
         const descSetLayouts = [_]vulkan.DescriptorSetLayout{vkDescSetLayout.descSetLayout};
         const allocInfo = vulkan.DescriptorSetAllocateInfo{
             .descriptor_pool = vkDescPool.descPool,
@@ -245,7 +245,7 @@ pub const VkDesSet = struct {
         return .{ .descSet = descSet[0] };
     }
 
-    pub fn setBuffer(self: *const VkDesSet, vkDevice: vk.dev.VkDevice, vkBuffer: vk.buf.VkBuffer, binding: u32, descType: vulkan.DescriptorType) void {
+    pub fn setBuffer(self: *const VkDescSet, vkDevice: vk.dev.VkDevice, vkBuffer: vk.buf.VkBuffer, binding: u32, descType: vulkan.DescriptorType) void {
         const bufferInfo = [_]vulkan.DescriptorBufferInfo{.{
             .buffer = vkBuffer.buffer,
             .offset = 0,
@@ -269,7 +269,7 @@ pub const VkDesSet = struct {
         vkDevice.deviceProxy.updateDescriptorSets(&descSets, null);
     }
 
-    pub fn setImage(self: *const VkDesSet, vkDevice: vk.dev.VkDevice, vkImageView: vk.imv.VkImageView, vkTextSampler: vk.text.VkTextSampler, binding: u32) void {
+    pub fn setImage(self: *const VkDescSet, vkDevice: vk.dev.VkDevice, vkImageView: vk.imv.VkImageView, vkTextSampler: vk.text.VkTextSampler, binding: u32) void {
         const imageInfo = [_]vulkan.DescriptorImageInfo{.{
             .image_layout = vulkan.ImageLayout.shader_read_only_optimal,
             .image_view = vkImageView.view,
@@ -294,7 +294,7 @@ pub const VkDesSet = struct {
     }
 
     pub fn setImageArr(
-        self: *const VkDesSet,
+        self: *const VkDescSet,
         allocator: std.mem.Allocator,
         vkDevice: vk.dev.VkDevice,
         vkImageViews: []const vk.imv.VkImageView,

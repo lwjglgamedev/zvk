@@ -843,15 +843,15 @@ pub const RenderLight = struct {
 };
 ```
 
-The `setImages` function of the `VkDesSet` function is defined like this:
+The `setImages` function of the `VkDescSet` function is defined like this:
 
 **File: src/eng/vk/vkDescs.zig**
 
 ```zig
-pub const VkDesSet = struct {
+pub const VkDescSet = struct {
     ...
     pub fn setImages(
-        self: *const VkDesSet,
+        self: *const VkDescSet,
         allocator: std.mem.Allocator,
         vkDevice: vk.dev.VkDevice,
         vkImageViews: []vk.imv.VkImageView,

@@ -53,7 +53,7 @@ pub fn main(init: std.process.Init) !void {
 
     const scene = zassimp.aiImportFile(modelPath, flags) orelse {
         const err = std.mem.sliceTo(zassimp.aiGetErrorString(), 0);
-        std.debug.print("Failed to import mode: {s}\n", .{err});
+        std.debug.print("Failed to import model: {s}\n", .{err});
         return error.ImportFailed;
     };
     defer zassimp.aiReleaseImport(scene);

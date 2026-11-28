@@ -83,7 +83,6 @@ pub const MaterialsCache = struct {
         vkQueue: vk.queue.VkQueue,
         initData: *const eng.engine.InitData,
     ) !void {
-        // Create a copy an add default material at first position
         var materialsList = try std.ArrayList(*eng.mdata.MaterialData).initCapacity(
             allocator,
             initData.materials.items.len + 1,
@@ -234,7 +233,6 @@ pub const ModelsCache = struct {
                     vulkan.BufferUsageFlags{ .vertex_buffer = true, .transfer_dst = true },
                     vulkan.MemoryPropertyFlags{ .device_local = true },
                 );
-                errdefer dstVtxBuffer.cleanup(vkCtx);
                 errdefer dstVtxBuffer.cleanup(vkCtx);
 
                 const dataVertices = try srcVtxBuffer.map(vkCtx);

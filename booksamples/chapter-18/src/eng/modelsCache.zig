@@ -114,7 +114,6 @@ pub const MaterialsCache = struct {
         vkQueue: vk.queue.VkQueue,
         initData: *const eng.engine.InitData,
     ) !void {
-        // Create a copy an add default material at first position
         var materialsList = try std.ArrayList(*eng.mdata.MaterialData).initCapacity(
             allocator,
             initData.materials.items.len + 1,

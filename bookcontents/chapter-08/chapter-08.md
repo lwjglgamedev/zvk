@@ -7,11 +7,11 @@ You can find the complete source code for this chapter [here](../../booksamples/
 ## Assimp and zstbi
 
 In order to load complex models from disk we will use the [Assimp](https://github.com/assimp/assimp) library. There is a build project for
-this librray in zig [here](https://github.com/allyourcodebase/assimp) but it seems it is no longer mantained. Therefore, I have had to
+this library in zig [here](https://github.com/allyourcodebase/assimp) but it seems it is no longer maintained. Therefore, I have had to
 create a fork and modify it to compile with latest stable Zig version and to provide the structs I need. You will need
-to add the dependency to the `build.zig.zon` using `zig fetch --save zig fetch --save https://github.com/lwjglgamedev/assimp/archive/e43a33e5be214ef9253957518349e6ac03181307.tar.gz`.
+to add the dependency to the `build.zig.zon` using `zig fetch --save https://github.com/lwjglgamedev/assimp/archive/e43a33e5be214ef9253957518349e6ac03181307.tar.gz`.
 
-We will create a new executable to process 3D models and to generate an intermediate format which will be able to load while rendering.
+We will create a new executable to process 3D models and to generate an intermediate format which we will be able to load while rendering.
 This executable will process a 3D model and will generate the required files to load the model data into Vulkan. Therefore, in the
 `build.zig` file we will add the following code at the end:
 
@@ -58,8 +58,8 @@ pub fn build(b: *std.Build) void {
 ```
 
 In order to load complex 3D models, we will develop a pre-processing stage to transform models using zmesh into an intermediate format which
-will be ready to be loaded into the GPU. We will create a new struct that loads these models, process them using zmesh and ump the results
-to a JSON file. It is a little bit overkill for a tutorial like this, but it will prevent you to process models again and again and will
+will be ready to be loaded into the GPU. We will create a new struct that loads these models, process them using zmesh and dump the results
+to a JSON file. It is a little bit overkill for a tutorial like this, but it will prevent you from processing models again and again and will
 simplify the loading process at the end. The `main` function defined in the `modelGen.zig` file starts like this (you can skip this part if
 you are not interested in preprocessing the models):
 
@@ -101,7 +101,7 @@ pub fn main() !void {
     const flags = zassimp.aiProcess_Triangulate;
     const scene = zassimp.aiImportFile(modelPath, flags) orelse {
         const err = std.mem.sliceTo(zassimp.aiGetErrorString(), 0);
-        std.debug.print("Failed to import mode: {s}\n", .{err});
+        std.debug.print("Failed to import model: {s}\n", .{err});
         return error.ImportFailed;
     };
     defer zassimp.aiReleaseImport(scene);
@@ -139,7 +139,7 @@ pub fn main() !void {
 }
 ```
 
-We just iterate over the model materials and call the `processMaterial` function which will return a `MaterialData` instance which stored
+We just iterate over the model materials and call the `processMaterial` function which will return a `MaterialData` instance which is stored
 in a list. The `MaterialData` is defined in a struct like this (in the `src/eng/modelData.zig` file):
 
 **File: src/eng/modelData.zig**
@@ -151,7 +151,7 @@ pub const MaterialData = struct {
 };
 ```
 
-It just contains an identifier the path to a texture (for the albedo color by now if available) and a color (for the albedo also).
+It just contains an identifier, the path to a texture (for the albedo color by now if available) and a color (for the albedo also).
 Let's continue with the `main` function code:
 
 **File: src/eng/modelGen.zig**
@@ -226,7 +226,7 @@ pub fn main() !void {
 }
 ```
 
-We are processing the 3D model meshes by iterting over them and calling the the `processMesh` function, which will return a `MeshIntData`
+We are processing the 3D model meshes by iterating over them and calling the `processMesh` function, which will return a `MeshIntData`
 struct instance which we will append to a list. This struct is defined in the beginning of the file as:
 
 **File: src/eng/modelGen.zig**
@@ -247,8 +247,8 @@ const MeshIntData = struct {
 ```
 
 It stores the mesh identifier (`id`), the identifier of the material associated to it (`materialId`), the indices, positions and texture
-coordinates. We need this interim structs (that is what `Int` means) to store the data for the vertices and the indices. We will dump that
-that to the binary files associated to the model and will not need them in the `eng.mdata.MeshData` struct, which will be the one used in
+coordinates. We need these interim structs (that is what `Int` means) to store the data for the vertices and the indices. We will dump that
+to the binary files associated to the model and will not need them in the `eng.mdata.MeshData` struct, which will be the one used in
 the engine. In the `eng.mdata.MeshData` struct we will just store the offsets inside those binary files for the vertices and indices data
 (Remember that this struct is stored in the `src/eng/modelData.zig` file):
 
@@ -264,7 +264,7 @@ pub const MeshData = struct {
 };
 ```
 
-Therefore, after we have dumped the data we just transform from `MeshIntData` to `MeshData`, store in the mesh lists and update the vertices
+Therefore, after we have dumped the data we just transform from `MeshIntData` to `MeshData`, store it in the mesh list and update the vertices
 and indices offsets accordingly.
 
 
@@ -295,7 +295,7 @@ pub fn main() !void {
 }
 ```
 
-Now it is the turn to dump materials information to a JSON file. We will just dump the list of materials using Zig's builtin
+Now it is the turn to dump materials information to a JSON file. We will just dump the list of materials using Zig's built-in
 JSON support. After that, we will build the model information:
 
 **File: src/eng/modelGen.zig**
@@ -316,7 +316,7 @@ pub fn main() !void {
 }
 ```
 
-The model data struct has been updated store the path to the vertices and indices files. You will need to modify the struct as
+The model data struct has been updated to store the path to the vertices and indices files. You will need to modify the struct as
 follows (Remember that this struct is stored in the `src/eng/modelData.zig` file):
 
 **File: src/eng/modelData.zig**
@@ -438,7 +438,7 @@ fn processMaterial(
 ```
 
 This function is executed for each of the materials found in the model file. First we retrieve the diffuse material color by calling the
-`aiGetMaterialColor` function using the `AI_MATKEY_COLOR_DIFFUSE` key. After that we try to get the material deffuse texture by calling
+`aiGetMaterialColor` function using the `AI_MATKEY_COLOR_DIFFUSE` key. After that we try to get the material diffuse texture by calling
 the `processTexture` function. With all that information we construct a `MaterialData` instance. The `processTexture` function is defined
 like this:
 
@@ -484,8 +484,8 @@ fn processTexture(
 ```
 
 We first query the texture path calling the `aiGetMaterialTexture` function. If there is no texture we just return an empty string. After
-that, we check for embedded textures. In some models, textures are not located in external image files but are embeded, as binary streams,
-in the model. Embeded textures will have a path which starts with `*`. In this case, we sump those contents into a file so we can process
+that, we check for embedded textures. In some models, textures are not located in external image files but are embedded, as binary streams,
+in the model. Embedded textures will have a path which starts with `*`. In this case, we dump those contents into a file so we can process
 them as regular external textures later on. The `embeddedTextureIndex` function is defined like this:
 
 **File: src/eng/modelGen.zig**
@@ -496,7 +496,7 @@ fn embeddedTextureIndex(path: []const u8) ?usize {
 }
 ```
 
-It basically checks if the patht starts with `*` (and embeded texture) and if so, it returns the associated index to that texture.
+It basically checks if the path starts with `*` (and embedded texture) and if so, it returns the associated index to that texture.
 
 The next function is the `processMesh` one, which processes GLTF primitives and converts them to `MeshIntData` instances:
 
@@ -555,7 +555,7 @@ fn processMesh(
 ```
 
 This function extracts indices, positions and texture coordinates from the model. It also associates the mesh with its material. Each mesh
-will refer to a materil by its index in the list of materials.
+will refer to a material by its index in the list of materials.
 
 Finally the last function just prints some help text if the wrong number of arguments have been passed to the model generation executable:
 
@@ -576,7 +576,7 @@ fn printHelp() void {
 
 We have already created the structs that support images and image views, however, we need to be able to load texture context from image
 files and to properly copy its contents to a buffer setting up the adequate layout. We will create a new struct named `VkTexture` to support
-this. It will be included in a new file under `src/eng/vk/vkTexture` file. You will need to include in the `mod.zig` file: 
+this. It will be included in a new file under `src/eng/vk/vkTexture` file. You will need to include in the `mod.zig` file:
 `pub const text = @import("vkTexture.zig");`. In order to create textures we will a helper struct that will hold relevant information for
 texture creation. It will be named `VkTextureInfo` (defined in the same file):
 
@@ -641,7 +641,7 @@ pub const VkTexture = struct {
 };
 ```
 
-The `create` function will create new instances of `VkTexture` structs and will receive, in addition of the Vulkan the context, an instance
+The `create` function will create new instances of `VkTexture` structs and will receive, in addition to the Vulkan context, an instance
 of the `vkTextureInfo` struct that will hold all the required data. It creates first an image and image view and then a staging buffer
 which is CPU accessible to copy image contents. It is interesting to review the usage flags we are using in this case:
 
@@ -787,7 +787,7 @@ pub const VkTexture = struct {
             .p_image_memory_barriers = &endBarriers,
         };
         device.cmdPipelineBarrier2(cmdHandle, &endDepInfo);
-        self.recorded = true;        
+        self.recorded = true;
     }
 };
 ```
@@ -837,18 +837,18 @@ pub const TextureCache = struct {
         const textureMap: std.StringArrayHashMapUnmanaged(vk.text.VkTexture) = .empty;
         return .{ .textureMap = textureMap };
     }
-    ...    
+    ...
 };
 ```
 
-This struct will store in a `ArrayHashMap` the textures indexed by the path to the file use to load them. The reason for this structure is
+This struct will store in an `ArrayHashMap` the textures indexed by the path to the file used to load them. The reason for this structure is
 to be able to recover the texture by its identifier (like in a `StringHashMap`) while maintaining the insertion order. Although by now, we
 will be accessing by identifier, later on we will need to get the textures by the position they were loaded.
 
 The `TextureCache` struct defines a function to add a `VkTexture` named `addTexture`. That function receives a `TextureInfo` struct with all
 the information required to create a `VkTexture` and will check if the texture has been already added to the cache, to avoid creating
-multiple textures for the same data. If it does not exists it will just instantiate a new `VkTexture` and store it in the cache. We have
-another variant that receives a path to a texture and another one receiving a `TextureInfo` will receive the path to the texture image:
+multiple textures for the same data. If it does not exist it will just instantiate a new `VkTexture` and store it in the cache. We have
+another variant named `addTextureFromPath` that receives a path to a texture image:
 
 **File: src/eng/textureCache.zig**
 ```zig
@@ -955,12 +955,12 @@ pub const TextureCache = struct {
 };
 ```
 
-We first  create a command buffer, iterate over the textures calling `recordTextureTransition` and submit the work and wait
-it to be completed. Using arrays of textures is also the reason  why we need to keeping track of the position of each texture is important.
+We first  create a command buffer, iterate over the textures calling `recordTransition` and submit the work and wait
+it to be completed. Using arrays of textures is also the reason  why we need to keep track of the position of each texture.
 This is why we use the `ArrayHashMap` struct which basically keeps insertion order. After we have finished recording texture transitions
 and the work has been completed, we can free the staging buffers of all the textures.
 
-In order to generate the identifiers of the "dummy" textures we will create an UUID identifiers so we guarantee that they ar unique. The
+In order to generate the identifiers of the "dummy" textures we will create UUID identifiers so we guarantee that they are unique. The
 function `generateUuid` (defined in the `src/eng/com/utils.zig` file) is defined like this:
 
 **File: src/eng/com/utils.zig**
@@ -998,7 +998,7 @@ pub fn generateUuid(allocator: std.mem.Allocator, io: std.Io) ![]const u8 {
 
 ## Models and Materials
 
-The next step is to update the `VulkanMesh` struct to hold a reference to the material identifier it is associated:
+The next step is to update the `VulkanMesh` struct to hold a reference to the material identifier it is associated with:
 
 **File: src/eng/modelsCache.zig**
 ```zig
@@ -1091,7 +1091,6 @@ pub const ModelsCache = struct {
                     vulkan.MemoryPropertyFlags{ .device_local = true },
                 );
                 errdefer dstVtxBuffer.cleanup(vkCtx);
-                errdefer dstVtxBuffer.cleanup(vkCtx);
 
                 const dataVertices = try srcVtxBuffer.map(vkCtx);
                 const gpuVertices: [*]u8 = @ptrCast(@alignCast(dataVertices));
@@ -1116,8 +1115,6 @@ pub const ModelsCache = struct {
                     vulkan.BufferUsageFlags{ .index_buffer = true, .transfer_dst = true },
                     vulkan.MemoryPropertyFlags{ .device_local = true },
                 );
-                errdefer dstIdxBuffer.cleanup(vkCtx);
-
                 errdefer dstIdxBuffer.cleanup(vkCtx);
 
                 const dataIndices = try srcIdxBuffer.map(vkCtx);
@@ -1156,8 +1153,8 @@ pub const ModelsCache = struct {
 };
 ```
 
-We will be loading data for vertices and indices from files, so we need to get the data by calling the `com.utils.loadFile` functions.
-Since all the meshes of a model share the same data, we need to take into consideration offset and the end of the mesh data in the 
+We will be loading data for vertices and indices from files, so we need to get the data by calling the `com.utils.loadFile` function.
+Since all the meshes of a model share the same data, we need to take into consideration offset and the end of the mesh data in the
 vertices and indices.
 
 In order to manage materials we will need to create a new struct named `MaterialsCache` which starts like this (it will be defined
@@ -1199,12 +1196,12 @@ pub const MaterialsCache = struct {
 };
 ```
 
-This struct, will create a single `VkBuffer` which will store all the materials information for all the models, which in our case will be:
+This struct will create a single `VkBuffer` which will store all the materials information for all the models, which in our case will be:
 - The diffuse color (for non textured materials), stored as an array of 4 elements.
 - If the material has a texture associated or not.
 - The texture index associated to the material.
 
-We define the struct as `extern`, beacuse we will dump its contents into buffers that will be read in the GPU, therefore we need to
+We define the struct as `extern`, because we will dump its contents into buffers that will be read in the GPU, therefore we need to
 ensure that the layout used in the CPU side will be the same as the one expected in the GPU. By using `extern` we will use C-ABI layout,
 which we will also use in the shaders which access material data.
 
@@ -1225,7 +1222,6 @@ pub const MaterialsCache = struct {
         vkQueue: vk.queue.VkQueue,
         initData: *const eng.engine.InitData,
     ) !void {
-        // Create a copy an add default material at first position
         var materialsList = try std.ArrayList(*eng.mdata.MaterialData).initCapacity(
             allocator,
             initData.materials.items.len + 1,
@@ -1304,13 +1300,13 @@ pub const MaterialsCache = struct {
 ```
 
 We will always have a default material, to fall back to when rendering if the associated material is not found. Therefore, we create a
-default material, and create a list which stores references of the provided materials and this new default one which be located at position
+default material, and create a list which stores references of the provided materials and this new default one which will be located at position
 `0`. As in the case of the models, we create a staging buffer and a GPU only accessible buffer for the materials. We iterate over the
 materials populating the buffer. We also populate the texture cache with the textures that we find associated to the materials. Keep in mind
 that we may use more textures than the ones strictly used by models. You will see that we need to add padding data, because due to the
 layout rules used in shaders, the minimum size of data will be multiples of `vec4`, therefore since we initially only need 6 bytes, we need
 to compensate with two more. At the end of the loop, we just record the transfer command, submit it to the queue, and wait for it to be
-finished. 
+finished.
 
 ## Descriptors
 
@@ -1319,7 +1315,7 @@ from the shaders and also for uniforms (in Vulkan uniforms are just the way to a
 descriptor sets, whose general structure is defined through descriptor layouts. Descriptors are like handles to access resources from
 shaders, and they are created through a descriptor pool.
 
-Managing descriptors is often a tedious tasks, you need to define, for each pool the number of descriptor sets that it will be able to hold
+Managing descriptors is often a tedious task, you need to define, for each pool the number of descriptor sets that it will be able to hold
 for each of the supported types. Each descriptor needs to be associated to a descriptor set layout, which are tightly related to how they
 will be used in the shaders, etc. In order to facilitate this process, we are going to use the following approach:
 
@@ -1329,7 +1325,7 @@ supported by the driver.
 - We will store descriptor sets by name, so we can easily access them by an identifier.
 
 We will centralize all of above in a struct named `VkDescAllocator` in order to isolate other parts of the code from the complexity of
-managing descriptor sets. It will be include din the `src/eng/vk/vkDescs.zig` so remember to include it in the `mod.zig` file:
+managing descriptor sets. It will be included in the `src/eng/vk/vkDescs.zig` so remember to include it in the `mod.zig` file:
 `pub const desc = @import("vkDescs.zig");`.
 
 Let's start first by defining a new struct to handle a descriptor pool named `VkDescPool` (also in `vkDescs.zig`):
@@ -1405,7 +1401,7 @@ pub const LayoutInfo = struct {
 
 The attributes are:
 - `binding`: the binding point (given a descriptor set, each of the descriptors will be assigned to a unique binding number).
-- `descCount`: The number of descriptors (we can have, for example, an array of buffers, so we will need as many descriptor set as
+- `descCount`: The number of descriptors (we can have, for example, an array of buffers, so we will need as many descriptor sets as
 the length of the array).
 - `descType`: The type of the descriptor set (a uniform buffer, a texture sampler, etc.).
 - `stageFlags`: At which stage in the pipeline it will be used.
@@ -1489,12 +1485,12 @@ const descLayoutC = try vk.desc.VkDescSetLayout.create(
 ```
 
 As you can see we need two `VkDescSetLayout` instances. The first one used for the first set (composed by uniforms `A` and `B`, each of
-them using different binding points) and the second one for uniform `C`. 
+them using different binding points) and the second one for uniform `C`.
 
 Before doing a deep dive with descriptor sets, let's review texture samplers. Images are not usually accessed directly when used as
 textures. When we access a texture, we usually want to apply some type of filters, we may have mip levels and maybe specify some repetition
 patterns. All that is handled through a sampler. We have already created images and image views, but in order to access them in shaders we
-will need texture samplers. Therefore we will create a new struct named `TextureSampler` (it will be included in the `vkTexture.zig` file): 
+will need texture samplers. Therefore we will create a new struct named `VkTextSampler` (it will be included in the `vkTexture.zig` file):
 
 **File: src/eng/vk/vkTexture.zig**
 ```zig
@@ -1542,17 +1538,17 @@ anisotropy should be enabled, the address mode and the border color for the text
 In order to create a sampler, we need to invoke the `createSampler` function which requires a `VkTextSamplerInfo` structure, defined by the
 following fields:
 
-- `mag_filter` and `min_filter`: control how magnification and magnification filter work while performing a texture lookup. In this case, we
+- `mag_filter` and `min_filter`: control how magnification and minification filter work while performing a texture lookup. In this case, we
 are using a `vulkan.Filter.nearest` (`VK_FILTER_NEAREST`) filter, which just picks the closest value in the lookup. You can use other
-options such as `vulkan.Filter.linear` (`VK_FILTER_LINEAR`) which  is the value for a linear filter (for a 2D texture, it combines for
-values of four pixels weighted) or `vulkan.Filter.cubic_ext` (`VK_FILTER_CUBIC_EXT`) to apply cubic filtering (it uses 16 values for
+options such as `vulkan.Filter.linear` (`VK_FILTER_LINEAR`) which  is the value for a linear filter (for a 2D texture, it combines the
+values of four weighted pixels) or `vulkan.Filter.cubic_ext` (`VK_FILTER_CUBIC_EXT`) to apply cubic filtering (it uses 16 values for
 2D textures).
 - `address_mode_u`, `address_mode_v` and `address_mode_w`: This will control what will be returned for a texture lookup when the coordinates
 lie out of the texture size. The `U`, `V` and `W` refer to the `x`, `y` and `z` axis (for 3D images). You can set several options such as
 `vulkan.SamplerAddressMode.repeat` (`VK_SAMPLER_ADDRESS_MODE_REPEAT`) which means that the texture is repeated endlessly over all the axis
 or `vulkan.SamplerAddressMode.mirrored_repeat` (`VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT`) which repeats in a mirrored way or
 `vulkan.SamplerAddressMode.clamp_to_edge` (`VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE`) which just uses the latest edge value.
-- `border_color`: This sets the color for the border that will be used for texture lookups beyond bounds when 
+- `border_color`: This sets the color for the border that will be used for texture lookups beyond bounds when
 `vulkan.SamplerAddressMode.clamp_to_edge` (`VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER`) is used in the `address_mode_X` attributes.
 - `mipmap_mode`: This is used to specify the mipmap filter to apply in lookups. We will address this in later chapters.
 - `min_lod`, `max_lod` and `mip_lod_bias`: These parameters are used for mip mapping, so we will review them in later chapters.
@@ -1560,21 +1556,21 @@ or `vulkan.SamplerAddressMode.mirrored_repeat` (`VK_SAMPLER_ADDRESS_MODE_MIRRORE
 - `compare_op`: It specifies the comparison operation. We will not be using this at this moment.
 - `unnormalized_coordinates`: Texture coordinates cover the [0, 1] range. When this parameter is set to `true` the coordinates will cover
 the ranges [0, width], [0, height].
-- `anisotropy_enable`: It enables / disables anisotropic filtering. We will enable it if the device support
+- `anisotropy_enable`: It enables / disables anisotropic filtering. We will enable it if the device supports
 
-Finally, we enable anisotropic filter if the device supports it. With all that information we just call the `vkCreateSampler` function and
+Finally, we enable anisotropic filter if the device supports it. With all that information we just call the `createSampler` function and
 complete the struct with the usual `cleanup` and the getter functions. Anisotropic filtering is used to eliminate aliasing effects when
 sampling from a texture. The struct completes with classical `cleanup` function and a *getter* to access the texture sampler handle.
 
 
-It is now time to create the a struct to represent descriptor sets. The struct, named `VkDesSet`, starts like this:
+It is now time to create a struct to represent descriptor sets. The struct, named `VkDescSet`, starts like this:
 
 **File: src/eng/vk/vkDescs.zig**
 ```zig
-pub const VkDesSet = struct {
+pub const VkDescSet = struct {
     descSet: vulkan.DescriptorSet,
 
-    pub fn create(vkDevice: vk.dev.VkDevice, vkDescPool: vk.desc.VkDescPool, vkDescSetLayout: VkDescSetLayout) !VkDesSet {
+    pub fn create(vkDevice: vk.dev.VkDevice, vkDescPool: vk.desc.VkDescPool, vkDescSetLayout: VkDescSetLayout) !VkDescSet {
         const descSetLayouts = [_]vulkan.DescriptorSetLayout{vkDescSetLayout.descSetLayout};
         const allocInfo = vulkan.DescriptorSetAllocateInfo{
             .descriptor_pool = vkDescPool.descPool,
@@ -1599,9 +1595,9 @@ Now let's add some functions to associate a descriptor set with buffers or image
 
 **File: src/eng/vk/vkDescs.zig**
 ```zig
-pub const VkDesSet = struct {
+pub const VkDescSet = struct {
     ...
-    pub fn setBuffer(self: *const VkDesSet, vkDevice: vk.dev.VkDevice, vkBuffer: vk.buf.VkBuffer, binding: u32, descType: vulkan.DescriptorType) void {
+    pub fn setBuffer(self: *const VkDescSet, vkDevice: vk.dev.VkDevice, vkBuffer: vk.buf.VkBuffer, binding: u32, descType: vulkan.DescriptorType) void {
         const bufferInfo = [_]vulkan.DescriptorBufferInfo{.{
             .buffer = vkBuffer.buffer,
             .offset = 0,
@@ -1634,7 +1630,7 @@ information that will be associated to each descriptor set. It expects the follo
 - `offset`: An offset in bytes for that buffer (we may opt to not bind to the whole buffer but just a chunk).
 - `range`: The size in bytes of the chunk of the buffer to be associated to the descriptor set.
 
-After that, we create an array of `WriteDescriptorSet` (we will need one per descriptor set), which expects expects the following
+After that, we create an array of `WriteDescriptorSet` (we will need one per descriptor set), which expects the following
 attributes:
 - `dst_set`: The handle to the descriptor set.
 - `descriptor_count`: The number of descriptors.
@@ -1652,9 +1648,9 @@ to associate a descriptor set with an image view:
 
 **File: src/eng/vk/vkDescs.zig**
 ```zig
-pub const VkDesSet = struct {
+pub const VkDescSet = struct {
     ...
-    pub fn setImage(self: *const VkDesSet, vkDevice: vk.dev.VkDevice, vkImageView: vk.imv.VkImageView, vkTextSampler: vk.text.VkTextSampler, binding: u32) void {
+    pub fn setImage(self: *const VkDescSet, vkDevice: vk.dev.VkDevice, vkImageView: vk.imv.VkImageView, vkTextSampler: vk.text.VkTextSampler, binding: u32) void {
         const imageInfo = [_]vulkan.DescriptorImageInfo{.{
             .image_layout = vulkan.ImageLayout.shader_read_only_optimal,
             .image_view = vkImageView.view,
@@ -1689,10 +1685,10 @@ Finally, let's add a new function to associate an array of images to a descripto
 
 **File: src/eng/vk/vkDescs.zig**
 ```zig
-pub const VkDesSet = struct {
+pub const VkDescSet = struct {
     ...
     pub fn setImageArr(
-        self: *const VkDesSet,
+        self: *const VkDescSet,
         allocator: std.mem.Allocator,
         vkDevice: vk.dev.VkDevice,
         vkImageViews: []const vk.imv.VkImageView,
@@ -1739,10 +1735,10 @@ Now it is the time to put everything in place in the `VkDescAllocator` struct wh
 ```zig
 pub const VkDescAllocator = struct {
     poolInfoList: std.ArrayList(*PoolInfo),
-    descSetMap: std.StringHashMap(VkDesSet),
+    descSetMap: std.StringHashMap(VkDescSet),
     ...
     pub fn create(allocator: std.mem.Allocator, vkPhysDevice: vk.phys.VkPhysDevice, vkDevice: vk.dev.VkDevice) !VkDescAllocator {
-        var descSetMap = std.StringHashMap(VkDesSet).init(
+        var descSetMap = std.StringHashMap(VkDescSet).init(
             allocator,
         );
         errdefer descSetMap.deinit();
@@ -1820,7 +1816,7 @@ In the `create` function we just get the device limits and define the size for e
 case, we will be supporting uniform buffers (`max_descriptor_set_uniform_buffers`), texture samplers (`combined_image_sampler`) and storage
 buffers (`max_descriptor_set_storage_buffers`).
 
-Let's go back to the `VkDescAllocator` struct and review the function to add a single a descriptor set:
+Let's go back to the `VkDescAllocator` struct and review the function to add a single descriptor set:
 
 **File: src/eng/vk/vkDescs.zig**
 ```zig
@@ -1833,7 +1829,7 @@ pub const VkDescAllocator = struct {
         vkDevice: vk.dev.VkDevice,
         id: []const u8,
         vkDescSetLayout: VkDescSetLayout,
-    ) !VkDesSet {
+    ) !VkDescSet {
         const count = 1;
         var vkDescPoolOpt: ?VkDescPool = null;
         var poolInfoOpt: ?*PoolInfo = null;
@@ -1866,10 +1862,8 @@ pub const VkDescAllocator = struct {
 
         if (poolInfoOpt == null) {
             const poolInfo = try allocator.create(PoolInfo);
-        errdefer allocator.destroy(poolInfo);
             errdefer allocator.destroy(poolInfo);
             poolInfo.* = try PoolInfo.create(allocator, vkPhysDevice, vkDevice);
-        errdefer poolInfo.cleanup(allocator, vkDevice);
             errdefer poolInfo.cleanup(allocator, vkDevice);
             try self.poolInfoList.append(allocator, poolInfo);
 
@@ -1878,7 +1872,7 @@ pub const VkDescAllocator = struct {
         }
 
         if (vkDescPoolOpt) |vkDescPool| {
-            const vkDescSet = try VkDesSet.create(vkDevice, vkDescPool, vkDescSetLayout);
+            const vkDescSet = try VkDescSet.create(vkDevice, vkDescPool, vkDescSetLayout);
             const poolInfo = poolInfoOpt.?;
 
             for (vkDescSetLayout.layoutInfos) |layoutInfo| {
@@ -1913,15 +1907,15 @@ device limits), we just abort.
 - If we find no pool with available space we will create a new one.
 - If we have finished iterating over the available descriptor pools and we have not found one with available space, this means
 that we need to create another pool.
-- Once we have a pool, either because one of the existing ones have enough spare space or because we have created a new one, we create
+- Once we have a pool, either because one of the existing ones has enough spare space or because we have created a new one, we create
 the descriptor set, and update the available space in the associated pool.
 
 The process can still be improved to reduce fragmentation, but I did not want to complicate the code even more. In any case, you get the
 idea and can modify it to be more efficient easily.
 
-One important aspect to highlight is that, if you recall the example sets defined above. We said, that the first two uniforms shared
-the same set. Is you look at the code, we see that we iterate over all the `LayoutInfo` instances, so we are checking that we have
-room for `2` uniform descriptor sets. Although, they share the same descriptor set, we need to reserve space for all the underlying 
+One important aspect to highlight is that, if you recall the example sets defined above, we said that the first two uniforms shared
+the same set. If you look at the code, we see that we iterate over all the `LayoutInfo` instances, so we are checking that we have
+room for `2` uniform descriptor sets. Although, they share the same descriptor set, we need to reserve space for all the underlying
 structures.
 
 The rest of the functions of the struct are as follows:
@@ -1944,7 +1938,7 @@ pub const VkDescAllocator = struct {
         self.descSetMap.deinit();
     }
     ...
-    pub fn getDescSet(self: *const VkDescAllocator, id: []const u8) ?VkDesSet {
+    pub fn getDescSet(self: *const VkDescAllocator, id: []const u8) ?VkDescSet {
         return self.descSetMap.get(id);
     }
 };
@@ -1981,13 +1975,13 @@ pub const VkCtx = struct {
         self.vkDescAllocator.cleanup(allocator, self.vkDevice);
         ...
     }
-    ...    
+    ...
 };
 ```
 
 ## Completing the changes
 
-We are almost finishing, we just need to put all the pieces together. First, we need to update the `VkPipeline` struct to take descriptor
+We are almost finished, we just need to put all the pieces together. First, we need to update the `VkPipeline` struct to take descriptor
 set layouts into consideration. We will first update the `VkPipelineCreateInfo` struct to be able to store an array of descriptor set
 layouts:
 
@@ -2025,7 +2019,7 @@ pub const VkPipeline = struct {
 With the descriptor layouts passed as a parameter (inside the `VkPipelineCreateInfo` struct), we can now use the `p_set_layouts` which will
 hold a pointer to the descriptor set layouts and `set_layout_count` which will contain the number of those layouts.
 
-Prior to see what the changes will be in the `RenderScn` struct, let's update first the shaders. This is the source code of the vertex
+Prior to seeing what the changes will be in the `RenderScn` struct, let's update first the shaders. This is the source code of the vertex
 shader (`scn_vtx.glsl`):
 
 **File: res/shaders/scn_vtx.glsl**
@@ -2106,7 +2100,7 @@ has texture and the associated index). Remember, that due to `std140` layout con
 extra padding. This will be a storage buffer, and does not need to be sized.
 
 We will receive the position of the associated material in the buffer through a push constant. With all that information we can get the
-output color either form the associated texture or the material diffuse color.
+output color either from the associated texture or the material diffuse color.
 
 Now it is the time to use all these concepts together in the `RenderScn` struct:
 
@@ -2239,7 +2233,7 @@ First we need to modify the push constant used in the vertex shader to hold just
 used in the fragment shader that will contain material information. Then we define some constants that will hold the identifiers associated
 to the descriptor sets we are going to use:
 - `DESC_ID_MAT`: for the materials.
-- `DESC_ID_CAMERA`: for camera the projection matrix.
+- `DESC_ID_CAM`: for camera the projection matrix.
 - `DESC_ID_TEXTS`: for the array of textures.
 
 In the `create` function we create a new texture sampler, and the descriptor set layouts to support the descriptors declared in our shaders.
@@ -2251,11 +2245,11 @@ since it will be used in the fragment stage. The descriptor set layout used for 
 `combined_image_sampler` (`VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER`) and will also be used in the fragment stage.
 
 We will create a buffer to hold the projection matrix. Since we will be using buffers that can be accessed both by the GPU and the CPU,
-which will have a descriptor set associated to it, we will create an utility function named `createHostVisibleBuff`, It will be defined in a
-new file: `src/eng/vk/VkUtils.zig` (Remember to include it in the `mod.zig` file: `pub const util = @import("vkUtils.zig");`). It is defined
+which will have a descriptor set associated to it, we will create a utility function named `createHostVisibleBuff`, It will be defined in a
+new file: `src/eng/vk/vkUtils.zig` (Remember to include it in the `mod.zig` file: `pub const util = @import("vkUtils.zig");`). It is defined
  like this:
 
-**File: src/eng/vk/VkUtils.zig**
+**File: src/eng/vk/vkUtils.zig**
 ```zig
 const std = @import("std");
 const vulkan = @import("vulkan");
@@ -2291,11 +2285,11 @@ pub fn createHostVisibleBuff(
 ```
 
 Back in the `RenderScn` struct, after that, we create the push constants range definition and define the pipeline creation information
-using the descriptor sets layouts in the new `descSetLayouts` attribute to create the pipeline.
+using the descriptor set layouts in the new `descSetLayouts` attribute to create the pipeline.
 
 We will add a new function named `init`. This function will create a descriptor set for the storage buffer that contains material data, and
 associate it with the buffer we created in the `MaterialsCache` struct. We will also create the descriptor set for the array of images with
-the textures loaded in the `TextureCache` function. This function will need to be invoked during initialization so descriptor sets are ready
+the textures loaded in the `TextureCache` struct. This function will need to be invoked during initialization so descriptor sets are ready
 during render process.
 
 **File: src/eng/renderScn.zig**
@@ -2335,7 +2329,7 @@ pub const RenderScn = struct {
 };
 ```
 
-We will need also to update the `render` function to use the descriptor sets:
+We will also need to update the `render` function to use the descriptor sets:
 
 **File: src/eng/renderScn.zig**
 ```zig
@@ -2455,7 +2449,7 @@ pub const RenderScn = struct {
 };
 ```
 
-The changes required in the `Render` struct are smaller, we basically instantiate the `MaterialsCache` and `TextureCache` struct and adapt
+The changes required in the `Render` struct are smaller, we basically instantiate the `MaterialsCache` and `TextureCache` structs and adapt
 some functions to the new parameters added:
 
 **File: src/eng/render.zig**
@@ -2548,19 +2542,19 @@ pub const Render = struct {
             &self.materialsCache,
             imageIndex,
         );
-        ...        
+        ...
     }
     ...
 };
 ```
 
-Before calling the `recordTextures` function we check if we have reached the maximum number of textures. If we do not have reached that
+Before calling the `recordTextures` function we check if we have reached the maximum number of textures. If we have not reached that
 size, we will add empty slots with a default texture (just one pixel). The reason behind this code is that we are using arrays of
 textures in the fragment shader. When using those arrays, the size needs to be set upfront and it expects to have valid images (empty slots
-will not work). 
+will not work).
 
-We will need also to update the `Engine` struct to initialize the zstbi library prior to any texture loading code gets executed. In the
-`create` function we will add the following line prior to the `Render` instance creation: 
+We will need also to update the `Engine` struct to initialize the zstbi library before any texture loading code is executed. In the
+`create` function we will add the following line prior to the `Render` instance creation:
 
 **File: src/eng/eng.zig**
 ```zig
@@ -2576,7 +2570,7 @@ pub fn Engine(comptime GameLogic: type) type {
 }
 ```
 
-In the `src/eng/modelData.zig` we will add to functions to load models and materials from the JSON files:
+In the `src/eng/modelData.zig` we will add two functions to load models and materials from the JSON files:
 
 **File: src/eng/modelData.zig**
 ```zig
@@ -2641,7 +2635,7 @@ pub fn loadModel(allocator: std.mem.Allocator, io: std.Io, path: []const u8) !Mo
 }
 ```
 
-We need to change we load the models in the `Game` struct. Instead of defining the data in the `init` function we just use the `loadModel`
+We need to change how we load the models in the `Game` struct. Instead of defining the data in the `init` function we just use the `loadModel`
 and `loadMaterials` functions to load the data:
 
 **File: src/main.zig**
