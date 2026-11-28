@@ -13,13 +13,13 @@ pub const VkTextSampler = struct {
     pub fn create(vkCtx: *const vk.ctx.VkCtx, samplerInfo: VkTextSamplerInfo) !VkTextSampler {
         const anisotropy = (vkCtx.vkPhysDevice.features.sampler_anisotropy == vulkan.Bool32.true) and samplerInfo.anisotropy;
         const createInfo = vulkan.SamplerCreateInfo{
-            .mag_filter = vulkan.Filter.nearest,
-            .min_filter = vulkan.Filter.nearest,
+            .mag_filter = vulkan.Filter.linear,
+            .min_filter = vulkan.Filter.linear,
             .address_mode_u = samplerInfo.addressMode,
             .address_mode_v = samplerInfo.addressMode,
             .address_mode_w = samplerInfo.addressMode,
             .border_color = samplerInfo.borderColor,
-            .mipmap_mode = vulkan.SamplerMipmapMode.nearest,
+            .mipmap_mode = vulkan.SamplerMipmapMode.linear,
             .min_lod = 0.0,
             .max_lod = vulkan.LOD_CLAMP_NONE,
             .mip_lod_bias = 0.0,

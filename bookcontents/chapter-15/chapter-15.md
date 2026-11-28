@@ -201,8 +201,7 @@ pub fn main(init: std.process.Init) !void {
         }
 
         const numIndices = meshIntData.indices.items.len;
-        const numFloats = meshIntData.positions.items.len * 3 +
-            meshIntData.texcoords.items.len * 2 +
+        const numFloats = meshIntData.positions.items.len * 5 +
             meshIntData.normals.items.len * 3 +
             meshIntData.tangents.items.len * 3 +
             meshIntData.bitangents.items.len * 3;

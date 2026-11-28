@@ -191,6 +191,7 @@ pub fn main(init: std.process.Init) !void {
             allocator,
             mesh,
             materialList,
+            i,
         );
         defer meshIntData.cleanup(allocator);
 
@@ -208,8 +209,7 @@ pub fn main(init: std.process.Init) !void {
         }
 
         const numIndices = meshIntData.indices.items.len;
-        const numFloats = meshIntData.positions.items.len * 3 +
-            meshIntData.texcoords.items.len * 2;
+        const numFloats = meshIntData.positions.items.len * 5;
         try meshDataList.append(allocator, .{
             .id = meshIntData.id,
             .materialId = meshIntData.materialId,
@@ -506,8 +506,9 @@ fn processMesh(
     allocator: std.mem.Allocator,
     mesh: *const zassimp.aiMesh,
     materialList: std.ArrayListUnmanaged(eng.mdata.MaterialData),
+    meshIdx: usize,
 ) !MeshIntData {
-    const id = try std.fmt.allocPrint(allocator, "mesh-{}", .{@intFromPtr(mesh)});
+    const id = try std.fmt.allocPrint(allocator, "mesh-{}", .{meshIdx});
     const numVertices = mesh.mNumVertices;
 
     var indices: std.ArrayListUnmanaged(u32) = .empty;
@@ -1503,13 +1504,13 @@ pub const VkTextSampler = struct {
     pub fn create(vkCtx: *const vk.ctx.VkCtx, samplerInfo: VkTextSamplerInfo) !VkTextSampler {
         const anisotropy = (vkCtx.vkPhysDevice.features.sampler_anisotropy == vulkan.Bool32.true) and samplerInfo.anisotropy;
         const createInfo = vulkan.SamplerCreateInfo{
-            .mag_filter = vulkan.Filter.nearest,
-            .min_filter = vulkan.Filter.nearest,
+            .mag_filter = vulkan.Filter.linear,
+            .min_filter = vulkan.Filter.linear,
             .address_mode_u = samplerInfo.addressMode,
             .address_mode_v = samplerInfo.addressMode,
             .address_mode_w = samplerInfo.addressMode,
             .border_color = samplerInfo.borderColor,
-            .mipmap_mode = vulkan.SamplerMipmapMode.nearest,
+            .mipmap_mode = vulkan.SamplerMipmapMode.linear,
             .min_lod = 0.0,
             .max_lod = vulkan.LOD_CLAMP_NONE,
             .mip_lod_bias = 0.0,
@@ -1535,11 +1536,10 @@ anisotropy should be enabled, the address mode and the border color for the text
 In order to create a sampler, we need to invoke the `createSampler` function which requires a `VkTextSamplerInfo` structure, defined by the
 following fields:
 
-- `mag_filter` and `min_filter`: control how magnification and minification filter work while performing a texture lookup. In this case, we
-are using a `vulkan.Filter.nearest` (`VK_FILTER_NEAREST`) filter, which just picks the closest value in the lookup. You can use other
-options such as `vulkan.Filter.linear` (`VK_FILTER_LINEAR`) which  is the value for a linear filter (for a 2D texture, it combines the
-values of four weighted pixels) or `vulkan.Filter.cubic_ext` (`VK_FILTER_CUBIC_EXT`) to apply cubic filtering (it uses 16 values for
-2D textures).
+- `mag_filter` and `min_filter`: control how magnification and minification filtering work while performing a texture lookup. In this case,
+we are using a `vulkan.Filter.linear` (`VK_FILTER_LINEAR`) filter, which combines the values of the closest texels, weighted by their
+distance to the sample point (for a 2D texture, it blends four texels). This gives smooth results when a texture is magnified, instead of
+blocky squares. You can use other options such as `vulkan.Filter.nearest` (`VK_FILTER_NEAREST`).
 - `address_mode_u`, `address_mode_v` and `address_mode_w`: This will control what will be returned for a texture lookup when the coordinates
 lie out of the texture size. The `U`, `V` and `W` refer to the `x`, `y` and `z` axis (for 3D images). You can set several options such as
 `vulkan.SamplerAddressMode.repeat` (`VK_SAMPLER_ADDRESS_MODE_REPEAT`) which means that the texture is repeated endlessly over all the axis
@@ -2126,7 +2126,7 @@ pub const RenderScn = struct {
     textSampler: vk.text.VkTextSampler,
     vkPipeline: vk.pipe.VkPipeline,
     ...
-    pub fn create(allocator: std.mem.Allocator, io: std.Io, vkCtx: *const vk.ctx.VkCtx) !RenderScn {
+    pub fn create(allocator: std.mem.Allocator, io: std.Io, vkCtx: *vk.ctx.VkCtx) !RenderScn {
         ...
         // Textures
         const samplerInfo = vk.text.VkTextSamplerInfo{
@@ -2505,12 +2505,22 @@ pub const Render = struct {
             @as(f32, @floatFromInt(extent.height)),
         );
         const allocator = engCtx.allocator;
-        try self.materialsCache.init(allocator, &self.vkCtx,  engCtx.io, &self.textureCache, &self.cmdPools[0], self.queueGraphics, initData);
+        try self.materialsCache.init(
+            allocator,
+            engCtx.io,
+            &self.vkCtx,
+            &self.textureCache,
+            &self.cmdPools[0],
+            self.queueGraphics,
+            initData,
+        );
+
         const numTextures = self.textureCache.textureMap.count();
         if (numTextures < eng.tcach.MAX_TEXTURES) {
             const numPadding = eng.tcach.MAX_TEXTURES - numTextures;
             for (0..numPadding) |_| {
-                const id = try com.utils.generateUuid(allocator, engCtx.io);                defer allocator.free(id);
+                const id = try com.utils.generateUuid(allocator, engCtx.io);
+                defer allocator.free(id);
                 const textureInfo = eng.tcach.TextureInfo{
                     .data = eng.tcach.EMPTY_PIXELS[0..],
                     .width = 1,

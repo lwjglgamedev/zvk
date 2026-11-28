@@ -266,6 +266,7 @@ pub fn main(init: std.process.Init) !void {
             allocator,
             mesh,
             materialList,
+            i,
         );
         defer meshIntData.cleanup(allocator);
 
@@ -286,8 +287,7 @@ pub fn main(init: std.process.Init) !void {
         }
 
         const numIndices = meshIntData.indices.items.len;
-        const numFloats = meshIntData.positions.items.len * 3 +
-            meshIntData.texcoords.items.len * 2 +
+        const numFloats = meshIntData.positions.items.len * 5 +
             meshIntData.normals.items.len * 3 +
             meshIntData.tangents.items.len * 3 +
             meshIntData.bitangents.items.len * 3;
@@ -591,8 +591,9 @@ fn processMesh(
     allocator: std.mem.Allocator,
     mesh: *const zassimp.aiMesh,
     materialList: std.ArrayListUnmanaged(eng.mdata.MaterialData),
+    meshIdx: usize,
 ) !MeshIntData {
-    const id = try std.fmt.allocPrint(allocator, "mesh-{}", .{@intFromPtr(mesh)});
+    const id = try std.fmt.allocPrint(allocator, "mesh-{}", .{meshIdx});
     const numVertices = mesh.mNumVertices;
 
     var indices: std.ArrayListUnmanaged(u32) = .empty;
