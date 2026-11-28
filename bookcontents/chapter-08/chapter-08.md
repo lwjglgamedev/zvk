@@ -498,7 +498,7 @@ fn embeddedTextureIndex(path: []const u8) ?usize {
 
 It basically checks if the path starts with `*` (and embedded texture) and if so, it returns the associated index to that texture.
 
-The next function is the `processMesh` one, which processes GLTF primitives and converts them to `MeshIntData` instances:
+The next function is the `processMesh` one, which processes model meshes and converts them to `MeshIntData` instances:
 
 **File: src/eng/modelGen.zig**
 ```zig
@@ -1246,14 +1246,14 @@ pub const MaterialsCache = struct {
             vkCtx,
             buffSize,
             vulkan.BufferUsageFlags{ .transfer_src = true },
-            vulkan.MemoryPropertyFlags{ .host_visible = true },
+            vulkan.MemoryPropertyFlags{ .host_visible = true, .host_coherent = true },
         );
         defer srcBuffer.cleanup(vkCtx);
         const dstBuffer = try vk.buf.VkBuffer.create(
             vkCtx,
             buffSize,
             vulkan.BufferUsageFlags{ .storage_buffer = true, .transfer_dst = true },
-            vulkan.MemoryPropertyFlags{},
+            vulkan.MemoryPropertyFlags{ .device_local = true },
         );
         const data = try srcBuffer.map(vkCtx);
         defer srcBuffer.unMap(vkCtx);
@@ -1546,7 +1546,7 @@ lie out of the texture size. The `U`, `V` and `W` refer to the `x`, `y` and `z` 
 or `vulkan.SamplerAddressMode.mirrored_repeat` (`VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT`) which repeats in a mirrored way or
 `vulkan.SamplerAddressMode.clamp_to_edge` (`VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE`) which just uses the latest edge value.
 - `border_color`: This sets the color for the border that will be used for texture lookups beyond bounds when
-`vulkan.SamplerAddressMode.clamp_to_edge` (`VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE`) is used in the `address_mode_X` attributes.
+`vulkan.SamplerAddressMode.clamp_to_border` (`VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER`) is used in the `address_mode_X` attributes.
 - `mipmap_mode`: This is used to specify the mipmap filter to apply in lookups. We will address this in later chapters.
 - `min_lod`, `max_lod` and `mip_lod_bias`: These parameters are used for mip mapping, so we will review them in later chapters.
 - `compare_enable`: It enables a comparison when performing texture lookups.
@@ -1638,7 +1638,7 @@ them in a different binding point.
 - `p_image_info`: A pointer to the images to be associated to this descriptor set. We will not use this feature
 in this function so we just pass an empty array.
 - `p_texel_buffer_view`: Same as above.
-- `dst_array_element`: We will not use this (used for inline uniform blocks).
+- `dst_array_element`: The first element of the descriptor array to update. We will not use this by now, so we set it to `0`.
 
 After that, we update the descriptor set by calling the `updateDescriptorSets` function. Let's add now a new function
 to associate a descriptor set with an image view:
@@ -1758,8 +1758,8 @@ pub const VkDescAllocator = struct {
 ```
 
 The `poolInfoList` will store the list of  descriptor pools. Remember that we will create new pools as long as we exhaust existing ones.
-The `descSetMap` will just contain the references to the descriptor sets to the pool used to create it (using the pool position). We
-initialize the `poolInfoList` with one entry. Let's review how the `PoolInfo` struct looks like:
+The `descSetMap` will contain the descriptor sets created so far, indexed by their identifier. We initialize the `poolInfoList` with one
+entry. Let's review how the `PoolInfo` struct looks like:
 
 **File: src/eng/vk/vkDescs.zig**
 ```zig
@@ -1827,93 +1827,93 @@ pub const VkDescAllocator = struct {
         id: []const u8,
         vkDescSetLayout: VkDescSetLayout,
     ) !VkDescSet {
-        const count = 1;
-        var vkDescPoolOpt: ?VkDescPool = null;
-        var poolInfoOpt: ?*PoolInfo = null;
         if (self.descSetMap.contains(id)) {
             log.err("Duplicate key for descriptor set [{s}]", .{id});
             return error.DuplicateDescKey;
         }
+        try validateLimits(vkPhysDevice, vkDescSetLayout);
+
+        var selected: ?*PoolInfo = null;
         for (self.poolInfoList.items) |poolInfo| {
-            for (vkDescSetLayout.layoutInfos) |layoutInfo| {
-                const available = poolInfo.descCount.get(layoutInfo.descType) orelse return error.KeyNotFound;
-                const limit = try PoolInfo.getLimits(vkPhysDevice, layoutInfo.descType);
-                if (count > limit) {
-                    log.err("Cannot create more than [{d}] for descriptor type [{any}]", .{
-                        limit, layoutInfo.descType,
-                    });
-                    return error.DescLimitExceeded;
-                }
-                if (available >= count) {
-                    vkDescPoolOpt = poolInfo.vkDescPool;
-                    poolInfoOpt = poolInfo;
-                } else {
-                    vkDescPoolOpt = null;
-                    poolInfoOpt = null;
-                }
-            }
-            if (poolInfoOpt != null) {
+            if (try fitsInPool(poolInfo, vkDescSetLayout)) {
+                selected = poolInfo;
                 break;
             }
         }
 
-        if (poolInfoOpt == null) {
-            const poolInfo = try allocator.create(PoolInfo);
-            errdefer allocator.destroy(poolInfo);
-            poolInfo.* = try PoolInfo.create(allocator, vkPhysDevice, vkDevice);
-            errdefer poolInfo.cleanup(allocator, vkDevice);
-            try self.poolInfoList.append(allocator, poolInfo);
-
-            vkDescPoolOpt = poolInfo.vkDescPool;
-            poolInfoOpt = poolInfo;
+        if (selected == null) {
+            const newPool = try allocator.create(PoolInfo);
+            errdefer allocator.destroy(newPool);
+            newPool.* = try PoolInfo.create(allocator, vkPhysDevice, vkDevice);
+            errdefer newPool.cleanup(allocator, vkDevice);
+            try self.poolInfoList.append(allocator, newPool);
+            selected = newPool;
         }
+        const poolInfo = selected.?;
 
-        if (vkDescPoolOpt) |vkDescPool| {
-            const vkDescSet = try VkDescSet.create(vkDevice, vkDescPool, vkDescSetLayout);
-            const poolInfo = poolInfoOpt.?;
+        const ownedId = try allocator.dupe(u8, id);
+        errdefer allocator.free(ownedId);
+        try self.descSetMap.ensureUnusedCapacity(1);
 
-            for (vkDescSetLayout.layoutInfos) |layoutInfo| {
-                const available = poolInfo.descCount.get(layoutInfo.descType) orelse return error.KeyNotFound;
+        const vkDescSet = try VkDescSet.create(vkDevice, poolInfo.vkDescPool, vkDescSetLayout);
 
-                try poolInfo.descCount.put(
-                    allocator,
-                    layoutInfo.descType,
-                    available - count,
-                );
-            }
-
-            const ownedId = try allocator.dupe(u8, id);
-            errdefer allocator.free(ownedId);
-            try self.descSetMap.put(ownedId, vkDescSet);
-            return vkDescSet;
-        } else {
-            return error.NotAvailable;
+        for (vkDescSetLayout.layoutInfos) |li| {
+            const available = poolInfo.descCount.getPtr(li.descType) orelse unreachable; // checked in fitsInPool
+            available.* -= li.descCount;
         }
+        self.descSetMap.putAssumeCapacity(ownedId, vkDescSet);
+        return vkDescSet;
+    }
+
+    fn fitsInPool(poolInfo: *const PoolInfo, layout: VkDescSetLayout) !bool {
+        for (layout.layoutInfos) |li| {
+            const available = poolInfo.descCount.get(li.descType) orelse return error.KeyNotFound;
+            if (available < required(layout, li.descType)) return false;
+        }
+        return true;
     }
     ...
+    fn required(layout: VkDescSetLayout, descType: vulkan.DescriptorType) u32 {
+        var total: u32 = 0;
+        for (layout.layoutInfos) |li| {
+            if (li.descType == descType) total += li.descCount;
+        }
+        return total;
+    }
+
+    fn validateLimits(vkPhysDevice: vk.phys.VkPhysDevice, layout: VkDescSetLayout) !void {
+        for (layout.layoutInfos) |li| {
+            const limit = try PoolInfo.getLimits(vkPhysDevice, li.descType);
+            const needed = required(layout, li.descType);
+            if (needed > limit) {
+                log.err("Layout needs [{d}] descriptors of type [{any}], device limit is [{d}]", .{
+                    needed, li.descType, limit,
+                });
+                return error.DescLimitExceeded;
+            }
+        }
+    }
 };
 ```
 
 The process is as follows:
-- We iterate over all the created descriptor pools.
-- After that, we iterate over the descriptor set layout descriptor types. Remember that a descriptor set layout can reference several
-descriptor types.
-- For each of the types we get the available descriptors in the current pool.
-- If we do not recognize the descriptor type or we are requesting more descriptors than a single pool can handle (exceeding the physical
-device limits), we just abort.
-- If we find no pool with available space we will create a new one.
-- If we have finished iterating over the available descriptor pools and we have not found one with available space, this means
-that we need to create another pool.
-- Once we have a pool, either because one of the existing ones has enough spare space or because we have created a new one, we create
-the descriptor set, and update the available space in the associated pool.
+- We first check that the layout does not request more descriptors of a given type than the device supports in a single set. Bindings of
+the same type are added together, so two uniform buffers in one layout count as two.
+- We iterate over the existing descriptor pools and pick the first one where every descriptor type in the layout has enough room, using
+each binding's `descCount`.
+- If no pool qualifies, we create a new one. Pools are sized to the device limits, so, after the previous check, the new pool is guaranteed
+to fit the layout.
+- We reserve the memory that can fail (the copy of the id and the map entry) before touching Vulkan, so an error never leaves an untracked
+descriptor set.
+- We create the descriptor set and subtract the descriptors it consumes from the pool's counters.
 
 The process can still be improved to reduce fragmentation, but I did not want to complicate the code even more. In any case, you get the
 idea and can modify it to be more efficient easily.
 
-One important aspect to highlight is that, if you recall the example sets defined above, we said that the first two uniforms shared
-the same set. If you look at the code, we see that we iterate over all the `LayoutInfo` instances, so we are checking that we have
-room for `2` uniform descriptor sets. Although, they share the same descriptor set, we need to reserve space for all the underlying
-structures.
+One important aspect to highlight is that, if you recall the example sets defined above, the first two uniforms share the same set. The
+helper that computes the requirements adds up the `descCount` of every `LayoutInfo` of the same type, so we check, and later reserve,
+room for `2` uniform buffer descriptors. Although they share the same descriptor set, the pool needs to account for all the underlying
+descriptors.
 
 The rest of the functions of the struct are as follows:
 
@@ -1935,8 +1935,37 @@ pub const VkDescAllocator = struct {
         self.descSetMap.deinit();
     }
     ...
+    fn fitsInPool(poolInfo: *const PoolInfo, layout: VkDescSetLayout) !bool {
+        for (layout.layoutInfos) |li| {
+            const available = poolInfo.descCount.get(li.descType) orelse return error.KeyNotFound;
+            if (available < required(layout, li.descType)) return false;
+        }
+        return true;
+    }
+
     pub fn getDescSet(self: *const VkDescAllocator, id: []const u8) ?VkDescSet {
         return self.descSetMap.get(id);
+    }
+
+    fn required(layout: VkDescSetLayout, descType: vulkan.DescriptorType) u32 {
+        var total: u32 = 0;
+        for (layout.layoutInfos) |li| {
+            if (li.descType == descType) total += li.descCount;
+        }
+        return total;
+    }
+
+    fn validateLimits(vkPhysDevice: vk.phys.VkPhysDevice, layout: VkDescSetLayout) !void {
+        for (layout.layoutInfos) |li| {
+            const limit = try PoolInfo.getLimits(vkPhysDevice, li.descType);
+            const needed = required(layout, li.descType);
+            if (needed > limit) {
+                log.err("Layout needs [{d}] descriptors of type [{any}], device limit is [{d}]", .{
+                    needed, li.descType, limit,
+                });
+                return error.DescLimitExceeded;
+            }
+        }
     }
 };
 ```
@@ -1952,10 +1981,8 @@ pub const VkCtx = struct {
     ...
     pub fn create(allocator: std.mem.Allocator, constants: com.common.Constants, window: sdl3.video.Window) !VkCtx {
         ...
-                var vkDescAllocator = try vk.desc.VkDescAllocator.create(allocator, vkPhysDevice, vkDevice);
+        var vkDescAllocator = try vk.desc.VkDescAllocator.create(allocator, vkPhysDevice, vkDevice);
         errdefer vkDescAllocator.cleanup(allocator, vkDevice);
-
-
 
         return .{
             .constants = constants,
@@ -2093,8 +2120,12 @@ constant in `GLSL` code and the one in Zig side. In next chapters we will see ho
 constants when loading shader modules, but this should not be used in these array of uniforms.
 
 Then we define a read only buffer which holds an array of materials, which is a struct that maps material information (diffuse color, if it
-has texture and the associated index). Remember, that due to `std140` layout constraints (the default), we need to take into consideration
-extra padding. This will be a storage buffer, and does not need to be sized.
+has texture and the associated index). Remember that we need to take the layout rules into consideration, so the struct padding matches the
+one used in the CPU side. We will keep the padding explicit in the Zig struct.
+
+If you want the layout to be explicit rather than relying on defaults, declare the block as
+`layout(std430, set = 1, binding = 0) readonly buffer MaterialUniform { ... }`. With `std430`, the `uint padding[2]` array keeps a
+4-byte stride, which matches the `[2]u32` in the Zig struct.
 
 We will receive the position of the associated material in the buffer through a push constant. With all that information we can get the
 output color either from the associated texture or the material diffuse color.
@@ -2569,7 +2600,7 @@ pub fn Engine(comptime GameLogic: type) type {
     ...
         pub fn create(allocator: std.mem.Allocator, io: std.Io, gameLogic: *GameLogic, wndTitle: [:0]const u8) !Engine(GameLogic) {
             ...
-                  try zstbi.init(allocator);
+            try zstbi.init(allocator);
             errdefer zstbi.deinit();
             ...
         }
@@ -2627,18 +2658,39 @@ pub fn loadModel(allocator: std.mem.Allocator, io: std.Io, path: []const u8) !Mo
 
     const parsed = try std.json.parseFromSlice(ModelData, allocator, bytes, .{});
     defer parsed.deinit();
+    const src = parsed.value;
 
-    var modelData = parsed.value;
-    modelData.id = try allocator.dupe(u8, modelData.id);
-    modelData.idxFilename = try allocator.dupe(u8, modelData.idxFilename);
-    modelData.vtxFilename = try allocator.dupe(u8, modelData.vtxFilename);
+    const id = try allocator.dupe(u8, src.id);
+    errdefer allocator.free(id);
+    const idxFilename = try allocator.dupe(u8, src.idxFilename);
+    errdefer allocator.free(idxFilename);
+    const vtxFilename = try allocator.dupe(u8, src.vtxFilename);
+    errdefer allocator.free(vtxFilename);
 
-    for (modelData.meshes.items) |*meshData| {
-        meshData.id = try allocator.dupe(u8, meshData.id);
-        meshData.materialId = try allocator.dupe(u8, meshData.materialId);
+    const meshes = try allocator.alloc(MeshData, src.meshes.items.len);
+    errdefer allocator.free(meshes);
+
+    var numCopied: usize = 0;
+    errdefer for (meshes[0..numCopied]) |m| {
+        allocator.free(m.id);
+        allocator.free(m.materialId);
+    };
+    for (src.meshes.items, 0..) |srcMesh, i| {
+        const meshId = try allocator.dupe(u8, srcMesh.id);
+        errdefer allocator.free(meshId);
+        const materialId = try allocator.dupe(u8, srcMesh.materialId);
+        meshes[i] = srcMesh; // copies the numeric fields (offsets and sizes)
+        meshes[i].id = meshId;
+        meshes[i].materialId = materialId;
+        numCopied += 1;
     }
 
-    return modelData;
+    return .{
+        .id = id,
+        .meshes = .{ .items = meshes, .capacity = meshes.len },
+        .idxFilename = idxFilename,
+        .vtxFilename = vtxFilename,
+    };
 }
 ```
 

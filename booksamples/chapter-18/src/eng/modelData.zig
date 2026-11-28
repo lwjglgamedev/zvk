@@ -104,6 +104,35 @@ pub fn loadMaterials(allocator: std.mem.Allocator, io: std.Io, path: []const u8)
     return materials;
 }
 
+fn dupeAnimation(allocator: std.mem.Allocator, src: AnimationData) !AnimationData {
+    const name = try allocator.dupe(u8, src.name);
+    errdefer allocator.free(name);
+
+    const frames = try allocator.alloc(AnimatedFrame, src.frames.len);
+    errdefer allocator.free(frames);
+    var numFrames: usize = 0;
+    errdefer for (frames[0..numFrames]) |f| allocator.free(f.jointMatrices);
+    for (src.frames, 0..) |srcFrame, i| {
+        frames[i] = .{ .jointMatrices = try allocator.dupe(?[16]f32, srcFrame.jointMatrices) };
+        numFrames += 1;
+    }
+
+    return .{ .name = name, .frameMillis = src.frameMillis, .frames = frames };
+}
+
+fn freeAnimation(allocator: std.mem.Allocator, anim: AnimationData) void {
+    allocator.free(anim.name);
+    for (anim.frames) |f| allocator.free(f.jointMatrices);
+    allocator.free(anim.frames);
+}
+
+fn dupeAnimMesh(allocator: std.mem.Allocator, src: AnimMeshData) !AnimMeshData {
+    const weights = try allocator.dupe(f32, src.weights);
+    errdefer allocator.free(weights);
+    const boneIds = try allocator.dupe(i32, src.boneIds);
+    return .{ .weights = weights, .boneIds = boneIds };
+}
+
 pub fn loadModel(allocator: std.mem.Allocator, io: std.Io, path: []const u8) !ModelData {
     log.debug("Loading model from [{s}]", .{path});
 
@@ -120,20 +149,62 @@ pub fn loadModel(allocator: std.mem.Allocator, io: std.Io, path: []const u8) !Mo
 
     const parsed = try std.json.parseFromSlice(ModelData, allocator, bytes, .{});
     defer parsed.deinit();
+    const src = parsed.value;
 
-    var modelData = parsed.value;
-    modelData.id = try allocator.dupe(u8, modelData.id);
-    modelData.idxFilename = try allocator.dupe(u8, modelData.idxFilename);
-    modelData.vtxFilename = try allocator.dupe(u8, modelData.vtxFilename);
+    const id = try allocator.dupe(u8, src.id);
+    errdefer allocator.free(id);
+    const idxFilename = try allocator.dupe(u8, src.idxFilename);
+    errdefer allocator.free(idxFilename);
+    const vtxFilename = try allocator.dupe(u8, src.vtxFilename);
+    errdefer allocator.free(vtxFilename);
 
-    for (modelData.animations.items) |*animData| {
-        animData.name = try allocator.dupe(u8, animData.name);
+    // Meshes
+    const meshes = try allocator.alloc(MeshData, src.meshes.items.len);
+    errdefer allocator.free(meshes);
+    var numMeshes: usize = 0;
+    errdefer for (meshes[0..numMeshes]) |m| {
+        allocator.free(m.id);
+        allocator.free(m.materialId);
+    };
+    for (src.meshes.items, 0..) |srcMesh, i| {
+        const meshId = try allocator.dupe(u8, srcMesh.id);
+        errdefer allocator.free(meshId);
+        const materialId = try allocator.dupe(u8, srcMesh.materialId);
+        meshes[i] = srcMesh;
+        meshes[i].id = meshId;
+        meshes[i].materialId = materialId;
+        numMeshes += 1;
     }
 
-    for (modelData.meshes.items) |*meshData| {
-        meshData.id = try allocator.dupe(u8, meshData.id);
-        meshData.materialId = try allocator.dupe(u8, meshData.materialId);
+    // Animations
+    const animations = try allocator.alloc(AnimationData, src.animations.items.len);
+    errdefer allocator.free(animations);
+    var numAnims: usize = 0;
+    errdefer for (animations[0..numAnims]) |a| freeAnimation(allocator, a);
+    for (src.animations.items, 0..) |srcAnim, i| {
+        animations[i] = try dupeAnimation(allocator, srcAnim);
+        numAnims += 1;
     }
 
-    return modelData;
+    // Animated meshes
+    const animMeshes = try allocator.alloc(AnimMeshData, src.animMeshes.items.len);
+    errdefer allocator.free(animMeshes);
+    var numAnimMeshes: usize = 0;
+    errdefer for (animMeshes[0..numAnimMeshes]) |a| {
+        allocator.free(a.weights);
+        allocator.free(a.boneIds);
+    };
+    for (src.animMeshes.items, 0..) |srcAnimMesh, i| {
+        animMeshes[i] = try dupeAnimMesh(allocator, srcAnimMesh);
+        numAnimMeshes += 1;
+    }
+
+    return .{
+        .id = id,
+        .meshes = .{ .items = meshes, .capacity = meshes.len },
+        .idxFilename = idxFilename,
+        .vtxFilename = vtxFilename,
+        .animations = .{ .items = animations, .capacity = animations.len },
+        .animMeshes = .{ .items = animMeshes, .capacity = animMeshes.len },
+    };
 }

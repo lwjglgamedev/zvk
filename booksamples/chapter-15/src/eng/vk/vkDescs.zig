@@ -60,70 +60,42 @@ pub const VkDescAllocator = struct {
         id: []const u8,
         vkDescSetLayout: VkDescSetLayout,
     ) !VkDescSet {
-        const count = 1;
-        var vkDescPoolOpt: ?VkDescPool = null;
-        var poolInfoOpt: ?*PoolInfo = null;
         if (self.descSetMap.contains(id)) {
             log.err("Duplicate key for descriptor set [{s}]", .{id});
             return error.DuplicateDescKey;
         }
+        try validateLimits(vkPhysDevice, vkDescSetLayout);
+
+        var selected: ?*PoolInfo = null;
         for (self.poolInfoList.items) |poolInfo| {
-            for (vkDescSetLayout.layoutInfos) |layoutInfo| {
-                const available = poolInfo.descCount.get(layoutInfo.descType) orelse return error.KeyNotFound;
-                const limit = try PoolInfo.getLimits(vkPhysDevice, layoutInfo.descType);
-                if (count > limit) {
-                    log.err("Cannot create more than [{d}] for descriptor type [{any}]", .{
-                        limit, layoutInfo.descType,
-                    });
-                    return error.DescLimitExceeded;
-                }
-                if (available >= count) {
-                    vkDescPoolOpt = poolInfo.vkDescPool;
-                    poolInfoOpt = poolInfo;
-                } else {
-                    vkDescPoolOpt = null;
-                    poolInfoOpt = null;
-                }
-            }
-            if (poolInfoOpt != null) {
+            if (try fitsInPool(poolInfo, vkDescSetLayout)) {
+                selected = poolInfo;
                 break;
             }
         }
 
-        if (poolInfoOpt == null) {
-            const poolInfo = try allocator.create(PoolInfo);
-            errdefer allocator.destroy(poolInfo);
-            errdefer allocator.destroy(poolInfo);
-            poolInfo.* = try PoolInfo.create(allocator, vkPhysDevice, vkDevice);
-            errdefer poolInfo.cleanup(allocator, vkDevice);
-            errdefer poolInfo.cleanup(allocator, vkDevice);
-            try self.poolInfoList.append(allocator, poolInfo);
-
-            vkDescPoolOpt = poolInfo.vkDescPool;
-            poolInfoOpt = poolInfo;
+        if (selected == null) {
+            const newPool = try allocator.create(PoolInfo);
+            errdefer allocator.destroy(newPool);
+            newPool.* = try PoolInfo.create(allocator, vkPhysDevice, vkDevice);
+            errdefer newPool.cleanup(allocator, vkDevice);
+            try self.poolInfoList.append(allocator, newPool);
+            selected = newPool;
         }
+        const poolInfo = selected.?;
 
-        if (vkDescPoolOpt) |vkDescPool| {
-            const vkDescSet = try VkDescSet.create(vkDevice, vkDescPool, vkDescSetLayout);
-            const poolInfo = poolInfoOpt.?;
+        const ownedId = try allocator.dupe(u8, id);
+        errdefer allocator.free(ownedId);
+        try self.descSetMap.ensureUnusedCapacity(1);
 
-            for (vkDescSetLayout.layoutInfos) |layoutInfo| {
-                const available = poolInfo.descCount.get(layoutInfo.descType) orelse return error.KeyNotFound;
+        const vkDescSet = try VkDescSet.create(vkDevice, poolInfo.vkDescPool, vkDescSetLayout);
 
-                try poolInfo.descCount.put(
-                    allocator,
-                    layoutInfo.descType,
-                    available - count,
-                );
-            }
-
-            const ownedId = try allocator.dupe(u8, id);
-            errdefer allocator.free(ownedId);
-            try self.descSetMap.put(ownedId, vkDescSet);
-            return vkDescSet;
-        } else {
-            return error.NotAvailable;
+        for (vkDescSetLayout.layoutInfos) |li| {
+            const available = poolInfo.descCount.getPtr(li.descType) orelse unreachable; // checked in fitsInPool
+            available.* -= li.descCount;
         }
+        self.descSetMap.putAssumeCapacity(ownedId, vkDescSet);
+        return vkDescSet;
     }
 
     pub fn cleanup(self: *VkDescAllocator, allocator: std.mem.Allocator, vkDevice: vk.dev.VkDevice) void {
@@ -160,8 +132,37 @@ pub const VkDescAllocator = struct {
         };
     }
 
+    fn fitsInPool(poolInfo: *const PoolInfo, layout: VkDescSetLayout) !bool {
+        for (layout.layoutInfos) |li| {
+            const available = poolInfo.descCount.get(li.descType) orelse return error.KeyNotFound;
+            if (available < required(layout, li.descType)) return false;
+        }
+        return true;
+    }
+
     pub fn getDescSet(self: *const VkDescAllocator, id: []const u8) ?VkDescSet {
         return self.descSetMap.get(id);
+    }
+
+    fn required(layout: VkDescSetLayout, descType: vulkan.DescriptorType) u32 {
+        var total: u32 = 0;
+        for (layout.layoutInfos) |li| {
+            if (li.descType == descType) total += li.descCount;
+        }
+        return total;
+    }
+
+    fn validateLimits(vkPhysDevice: vk.phys.VkPhysDevice, layout: VkDescSetLayout) !void {
+        for (layout.layoutInfos) |li| {
+            const limit = try PoolInfo.getLimits(vkPhysDevice, li.descType);
+            const needed = required(layout, li.descType);
+            if (needed > limit) {
+                log.err("Layout needs [{d}] descriptors of type [{any}], device limit is [{d}]", .{
+                    needed, li.descType, limit,
+                });
+                return error.DescLimitExceeded;
+            }
+        }
     }
 };
 

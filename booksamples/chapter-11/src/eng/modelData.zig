@@ -92,16 +92,37 @@ pub fn loadModel(allocator: std.mem.Allocator, io: std.Io, path: []const u8) !Mo
 
     const parsed = try std.json.parseFromSlice(ModelData, allocator, bytes, .{});
     defer parsed.deinit();
+    const src = parsed.value;
 
-    var modelData = parsed.value;
-    modelData.id = try allocator.dupe(u8, modelData.id);
-    modelData.idxFilename = try allocator.dupe(u8, modelData.idxFilename);
-    modelData.vtxFilename = try allocator.dupe(u8, modelData.vtxFilename);
+    const id = try allocator.dupe(u8, src.id);
+    errdefer allocator.free(id);
+    const idxFilename = try allocator.dupe(u8, src.idxFilename);
+    errdefer allocator.free(idxFilename);
+    const vtxFilename = try allocator.dupe(u8, src.vtxFilename);
+    errdefer allocator.free(vtxFilename);
 
-    for (modelData.meshes.items) |*meshData| {
-        meshData.id = try allocator.dupe(u8, meshData.id);
-        meshData.materialId = try allocator.dupe(u8, meshData.materialId);
+    const meshes = try allocator.alloc(MeshData, src.meshes.items.len);
+    errdefer allocator.free(meshes);
+
+    var numCopied: usize = 0;
+    errdefer for (meshes[0..numCopied]) |m| {
+        allocator.free(m.id);
+        allocator.free(m.materialId);
+    };
+    for (src.meshes.items, 0..) |srcMesh, i| {
+        const meshId = try allocator.dupe(u8, srcMesh.id);
+        errdefer allocator.free(meshId);
+        const materialId = try allocator.dupe(u8, srcMesh.materialId);
+        meshes[i] = srcMesh; // copies the numeric fields (offsets and sizes)
+        meshes[i].id = meshId;
+        meshes[i].materialId = materialId;
+        numCopied += 1;
     }
 
-    return modelData;
+    return .{
+        .id = id,
+        .meshes = .{ .items = meshes, .capacity = meshes.len },
+        .idxFilename = idxFilename,
+        .vtxFilename = vtxFilename,
+    };
 }

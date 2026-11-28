@@ -108,14 +108,14 @@ pub const MaterialsCache = struct {
             vkCtx,
             buffSize,
             vulkan.BufferUsageFlags{ .transfer_src = true },
-            vulkan.MemoryPropertyFlags{ .host_visible = true },
+            vulkan.MemoryPropertyFlags{ .host_visible = true, .host_coherent = true },
         );
         defer srcBuffer.cleanup(vkCtx);
         const dstBuffer = try vk.buf.VkBuffer.create(
             vkCtx,
             buffSize,
             vulkan.BufferUsageFlags{ .storage_buffer = true, .transfer_dst = true },
-            vulkan.MemoryPropertyFlags{},
+            vulkan.MemoryPropertyFlags{ .device_local = true },
         );
         const data = try srcBuffer.map(vkCtx);
         defer srcBuffer.unMap(vkCtx);
