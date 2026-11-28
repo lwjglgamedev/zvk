@@ -261,7 +261,7 @@ pub const RenderScn = struct {
         };
         const depthAttInfo = vulkan.RenderingAttachmentInfo{
             .image_view = self.depthAttachments[imageIndex].vkImageView.view,
-            .image_layout = vulkan.ImageLayout.depth_stencil_attachment_optimal,
+            .image_layout = vulkan.ImageLayout.depth_attachment_optimal,
             .load_op = vulkan.AttachmentLoadOp.clear,
             .store_op = vulkan.AttachmentStoreOp.dont_care,
             .clear_value = vulkan.ClearValue{ .depth_stencil = .{ .depth = 1.0, .stencil = 0.0 } },

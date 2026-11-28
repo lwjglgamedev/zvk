@@ -1991,7 +1991,7 @@ We are almost finishing, we just need to put all the pieces together. First, we 
 set layouts into consideration. We will first update the `VkPipelineCreateInfo` struct to be able to store an array of descriptor set
 layouts:
 
-**File: src/eng/vk/VkPipeline.zig**
+**File: src/eng/vk/vkPipeline.zig**
 ```zig
 pub const VkPipelineCreateInfo = struct {
     ...
@@ -2002,7 +2002,7 @@ pub const VkPipelineCreateInfo = struct {
 
 With that information, we can update the `VkPipeline` struct:
 
-**File: src/eng/vk/VkPipeline.zig**
+**File: src/eng/vk/vkPipeline.zig**
 ```zig
 pub const VkPipeline = struct {
     ...
